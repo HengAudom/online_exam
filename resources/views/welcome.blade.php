@@ -6,14 +6,11 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ \App\Http\Controllers\AdminController::getSystemSettings()['institutionName'] ?? 'Online Exam System' }}</title>
 
-    <!-- Preload Local Material Symbols WOFF2 font for 0ms icon render -->
-    <link rel="preload" href="{{ asset('fonts/material-symbols-outlined.woff2') }}" as="font" type="font/woff2" crossorigin>
-
-    <!-- Google Fonts: Manrope + Inter -->
+    <!-- Google Fonts: Manrope + Inter + Material Symbols -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
 
     <!-- PWA Manifest & App Icons -->
     <link rel="icon" href="{{ asset('ico.svg') }}">
