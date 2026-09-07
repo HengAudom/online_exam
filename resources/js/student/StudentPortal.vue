@@ -159,6 +159,41 @@
               </div>
             </div>
 
+            <!-- Telegram Connection Status in Edit Form -->
+            <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between flex-wrap gap-2">
+              <div class="flex items-center gap-2.5">
+                <div
+                  class="h-8 w-8 rounded-xl flex items-center justify-center shrink-0"
+                  :class="student.telegramConnected ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'"
+                >
+                  <span class="material-symbols-outlined text-base">
+                    {{ student.telegramConnected ? 'verified' : 'notifications_active' }}
+                  </span>
+                </div>
+                <div>
+                  <div class="text-[11px] font-bold text-slate-500">
+                    {{ lang === 'kh' ? 'ស្ថានភាពភ្ជាប់ Telegram ទទួលពិន្ទុ' : 'Telegram Score Alerts' }}
+                  </div>
+                  <div class="text-xs font-extrabold" :class="student.telegramConnected ? 'text-emerald-700' : 'text-amber-700'">
+                    {{ student.telegramConnected
+                      ? (student.telegramUsername ? `${student.telegramUsername} (${lang === 'kh' ? 'បានភ្ជាប់' : 'Connected'})` : (lang === 'kh' ? 'បានភ្ជាប់រួចរាល់' : 'Connected'))
+                      : (lang === 'kh' ? 'មិនទាន់ភ្ជាប់ (Not Connected)' : 'Not Connected')
+                    }}
+                  </div>
+                </div>
+              </div>
+              <a
+                v-if="!student.telegramConnected"
+                :href="student.telegramConnectUrl || 'https://t.me/onlinexam_bot'"
+                target="_blank"
+                class="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                @click="onConnectTelegramClick"
+              >
+                <span class="material-symbols-outlined text-xs">send</span>
+                <span>{{ lang === 'kh' ? 'ភ្ជាប់ឥឡូវនេះ' : 'Connect' }}</span>
+              </a>
+            </div>
+
             <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
               <Button
                 variant="outline"
@@ -771,29 +806,36 @@ const loadStudentData = async (forcePollTelegram = false) => {
   }
 }
 
-const onConnectTelegramClick = () => {
-  let attempts = 0
-  const timer = setInterval(async () => {
-    attempts++
-    if (student.telegramConnected || attempts > 8) {
-      clearInterval(timer)
+let telegramAutoPollTimer = null
+
+const startTelegramPollIfNeeded = () => {
+  if (telegramAutoPollTimer) clearInterval(telegramAutoPollTimer)
+  // Poll every 5 seconds if not connected so Telegram linking reflects in real-time
+  telegramAutoPollTimer = setInterval(async () => {
+    if (student.telegramConnected) {
+      clearInterval(telegramAutoPollTimer)
+      telegramAutoPollTimer = null
       return
     }
-    await loadStudentData(true)
+    if (document.visibilityState === 'visible') {
+      await loadStudentData(true)
+    }
   }, 5000)
 }
 
-let lastFocusCheck = Date.now()
+const onConnectTelegramClick = () => {
+  startTelegramPollIfNeeded()
+}
+
 const onFocusCheck = () => {
-  if (!student.telegramConnected && Date.now() - lastFocusCheck > 25000) {
-    lastFocusCheck = Date.now()
+  if (!student.telegramConnected) {
     loadStudentData(true)
   }
 }
 
 import { useRealtimeSync } from '../composables/useRealtimeSync'
 
-// Poll conservatively (60s) to strictly protect free hosting resources
+// Background sync (60s)
 useRealtimeSync(() => {
   if (document.visibilityState === 'visible') {
     loadStudentData()
@@ -802,11 +844,18 @@ useRealtimeSync(() => {
 
 onMounted(() => {
   fetchSettings()
-  loadStudentData(true)
+  loadStudentData(true).then(() => {
+    if (!student.telegramConnected) {
+      startTelegramPollIfNeeded()
+    }
+  })
   window.addEventListener('focus', onFocusCheck)
+  document.addEventListener('visibilitychange', onFocusCheck)
 })
 
 onUnmounted(() => {
+  if (telegramAutoPollTimer) clearInterval(telegramAutoPollTimer)
   window.removeEventListener('focus', onFocusCheck)
+  document.removeEventListener('visibilitychange', onFocusCheck)
 })
 </script>

@@ -582,9 +582,9 @@ class TelegramBotController extends Controller
      */
     public function syncLinkDirect(Request $request)
     {
-        $code = trim($request->input('studentCode', ''));
-        $chatId = trim($request->input('chatId', ''));
-        $username = trim($request->input('username', ''));
+        $code = trim($request->get('studentCode', $request->input('studentCode', $request->input('student_code', ''))));
+        $chatId = trim($request->get('chatId', $request->input('chatId', $request->input('chat_id', ''))));
+        $username = trim($request->get('username', $request->input('username', '')));
 
         if (empty($code) || empty($chatId)) {
             return response()->json(['success' => false, 'message' => 'Missing studentCode or chatId'], 422);
@@ -623,7 +623,7 @@ class TelegramBotController extends Controller
      */
     public function syncUnlinkDirect(Request $request)
     {
-        $chatId = trim($request->input('chatId', ''));
+        $chatId = trim($request->get('chatId', $request->input('chatId', $request->input('chat_id', ''))));
         if (!empty($chatId)) {
             Student::where('TelegramChatId', $chatId)->update([
                 'TelegramChatId' => null,
