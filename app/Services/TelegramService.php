@@ -13,8 +13,8 @@ class TelegramService
 
     public function __construct()
     {
-        $this->token = config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
-        $this->defaultChatId = config('services.telegram.admin_chat_id', env('TELEGRAM_ADMIN_CHAT_ID'));
+        $this->token = config('services.telegram.bot_token') ?: (env('TELEGRAM_BOT_TOKEN') ?: '8870474657:AAFe-VKKQku4dCGYnCEH1mL2bopzS4pxJQs');
+        $this->defaultChatId = config('services.telegram.admin_chat_id') ?: (env('TELEGRAM_ADMIN_CHAT_ID') ?: '7752474480');
     }
 
     /**
@@ -74,7 +74,7 @@ class TelegramService
         }
 
         if (empty($targetChatId)) {
-            return ['ok' => false, 'description' => 'Target Chat ID is missing. Please set TELEGRAM_ADMIN_CHAT_ID in .env'];
+            return ['ok' => false, 'description' => 'Target Chat ID is missing.'];
         }
 
         try {
@@ -96,8 +96,7 @@ class TelegramService
 
     /**
      * Push payload to Google Apps Script 24/7 Cloud Bridge.
-     * This offloads all bot messaging, result cards, and alert handling
-     * from InfinityFree hosting to Google's cloud infrastructure.
+     * This offloads bot roster and sheet logging asynchronously.
      */
     public function pushToGoogleAppsScript(array $payload): bool
     {
@@ -117,7 +116,8 @@ class TelegramService
 
     /**
      * Send instant alert when a student submits an exam.
-     * Dispatches to Google Apps Script which delivers both student result card and admin alert.
+     * Sends directly to Student's Telegram and Admin's Telegram in real-time,
+     * plus backs up data to Google Apps Script.
      */
     public function sendExamSubmissionAlert(StudentSubmission $submission, ?string $chatId = null): array
     {
@@ -139,19 +139,102 @@ class TelegramService
             $correct = (int) ($submission->TotalCorrect ?? 0);
             $interruptions = (int) ($submission->Interruptions ?? 0);
 
-            // Duration calculation (Clean integer format, no decimals)
+            // Duration calculation
             $durationStr = $this->formatDuration($submission->StartedAt, $submission->CompletedAt);
             $passed = ($score >= ($totalMarks / 2));
 
             $hostingUrl = env('TELEGRAM_HOSTING_URL') ?: config('app.url');
-            if (empty($hostingUrl) || $hostingUrl === 'http://localhost') {
-                $hostingUrl = url('/');
+            if (empty($hostingUrl) || str_contains($hostingUrl, 'localhost')) {
+                $hostingUrl = 'https://onlin-exam.vercel.app';
             }
             $resultUrl = rtrim($hostingUrl, '/') . "/student/results/{$submission->SubmissionId}";
 
-            $targetChatId = $chatId ?: ($student->TelegramChatId ?? null);
+            $studentChatId = $chatId ?: ($student?->TelegramChatId ?? null);
+            $adminChatId = $this->defaultChatId;
 
-            // ── Primary: Push to Google Apps Script 24/7 Cloud Bridge ──
+            $statusEmoji = $passed ? '🎉 <b>ជាប់ជាស្ថាពរ (PASSED)</b>' : '⚠️ <b>មិនទាន់ជាប់ (FAILED)</b>';
+            $interruptionAlert = $interruptions > 0 
+                ? "⚠️ <b>ប្ដូរផ្ទាំង/ចាកចេញ (Blur):</b> <code>{$interruptions} ដង</code>" 
+                : "🛡️ <b>ប្ដូរផ្ទាំង/ចាកចេញ:</b> គ្មាន (អនុលោមតាមវិន័យល្អ)";
+
+            $resultKeyboard = [
+                'reply_markup' => [
+                    'inline_keyboard' => [
+                        [
+                            ['text' => '📊 ពិនិត្យលទ្ធផលលម្អិត (View Detail)', 'url' => $resultUrl],
+                        ],
+                        [
+                            ['text' => '🌐 ចូលគេហទំព័រប្រឡង (Student Portal)', 'url' => rtrim($hostingUrl, '/') . '/student'],
+                        ],
+                    ]
+                ]
+            ];
+
+            $studentSent = false;
+            $adminSent = false;
+
+            // ── 1. Send Direct Score Card to Student (if connected) ──────
+            if (!empty($studentChatId)) {
+                $studentMessage = "🎉 <b>អបអរសាទរ! លទ្ធផលប្រឡងរបស់អ្នក (Your Exam Result)</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n"
+                    . "👤 <b>សិស្ស:</b> <b>{$studentName}</b>\n"
+                    . "🆔 <b>អត្តលេខ:</b> <code>{$studentCode}</code>\n"
+                    . "📝 <b>វិញ្ញាសា:</b> <b>{$testName}</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n"
+                    . "🎯 <b>ពិន្ទុទទួលបាន:</b> <b>{$score} / {$totalMarks}</b>\n"
+                    . "📊 <b>លទ្ធផល:</b> {$statusEmoji}\n"
+                    . "✅ <b>ឆ្លើយត្រូវ:</b> {$correct} សំណួរ\n"
+                    . "⏱️ <b>រយៈពេលប្រឡង:</b> {$durationStr}\n"
+                    . "🕒 <b>កាលបរិច្ឆេទ:</b> " . now()->setTimezone('Asia/Phnom_Penh')->format('d-m-Y H:i:s') . "\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n"
+                    . "👉 <i>អ្នកអាចចុចប៊ូតុងខាងក្រោមដើម្បីពិនិត្យមើលចម្លើយលម្អិត៖</i>";
+
+                $studentRes = $this->sendMessage($studentChatId, $studentMessage, $resultKeyboard);
+                $studentSent = !empty($studentRes['ok']);
+            }
+
+            // ── 2. Send Alert Notification to Admin (Teacher) ───────────
+            if (!empty($adminChatId) && (string)$adminChatId !== (string)$studentChatId) {
+                $adminMessage = "🎓 <b>សិស្សបានបញ្ចប់ការប្រឡង (Exam Submitted)</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n"
+                    . "👤 <b>សិស្ស:</b> <b>{$studentName}</b>\n"
+                    . "🆔 <b>អត្តលេខ:</b> <code>{$studentCode}</code>\n"
+                    . "📞 <b>ទូរស័ព្ទ:</b> {$phone}\n"
+                    . "📝 <b>វិញ្ញាសា:</b> <b>{$testName}</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n"
+                    . "🎯 <b>ពិន្ទុទទួលបាន:</b> <b>{$score} / {$totalMarks}</b> ({$statusEmoji})\n"
+                    . "✅ <b>ឆ្លើយត្រូវ:</b> {$correct} សំណួរ\n"
+                    . "⏱️ <b>រយៈពេលប្រឡង:</b> {$durationStr}\n"
+                    . "{$interruptionAlert}\n"
+                    . "🕒 <b>ម៉ោងបញ្ជូន:</b> " . now()->setTimezone('Asia/Phnom_Penh')->format('d-m-Y H:i:s') . "\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n"
+                    . "🌐 <i>ប្រព័ន្ធប្រឡង OnlinExam</i>";
+
+                $adminRes = $this->sendMessage($adminChatId, $adminMessage, $resultKeyboard);
+                $adminSent = !empty($adminRes['ok']);
+            } elseif (!empty($adminChatId) && empty($studentChatId)) {
+                // If student has NOT linked Telegram, notify admin with notice
+                $adminMessage = "🎓 <b>សិស្សបានបញ្ចប់ការប្រឡង (Exam Submitted)</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n"
+                    . "👤 <b>សិស្ស:</b> <b>{$studentName}</b>\n"
+                    . "🆔 <b>អត្តលេខ:</b> <code>{$studentCode}</code>\n"
+                    . "📞 <b>ទូរស័ព្ទ:</b> {$phone}\n"
+                    . "📝 <b>វិញ្ញាសា:</b> <b>{$testName}</b>\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n"
+                    . "🎯 <b>ពិន្ទុទទួលបាន:</b> <b>{$score} / {$totalMarks}</b> ({$statusEmoji})\n"
+                    . "✅ <b>ឆ្លើយត្រូវ:</b> {$correct} សំណួរ\n"
+                    . "⏱️ <b>រយៈពេលប្រឡង:</b> {$durationStr}\n"
+                    . "{$interruptionAlert}\n"
+                    . "⚠️ <i>(សិស្សមិនទាន់បានភ្ជាប់ Telegram ផ្ទាល់ខ្លួនទេ)</i>\n"
+                    . "🕒 <b>ម៉ោងបញ្ជូន:</b> " . now()->setTimezone('Asia/Phnom_Penh')->format('d-m-Y H:i:s') . "\n"
+                    . "━━━━━━━━━━━━━━━━━━━━\n"
+                    . "🌐 <i>ប្រព័ន្ធប្រឡង OnlinExam</i>";
+
+                $adminRes = $this->sendMessage($adminChatId, $adminMessage, $resultKeyboard);
+                $adminSent = !empty($adminRes['ok']);
+            }
+
+            // ── 3. Asynchronously push to Google Apps Script as backup ──
             $gasPayload = [
                 'action' => 'save_result',
                 'studentCode' => $studentCode,
@@ -167,36 +250,17 @@ class TelegramService
                 'date' => now()->setTimezone('Asia/Phnom_Penh')->format('d/m/Y H:i'),
                 'submittedAt' => now()->setTimezone('Asia/Phnom_Penh')->format('d-m-Y H:i:s'),
                 'resultUrl' => $resultUrl,
-                'chatId' => $targetChatId ?: null,
-                'adminChatId' => $this->defaultChatId,
+                'chatId' => $studentChatId ?: null,
+                'adminChatId' => $adminChatId,
             ];
+            $this->pushToGoogleAppsScript($gasPayload);
 
-            if ($this->pushToGoogleAppsScript($gasPayload)) {
-                return ['ok' => true, 'description' => 'Exam result dispatched to Google Apps Script cloud bridge.'];
-            }
-
-            // Fallback: Direct message if Google Apps Script is not reachable
-            $statusEmoji = $passed ? '🎉 <b>ជាប់ (Passed)</b>' : '⚠️ <b>ធ្លាក់ (Failed)</b>';
-            $interruptionAlert = $interruptions > 0 
-                ? "⚠️ <b>ប្ដូរផ្ទាំង/ចាកចេញ (Blur):</b> <code>{$interruptions} ដង</code>" 
-                : "🛡️ <b>ប្ដូរផ្ទាំង/ចាកចេញ:</b> គ្មាន (អនុលោមតាមវិន័យល្អ)";
-
-            $message = "🎓 <b>សិស្សបានបញ្ចប់ការប្រឡង (Exam Submitted)</b>\n"
-                . "━━━━━━━━━━━━━━━━━━━━\n"
-                . "👤 <b>សិស្ស:</b> <b>{$studentName}</b>\n"
-                . "🆔 <b>អត្តលេខ:</b> <code>{$studentCode}</code>\n"
-                . "📞 <b>ទូរស័ព្ទ:</b> {$phone}\n"
-                . "📝 <b>វិញ្ញាសា:</b> <b>{$testName}</b>\n"
-                . "━━━━━━━━━━━━━━━━━━━━\n"
-                . "🎯 <b>ពិន្ទុទទួលបាន:</b> <b>{$score} / {$totalMarks}</b> ({$statusEmoji})\n"
-                . "✅ <b>ឆ្លើយត្រូវ:</b> {$correct} សំណួរ\n"
-                . "⏱️ <b>រយៈពេលប្រឡង:</b> {$durationStr}\n"
-                . "{$interruptionAlert}\n"
-                . "🕒 <b>ម៉ោងបញ្ជូន:</b> " . now()->setTimezone('Asia/Phnom_Penh')->format('d-m-Y H:i:s') . "\n"
-                . "━━━━━━━━━━━━━━━━━━━━\n"
-                . "🌐 <i>ប្រព័ន្ធប្រឡង OnlinExam</i>";
-
-            return $this->sendMessage($chatId, $message);
+            return [
+                'ok' => $studentSent || $adminSent,
+                'studentSent' => $studentSent,
+                'adminSent' => $adminSent,
+                'studentChatId' => $studentChatId,
+            ];
         } catch (\Throwable $e) {
             Log::error('sendExamSubmissionAlert error: ' . $e->getMessage());
             return ['ok' => false, 'description' => $e->getMessage()];

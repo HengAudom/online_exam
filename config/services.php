@@ -36,8 +36,8 @@ return [
     ],
 
     'telegram' => [
-        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
-        'admin_chat_id' => env('TELEGRAM_ADMIN_CHAT_ID'),
+        'bot_token' => env('TELEGRAM_BOT_TOKEN', '8870474657:AAFe-VKKQku4dCGYnCEH1mL2bopzS4pxJQs'),
+        'admin_chat_id' => env('TELEGRAM_ADMIN_CHAT_ID', '7752474480'),
         'admin_username' => env('TELEGRAM_ADMIN_USERNAME', 'DomAi1'),
         'google_script_url' => env('TELEGRAM_GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbydj3645-4Rojs9THlBGD8jSAbpMcu5eUdLEaBCIDUXlNRR6gtVKhWrciD44SxLH565qg/exec'),
     ],
