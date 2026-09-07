@@ -116,6 +116,120 @@ class TelegramBotController extends Controller
     }
 
     /**
+     * Helper to find a student by various inputs (Code, StudentId, Phone, loose format like rtc-2026-00002).
+     */
+    public function findStudentByQuery(?string $query): ?Student
+    {
+        $clean = trim((string)$query);
+        if (empty($clean)) {
+            return null;
+        }
+
+        // 1. Direct match on StudentCode, Phone, StudentId
+        $student = Student::where('StudentCode', $clean)
+            ->orWhere('StudentCode', strtoupper($clean))
+            ->orWhere('Phone', $clean)
+            ->orWhere('StudentId', $clean)
+            ->first();
+
+        if ($student) {
+            return $student;
+        }
+
+        // 2. Extract trailing numbers (e.g. rtc-2026-00002 -> 2)
+        if (preg_match('/(?:RTC[_-]?)?(?:202\d[_-]?)?0*(\d+)/i', $clean, $m)) {
+            $num = (int)$m[1];
+            if ($num > 0) {
+                $student = Student::where('StudentId', $num)->first();
+                if ($student) {
+                    return $student;
+                }
+
+                $paddedPatterns = [
+                    sprintf('RTC-2026-%04d', $num),
+                    sprintf('RTC-2026-%05d', $num),
+                    '%' . $num,
+                ];
+                foreach ($paddedPatterns as $pat) {
+                    $student = Student::where('StudentCode', 'LIKE', $pat)->first();
+                    if ($student) {
+                        return $student;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * API endpoint to query a student's results (called by Google Apps Script / Telegram Bot).
+     */
+    public function getStudentResultsApi(Request $request)
+    {
+        $code = trim((string)$request->input('code', $request->query('code', '')));
+        $fromId = trim((string)$request->input('fromId', $request->input('chatId', $request->query('fromId', $request->query('chatId', '')))));
+
+        $student = null;
+        if (!empty($code)) {
+            $student = $this->findStudentByQuery($code);
+        }
+
+        if (!$student && !empty($fromId)) {
+            $student = Student::where('TelegramChatId', $fromId)->first();
+        }
+
+        if (!$student) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Student not found',
+                'found' => false,
+            ], 404);
+        }
+
+        $studentName = trim(($student->FirstName ?? '') . ' ' . ($student->LastName ?? ''));
+        $studentCode = $student->StudentCode ?: ('RTC-' . $student->StudentId);
+
+        $submissions = StudentSubmission::with('test')
+            ->where('StudentId', $student->StudentId)
+            ->whereNotNull('CompletedAt')
+            ->orderBy('CompletedAt', 'desc')
+            ->take(5)
+            ->get();
+
+        $results = [];
+        foreach ($submissions as $sub) {
+            $score = (float)($sub->Score ?? $sub->TotalScore ?? 0);
+            $maxScore = (float)($sub->test->MaxScore ?? 100);
+            $passScore = (float)($sub->test->PassingScore ?? ($maxScore / 2));
+            $isPassed = $score >= $passScore;
+
+            $results[] = [
+                'submissionId' => $sub->SubmissionId,
+                'testName' => $sub->test->TestName ?? 'វិញ្ញាសា',
+                'score' => number_format($score, 2),
+                'maxScore' => $maxScore,
+                'isPassed' => $isPassed,
+                'status' => $isPassed ? '✅ ជាប់' : '❌ ធ្លាក់',
+                'date' => $sub->CompletedAt ? date('d/m/Y H:i', strtotime($sub->CompletedAt)) : 'N/A',
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'found' => true,
+            'student' => [
+                'id' => $student->StudentId,
+                'code' => $studentCode,
+                'name' => $studentName ?: 'Student ' . $studentCode,
+                'telegramChatId' => $student->TelegramChatId,
+                'telegramUsername' => $student->TelegramUsername,
+            ],
+            'submissions' => $results,
+        ]);
+    }
+
+    /**
      * Core update handler (shared by Webhook and Long Polling).
      */
     public function handleUpdate(array $update): array
@@ -127,11 +241,17 @@ class TelegramBotController extends Controller
         }
 
         $chatId = (string) $message['chat']['id'];
-        $text = trim($message['text'] ?? ($message['caption'] ?? ''));
-        $firstName = $message['from']['first_name'] ?? 'User';
+        $fromUser = $message['from'] ?? [];
+        $fromId = isset($fromUser['id']) ? (string) $fromUser['id'] : $chatId;
+        $chatType = $message['chat']['type'] ?? 'private';
+        $isGroup = in_array($chatType, ['group', 'supergroup']) || ((int)$chatId < 0);
 
-        $username = $message['from']['username'] ?? null;
+        $text = trim($message['text'] ?? ($message['caption'] ?? ''));
+        $firstName = $fromUser['first_name'] ?? 'User';
+        $senderName = trim(($fromUser['first_name'] ?? '') . ' ' . ($fromUser['last_name'] ?? '')) ?: $firstName;
+        $username = $fromUser['username'] ?? null;
         $cleanUsername = $username ? '@' . ltrim($username, '@') : null;
+        $mentionName = $cleanUsername ?: $senderName;
 
         if (empty($text)) {
             return ['status' => 'ignored', 'reason' => 'Empty text'];
@@ -142,55 +262,63 @@ class TelegramBotController extends Controller
         if (preg_match('/^\/start(?:@\w+)?\s+link_([a-zA-Z0-9_\-]+)/i', $text, $matches)) {
             $linkTarget = $matches[1];
         } elseif (preg_match('/^\/start(?:@\w+)?\s+([a-zA-Z0-9_\-]+)/i', $text, $matches)) {
-            // Also support direct /start CODE (e.g. /start RTC-XXXX-XXXXX)
             $linkTarget = $matches[1];
-        } elseif (preg_match('/^\/link(?:@\w+)?\s+([a-zA-Z0-9_\-]+)/i', $text, $matches)) {
-            $linkTarget = $matches[1];
+        } elseif (preg_match('/^\/link(?:@\w+)?(?:\s+(.+))?$/i', $text, $matches)) {
+            $linkTarget = !empty($matches[1]) ? trim($matches[1]) : null;
         }
 
-        if ($linkTarget) {
-            $student = Student::where('StudentCode', $linkTarget)
-                ->orWhere('StudentId', $linkTarget)
-                ->orWhere('Phone', $linkTarget)
-                ->first();
+        if ($linkTarget !== null) {
+            // If /link was sent without code
+            if (empty($linkTarget)) {
+                $linkHelp = "ℹ️ <b>របៀបភ្ជាប់គណនី Telegram:</b>\n━━━━━━━━━━━━━━━━━━━━\n"
+                    . "👉 សូមវាយពាក្យបញ្ជា <code>/link [លេខកូដសិស្ស]</code>\n"
+                    . "<i>(ឧទាហរណ៍៖ <code>/link RTC-2026-0002</code>)</i>\n\n"
+                    . "💡 ឬចូលទៅកាន់គេហទំព័រប្រឡង (Student Portal) រួចចុចលើប៊ូតុង <b>Connect Telegram</b>។";
+                $this->telegram->sendMessage($chatId, $linkHelp);
+                return ['status' => 'ok', 'action' => 'link_help_sent'];
+            }
+
+            $student = $this->findStudentByQuery($linkTarget);
 
             if (!$student) {
                 $this->telegram->sendMessage($chatId, "❌ <b>មិនអាចភ្ជាប់គណនីបានទេ!</b>\n\nរកមិនឃើញទិន្នន័យសិស្សដែលមានលេខកូដ <code>{$linkTarget}</code> ក្នុងប្រព័ន្ធឡើយ។ សូមពិនិត្យលេខកូដសិស្សរបស់អ្នកឡើងវិញ ឬទាក់ទងគ្រូ/Admin។");
                 return ['status' => 'ok', 'action' => 'link_failed', 'chat_id' => $chatId];
             }
 
-            $student->TelegramChatId = $chatId;
-            $student->TelegramUsername = $cleanUsername;
+            // CRITICAL: In groups, link the user's private ID ($fromId), NOT the group chat ID ($chatId)!
+            $student->TelegramChatId = $fromId;
+            if ($cleanUsername) {
+                $student->TelegramUsername = $cleanUsername;
+            }
             $student->save();
 
             $studentName = trim(($student->FirstName ?? '') . ' ' . ($student->LastName ?? ''));
             $studentCode = $student->StudentCode ?: ('ID #' . $student->StudentId);
 
+            $groupNote = $isGroup ? "\n👥 <i>(បានភ្ជាប់សម្រាប់គណនីផ្ទាល់ខ្លួនរបស់ {$mentionName})</i>" : "";
+
             $msg = "🎉 <b>ការភ្ជាប់គណនីបានជោគជ័យ! (Telegram Connected)</b>\n"
                 . "━━━━━━━━━━━━━━━━━━━━\n"
                 . "👤 <b>សិស្ស:</b> <b>{$studentName}</b>\n"
                 . "🆔 <b>អត្តលេខ:</b> <code>{$studentCode}</code>\n"
-                . "📱 <b>Telegram ID:</b> <code>{$chatId}</code>\n"
+                . "📱 <b>Telegram ID:</b> <code>{$fromId}</code>{$groupNote}\n"
                 . "━━━━━━━━━━━━━━━━━━━━\n"
                 . "✅ គណនី Telegram របស់អ្នកត្រូវបានភ្ជាប់ជាមួយប្រព័ន្ធប្រឡង OnlinExam រួចរាល់ហើយ!\n\n"
-                . "🎓 ចាប់ពីពេលនេះតទៅ រាល់ពេលអ្នកបញ្ចប់ការប្រឡង (Submit Exam) ប្រព័ន្ធនឹងផ្ញើសារពិន្ទុ និងលទ្ធផលប្រឡងមកកាន់ទីនេះដោយស្វ័យប្រវត្តិ។\n\n"
+                . "🎓 ចាប់ពីពេលនេះតទៅ រាល់ពេលអ្នកបញ្ចប់ការប្រឡង (Submit Exam) ប្រព័ន្ធនឹងផ្ញើសារពិន្ទុ និងលទ្ធផលប្រឡងទៅកាន់ Telegram របស់អ្នកដោយស្វ័យប្រវត្តិ។\n\n"
                 . "👉 អ្នកអាចវាយ <code>/myresult</code> គ្រប់ពេលវេលាដើម្បីពិនិត្យលទ្ធផលប្រឡងកន្លងមក។";
 
             $this->telegram->sendMessage($chatId, $msg);
             return ['status' => 'ok', 'action' => 'linked', 'student_id' => $student->StudentId];
         }
 
-        // ── Command: /link without arguments ──
-        if (preg_match('/^\/link(?:@\w+)?$/i', $text)) {
-            $this->telegram->sendMessage($chatId, "ℹ️ <b>របៀបភ្ជាប់គណនី Telegram:</b>\n━━━━━━━━━━━━━━━━━━━━\n👉 សូមវាយពាក្យបញ្ជា <code>/link [លេខកូដសិស្ស]</code>\n<i>(ឧទាហរណ៍៖ <code>/link RTC-XXXX-XXXXX</code>)</i>\n\n💡 ឬចូលទៅកាន់គេហទំព័រប្រឡង (Student Portal) រួចចុចលើប៊ូតុង <b>Connect Telegram</b>។");
-            return ['status' => 'ok', 'action' => 'link_help_sent'];
-        }
-
         // ── 2. Command: /unlink (Case-insensitive) ──
         if (preg_match('/^\/unlink(?:@\w+)?/i', $text)) {
-            $students = Student::where('TelegramChatId', $chatId)->get();
+            $students = Student::where('TelegramChatId', $fromId)
+                ->orWhere('TelegramChatId', $chatId)
+                ->get();
+
             if ($students->isEmpty()) {
-                $this->telegram->sendMessage($chatId, "ℹ️ គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយសិស្សណាម្នាក់នៅឡើយទេ។");
+                $this->telegram->sendMessage($chatId, "ℹ️ {$mentionName} គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយសិស្សណាម្នាក់នៅឡើយទេ។");
                 return ['status' => 'ok', 'action' => 'not_linked'];
             }
 
@@ -200,12 +328,12 @@ class TelegramBotController extends Controller
                 $s->save();
             }
 
-            $this->telegram->sendMessage($chatId, "✂️ <b>គណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ការភ្ជាប់ (Unlinked) ពីប្រព័ន្ធប្រឡងរួចរាល់ហើយ។</b>\n\nដើម្បីភ្ជាប់ឡើងវិញ សូមវាយ: <code>/link អត្តលេខសិស្ស</code>");
+            $this->telegram->sendMessage($chatId, "✂️ <b>គណនី Telegram របស់ {$mentionName} ត្រូវបានផ្តាច់ការភ្ជាប់ (Unlinked) ពីប្រព័ន្ធប្រឡងរួចរាល់ហើយ។</b>\n\nដើម្បីភ្ជាប់ឡើងវិញ សូមវាយ: <code>/link [អត្តលេខសិស្ស]</code>");
             return ['status' => 'ok', 'action' => 'unlinked'];
         }
 
-        // ── 3. Command: /start (Case-insensitive: /start, /Start, /START, /start@bot) ──
-        if (preg_match('/^\/start(?:@\w+)?$/i', $text)) {
+        // ── 3. Command: /start or /help ──
+        if (preg_match('/^\/start(?:@\w+)?$/i', $text) || preg_match('/^\/help(?:@\w+)?$/i', $text)) {
             $welcomeText = "👋 <b>សួស្ដី {$firstName}! សូមស្វាគមន៍មកកាន់ប្រព័ន្ធប្រឡង OnlinExam!</b>\n"
                 . "━━━━━━━━━━━━━━━━━━━━\n"
                 . "🤖 ខ្ញុំជា Bot សម្រាប់ជំនួយការប្រឡង ផ្ញើសារដំណឹង និងលទ្ធផលប្រឡងដោយស្វ័យប្រវត្តិ។\n\n"
@@ -213,30 +341,21 @@ class TelegramBotController extends Controller
                 . "👉 <code>/myresult</code> - ពិនិត្យលទ្ធផលប្រឡងរបស់អ្នក (ឬ <code>/myresult [លេខកូដសិស្ស]</code>)\n"
                 . "👉 <code>/link [លេខកូដសិស្ស]</code> - ភ្ជាប់គណនី Telegram ដើម្បីទទួលពិន្ទុភ្លាមៗ\n"
                 . "👉 <code>/unlink</code> - ផ្តាច់ការភ្ជាប់គណនី Telegram\n"
-                . "👉 <code>/myid</code> - មើលលេខ Student ID របស់អ្នក\n"
+                . "👉 <code>/myid</code> - មើលលេខ Student ID និង Telegram ID\n"
                 . "👉 <code>/help</code> - មើលការណែនាំជំនួយ\n"
                 . "━━━━━━━━━━━━━━━━━━━━\n"
-                . "💡 <b>របៀបភ្ជាប់គណនី:</b> ចូលទៅកាន់គេហទំព័រប្រឡង (Student Portal) រួចចុច <b>Connect Telegram</b> ឬវាយពាក្យ <code>/link [លេខកូដសិស្ស]</code> (ឧទាហរណ៍៖ <code>/link RTC-XXXX-XXXXX</code>) នៅទីនេះ។";
+                . "💡 <b>របៀបភ្ជាប់គណនី:</b> វាយពាក្យ <code>/link [លេខកូដសិស្ស]</code> (ឧទាហរណ៍៖ <code>/link RTC-2026-0002</code>)។";
 
             $appUrl = config('app.url', url('/'));
             $inlineKeyboard = [];
-
-            // Telegram Mini App web_app only accepts HTTPS URLs
             if (str_starts_with($appUrl, 'https://')) {
                 $inlineKeyboard[] = [
-                    ['text' => '🚀 បើកប្រព័ន្ធប្រឡង (Open Exam)', 'web_app' => ['url' => $appUrl]]
-                ];
-            } elseif (!str_contains($appUrl, 'localhost')) {
-                $inlineKeyboard[] = [
-                    ['text' => '🚀 ចូលគេហទំព័រប្រឡង (Visit Website)', 'url' => $appUrl]
+                    ['text' => '🌐 ចូលគេហទំព័រប្រឡង (Student Portal)', 'url' => $appUrl . '/student']
                 ];
             }
-
             $adminUser = config('services.telegram.admin_username', env('TELEGRAM_ADMIN_USERNAME', 'DomAi1'));
-            $adminUrl = 'https://t.me/' . ltrim($adminUser, '@');
-
             $inlineKeyboard[] = [
-                ['text' => '👨‍💼 ទំនាក់ទំនង Admin', 'url' => $adminUrl]
+                ['text' => '👨‍💼 ទំនាក់ទំនង Admin', 'url' => 'https://t.me/' . ltrim($adminUser, '@')]
             ];
 
             $extra = [
@@ -247,79 +366,52 @@ class TelegramBotController extends Controller
             return ['status' => 'ok', 'action' => 'start_responded', 'chat_id' => $chatId];
         }
 
-        // ── 4. Command: /myid (Show Student ID) ──
-        if (preg_match('/^\/myid(?:@\w+)?/i', $text)) {
-            $student = Student::where('TelegramChatId', $chatId)->first();
+        // ── 4. Command: /myid or /chatid ──
+        if (preg_match('/^\/(?:myid|chatid|id)(?:@\w+)?/i', $text)) {
+            $student = Student::where('TelegramChatId', $fromId)
+                ->orWhere('TelegramChatId', $chatId)
+                ->first();
+
+            $groupInfo = $isGroup ? "\n👥 <b>Telegram Group ID:</b> <code>{$chatId}</code>" : "";
+
             if ($student) {
                 $studentCode = $student->StudentCode ?: ('ID #' . $student->StudentId);
                 $studentName = trim(($student->FirstName ?? '') . ' ' . ($student->LastName ?? ''));
-                $nameLine = $studentName ? "\n👤 <b>ឈ្មោះ:</b> <b>{$studentName}</b>" : "";
-                $this->telegram->sendMessage($chatId, "🆔 <b>Student ID របស់អ្នកគឺ:</b> <code>{$studentCode}</code>{$nameLine}");
+                $this->telegram->sendMessage($chatId, "👤 <b>ព័ត៌មានគណនីរបស់ {$mentionName}:</b>\n━━━━━━━━━━━━━━━━━━━━\n👤 <b>ឈ្មោះ:</b> <b>{$studentName}</b>\n🆔 <b>លេខកូដសិស្ស:</b> <code>{$studentCode}</code>\n📱 <b>User Telegram ID:</b> <code>{$fromId}</code>{$groupInfo}\n━━━━━━━━━━━━━━━━━━━━\n✅ គណនីរបស់អ្នកបានភ្ជាប់ជាមួយប្រព័ន្ធរួចរាល់។");
             } else {
-                $this->telegram->sendMessage($chatId, "⚠️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយសិស្សណាម្នាក់ឡើយ!</b>\n\n👉 សូមវាយពាក្យបញ្ជា <code>/link [លេខកូដសិស្ស]</code> (ឧទាហរណ៍៖ <code>/link RTC-2026-12345</code>) ដើម្បីភ្ជាប់គណនីរបស់អ្នក\n(Telegram Chat ID: <code>{$chatId}</code>)");
+                $this->telegram->sendMessage($chatId, "⚠️ <b>{$mentionName} គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយសិស្សណាម្នាក់ឡើយ!</b>\n\n👉 សូមវាយពាក្យបញ្ជា <code>/link [លេខកូដសិស្ស]</code> (ឧទាហរណ៍៖ <code>/link RTC-2026-0002</code>) ដើម្បីភ្ជាប់គណនីរបស់អ្នក\n📱 <b>User ID របស់អ្នកគឺ:</b> <code>{$fromId}</code>{$groupInfo}");
             }
             return ['status' => 'ok', 'action' => 'myid_sent'];
         }
 
-        // ── Command: /chatid (Show Telegram Chat ID) ──
-        if (preg_match('/^\/chatid(?:@\w+)?/i', $text)) {
-            $this->telegram->sendMessage($chatId, "🆔 <b>Telegram Chat ID របស់អ្នកគឺ:</b> <code>{$chatId}</code>");
-            return ['status' => 'ok', 'action' => 'chatid_sent'];
-        }
-
-        // ── 5. Command: /help ──
-        if (preg_match('/^\/help(?:@\w+)?/i', $text)) {
-            $adminUser = config('services.telegram.admin_username', env('TELEGRAM_ADMIN_USERNAME', 'DomAi1'));
-            $adminUrl = 'https://t.me/' . ltrim($adminUser, '@');
-
-            $helpText = "ℹ️ <b>ការណែនាំអំពីការប្រើប្រាស់ OnlinExam Bot:</b>\n"
-                . "━━━━━━━━━━━━━━━━━━━━\n"
-                . "1. <b>ភ្ជាប់គណនី:</b> វាយ <code>/link &lt;លេខកូដសិស្ស&gt;</code> (ឧទាហរណ៍៖ <code>/link RTC-2026-12345</code>)\n"
-                . "2. <b>ឆែកពិន្ទុ:</b> វាយ <code>/myresult</code> (ឬ <code>/myresult RTC-2026-12345</code>) ដើម្បីមើលពិន្ទុវិញ្ញាសាដែលបានប្រឡង\n"
-                . "3. <b>ផ្ញើសារដំណឹង:</b> រាល់ពេលអ្នកចុច Submit ការប្រឡង ប្រព័ន្ធនឹងផ្ញើពិន្ទុមកកាន់ទីនេះភ្លាមៗ\n"
-                . "4. <b>ទំនាក់ទំនង Admin:</b> @{$adminUser}";
-
-            $extra = [
-                'reply_markup' => json_encode([
-                    'inline_keyboard' => [
-                        [['text' => '👨‍💼 ទំនាក់ទំនង Admin', 'url' => $adminUrl]]
-                    ]
-                ])
-            ];
-
-            $this->telegram->sendMessage($chatId, $helpText, $extra);
-            return ['status' => 'ok', 'action' => 'help_sent'];
-        }
-
-        // ── 6. Command: /myresult ──
+        // ── 5. Command: /myresult [លេខកូដសិស្ស] ──
         if (preg_match('/^\/myresult(?:@\w+)?(?:\s+(.+))?$/i', $text, $m)) {
             $queryCode = trim($m[1] ?? '');
+            $student = null;
 
-            // If user didn't provide code, try to find student by their Telegram Chat ID!
-            if (empty($queryCode)) {
-                $student = Student::where('TelegramChatId', $chatId)->first();
+            if (!empty($queryCode)) {
+                $student = $this->findStudentByQuery($queryCode);
+                if (!$student) {
+                    $this->telegram->sendMessage($chatId, "❌ <b>រកមិនឃើញទិន្នន័យសិស្សឡើយ!</b>\n\nមិនមានសិស្សដែលមានលេខកូដ <code>{$queryCode}</code> ក្នុងប្រព័ន្ធទេ។ សូមពិនិត្យលេខកូដសិស្សរបស់អ្នកឡើងវិញ ឬវាយ <code>/help</code> សម្រាប់ជំនួយ។");
+                    return ['status' => 'ok', 'action' => 'student_not_found'];
+                }
             } else {
-                $student = Student::where('StudentCode', $queryCode)
-                    ->orWhere('Phone', $queryCode)
-                    ->orWhere('StudentId', $queryCode)
+                // If in group or private: look up by sender's fromId FIRST, then chatId!
+                $student = Student::where('TelegramChatId', $fromId)
+                    ->orWhere('TelegramChatId', $chatId)
                     ->first();
             }
 
             if (!$student) {
-                if (!empty($queryCode)) {
-                    $this->telegram->sendMessage($chatId, "❌ <b>រកមិនឃើញទិន្នន័យសិស្សឡើយ!</b>\n\nមិនមានសិស្សដែលមានលេខកូដ <code>{$queryCode}</code> ក្នុងប្រព័ន្ធទេ។ សូមពិនិត្យលេខកូដសិស្សរបស់អ្នកឡើងវិញ ឬវាយ <code>/help</code> សម្រាប់ជំនួយ។");
-                    return ['status' => 'ok', 'action' => 'student_not_found'];
-                }
-
-                $unlinkedMsg = "⚠️ <b>គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយសិស្សណាម្នាក់ទេ!</b>\n"
+                $unlinkedMsg = "⚠️ <b>{$mentionName} អ្នកមិនទាន់បានភ្ជាប់គណនីនៅឡើយទេ!</b>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n"
-                    . "ដើម្បីអាចពិនិត្យមើលពិន្ទុ និងលទ្ធផលប្រឡងបាន សូមជ្រើសរើសជម្រើសខាងក្រោម៖\n\n"
+                    . "ដើម្បីអាចពិនិត្យមើលពិន្ទុ និងលទ្ធផលប្រឡងបាន សូមជ្រើសរើស៖\n\n"
                     . "1️⃣ <b>ភ្ជាប់គណនី (ដើម្បីចុច /myresult មើលពិន្ទុភ្លាមៗ):</b>\n"
                     . "👉 វាយពាក្យ <code>/link [លេខកូដសិស្ស]</code>\n"
-                    . "<i>(ឧទាហរណ៍៖ <code>/link RTC-2026-12345</code>)</i>\n\n"
+                    . "<i>(ឧទាហរណ៍៖ <code>/link RTC-2026-0002</code>)</i>\n\n"
                     . "2️⃣ <b>ឬឆែកមើលពិន្ទុដោយវាយលេខកូដផ្ទាល់:</b>\n"
                     . "👉 វាយ <code>/myresult [លេខកូដសិស្ស]</code>\n"
-                    . "<i>(ឧទាហរណ៍៖ <code>/myresult RTC-2026-12345</code>)</i>\n"
+                    . "<i>(ឧទាហរណ៍៖ <code>/myresult RTC-2026-0002</code>)</i>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n"
                     . "💡 <i>បើអ្នកមិនចាំលេខកូដសិស្ស សូមពិនិត្យមើលក្នុង Student Portal ឬទាក់ទង Admin។</i>";
 
@@ -338,7 +430,7 @@ class TelegramBotController extends Controller
             $studentCode = $student->StudentCode ?: ('ID #' . $student->StudentId);
 
             if ($submissions->isEmpty()) {
-                $this->telegram->sendMessage($chatId, "ℹ️ សិស្ស <b>{$studentName}</b> (<code>{$studentCode}</code>) មិនទាន់មានប្រវត្តិបញ្ចប់ការប្រឡងណាមួយនៅឡើយទេ។");
+                $this->telegram->sendMessage($chatId, "ℹ️ សិស្ស <b>{$studentName}</b> (<code>{$studentCode}</code>) មិនទាន់មានប្រវត្តិបញ្ចប់ការប្រឡងណាមួយនៅឡើយទេ។\n\n🎓 <i>នៅពេលអ្នកប្រឡងចប់ ពិន្ទុនឹងបង្ហាញនៅទីនេះស្វ័យប្រវត្តិ!</i>");
                 return ['status' => 'ok', 'action' => 'no_submissions'];
             }
 
@@ -348,15 +440,14 @@ class TelegramBotController extends Controller
 
             foreach ($submissions as $idx => $sub) {
                 $testName = $sub->test->TestName ?? 'វិញ្ញាសា';
-                $score = $sub->Score ?? 0;
-                $total = $sub->test->TotalMarks ?? 100;
-                $passed = $score >= ($total / 2) ? '✅ ជាប់' : '❌ ធ្លាក់';
-                $date = $sub->CompletedAt ? $sub->CompletedAt->format('d/m/Y H:i') : '';
+                $score = number_format((float)($sub->Score ?? $sub->TotalScore ?? 0), 2);
+                $maxScore = $sub->test->MaxScore ?? 100;
+                $passScore = $sub->test->PassingScore ?? ($maxScore / 2);
+                $isPassed = (float)$score >= (float)$passScore ? '✅ ជាប់' : '❌ ធ្លាក់';
+                $date = $sub->CompletedAt ? date('d/m/Y H:i', strtotime($sub->CompletedAt)) : 'N/A';
 
-                $num = $idx + 1;
-                $msg .= "{$num}. 📝 <b>វិញ្ញាសា:</b> <b>{$testName}</b>\n"
-                    . "🎯 <b>ពិន្ទុ:</b> <b>{$score}/{$total}</b> ({$passed})\n"
-                    . "📅 <b>កាលបរិច្ឆេទ:</b> {$date}\n\n";
+                $msg .= ($idx + 1) . ". 📝 <b>{$testName}</b>\n"
+                    . "   🎯 <b>ពិន្ទុ:</b> <b>{$score}/{$maxScore}</b> ({$isPassed}) | 📅 {$date}\n\n";
             }
 
             $msg .= "━━━━━━━━━━━━━━━━━━━━\n🌐 <i>ប្រព័ន្ធប្រឡង OnlinExam</i>";
@@ -364,8 +455,13 @@ class TelegramBotController extends Controller
             return ['status' => 'ok', 'action' => 'results_sent'];
         }
 
-        // ── Default response for other messages ──
-        $this->telegram->sendMessage($chatId, "🤖 សួស្ដី {$firstName}! ខ្ញុំមិនទាន់ស្គាល់ពាក្យបញ្ជានេះទេ។\n\n👉 សូមចុច ឬវាយ <code>/start</code> ដើម្បីបើកមើលមុខងារទាំងអស់\n👉 វាយ <code>/help</code> ដើម្បីមើលការណែនាំ\n👉 វាយ <code>/myid</code> ដើម្បីមើល Student ID របស់អ្នក\n👉 វាយ <code>/chatid</code> ដើម្បីមើល Telegram Chat ID");
+        // ── In Group Chats: Ignore normal chat messages to prevent bot spam ──
+        if ($isGroup) {
+            return ['status' => 'ignored', 'reason' => 'Non-command message in group chat'];
+        }
+
+        // ── Private Chat Fallback: Help the user ──
+        $this->telegram->sendMessage($chatId, "👋 <b>សួស្ដី {$firstName}!</b> ខ្ញុំជា Bot សម្រាប់ជំនួយការប្រឡង OnlinExam។\n\n👉 វាយ <code>/myresult</code> ដើម្បីមើលលទ្ធផលប្រឡង\n👉 វាយ <code>/link [លេខកូដសិស្ស]</code> ដើម្បីភ្ជាប់គណនី\n👉 វាយ <code>/help</code> សម្រាប់ជំនួយ");
         return ['status' => 'ok', 'action' => 'unknown_command_fallback'];
     }
 
@@ -602,10 +698,7 @@ class TelegramBotController extends Controller
             return response()->json(['success' => false, 'message' => 'Missing studentCode or chatId'], 422);
         }
 
-        $student = Student::where('StudentCode', $code)
-            ->orWhere('StudentId', $code)
-            ->orWhere('Phone', $code)
-            ->first();
+        $student = $this->findStudentByQuery($code);
 
         if (!$student) {
             return response()->json(['success' => false, 'message' => 'Student not found in database'], 404);

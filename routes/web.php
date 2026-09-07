@@ -21,6 +21,7 @@ Route::match(['get', 'post'], '/api/telegram/sync-link', [TelegramBotController:
 Route::match(['get', 'post'], '/api/telegram/sync-unlink', [TelegramBotController::class, 'syncUnlinkDirect']);
 Route::match(['get', 'post'], '/api/telegram/sync-students', [TelegramBotController::class, 'syncAllStudentsToGas']);
 Route::match(['get', 'post'], '/sync-bot', [TelegramBotController::class, 'syncAllStudentsToGas']);
+Route::match(['get', 'post'], '/api/telegram/student-results', [TelegramBotController::class, 'getStudentResultsApi']);
 
 
 // ─── Auth & Public ─────────────────────────────────────────────────────────────
