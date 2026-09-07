@@ -652,90 +652,80 @@ class AuthController extends Controller
     public function uploadProfileImage(Request $request)
     {
         $user = $request->user();
-        if (!$user)
+        if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
 
         $request->validate([
-            'image' => ['required', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:5120'], // Increased to 5MB
+            'image' => ['required', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:5120'], // Max 5MB
         ]);
 
         if ($request->hasFile('image')) {
             $file = $request->file('image');
-            $extension = strtolower($file->getClientOriginalExtension());
-            $filename = time() . '_' . $user->id . '.jpg'; // Always save as jpg for consistent compression
-            $destinationPath = public_path('uploads/profiles');
-
-            if (!file_exists($destinationPath)) {
-                mkdir($destinationPath, 0755, true);
-            }
-
             $sourcePath = $file->getRealPath();
-            $targetPath = $destinationPath . '/' . $filename;
 
-            // Load image based on extension
-            switch ($extension) {
-                case 'jpeg':
-                case 'jpg':
-                    $image = imagecreatefromjpeg($sourcePath);
-                    break;
-                case 'png':
-                    $image = imagecreatefrompng($sourcePath);
-                    imagepalettetotruecolor($image); // Handle transparency
-                    break;
-                case 'webp':
-                    $image = imagecreatefromwebp($sourcePath);
-                    break;
-                case 'gif':
-                    $image = imagecreatefromgif($sourcePath);
-                    break;
-                default:
-                    return response()->json(['message' => 'Unsupported image format.'], 400);
+            $image = null;
+            if (extension_loaded('gd') && function_exists('imagecreatefromstring')) {
+                $rawContents = file_get_contents($sourcePath);
+                $image = @imagecreatefromstring($rawContents);
             }
 
-            if (!$image) {
-                return response()->json(['message' => 'Failed to process image.'], 500);
-            }
+            $finalImageUrl = null;
 
-            // Get original dimensions
-            $width = imagesx($image);
-            $height = imagesy($image);
-            $maxDim = 800; // Resize to max 800px
+            if ($image) {
+                // Get original dimensions
+                $width = imagesx($image);
+                $height = imagesy($image);
+                $maxDim = 400; // Resize to max 400px for crisp, super-fast avatar load
 
-            if ($width > $maxDim || $height > $maxDim) {
-                $ratio = $width / $height;
-                if ($ratio > 1) {
-                    $newWidth = $maxDim;
-                    $newHeight = $maxDim / $ratio;
-                } else {
-                    $newWidth = $maxDim * $ratio;
-                    $newHeight = $maxDim;
+                if ($width > $maxDim || $height > $maxDim) {
+                    $ratio = $width / $height;
+                    if ($ratio > 1) {
+                        $newWidth = $maxDim;
+                        $newHeight = (int) round($maxDim / $ratio);
+                    } else {
+                        $newWidth = (int) round($maxDim * $ratio);
+                        $newHeight = $maxDim;
+                    }
+
+                    $newImage = imagecreatetruecolor($newWidth, $newHeight);
+                    $white = imagecolorallocate($newImage, 255, 255, 255);
+                    imagefilledrectangle($newImage, 0, 0, $newWidth, $newHeight, $white);
+                    imagecopyresampled($newImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                    imagedestroy($image);
+                    $image = $newImage;
                 }
 
-                $newImage = imagecreatetruecolor($newWidth, $newHeight);
-                imagecopyresampled($newImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                // Compress to lightweight JPEG in memory (78% quality ~ 15KB-30KB)
+                ob_start();
+                imagejpeg($image, null, 78);
+                $compressedBinary = ob_get_clean();
                 imagedestroy($image);
-                $image = $newImage;
+
+                $finalImageUrl = 'data:image/jpeg;base64,' . base64_encode($compressedBinary);
+            } else {
+                // Fallback: encode original contents directly to data URL
+                $mime = $file->getMimeType() ?: 'image/jpeg';
+                $finalImageUrl = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($sourcePath));
             }
 
-            // Save as compressed JPEG (80% quality)
-            imagejpeg($image, $targetPath, 80);
-            imagedestroy($image);
-
-            // Delete old profile image if it exists and is different
-            if ($user->profile_image) {
-                $oldFileRelative = ltrim($user->profile_image, '/');
-                $oldFilePath = public_path($oldFileRelative);
-                if (file_exists($oldFilePath) && is_file($oldFilePath)) {
-                    @unlink($oldFilePath); // Silent delete
-                }
+            // Save to model
+            if ($user instanceof Student) {
+                $user->Photo = $finalImageUrl;
+                $user->save();
+            } elseif ($user instanceof Admin) {
+                $user->ProfileImage = $finalImageUrl;
+                $user->save();
+            } else {
+                $user->profile_image = $finalImageUrl;
+                if (isset($user->Photo)) $user->Photo = $finalImageUrl;
+                $user->save();
             }
-
-            $user->profile_image = '/uploads/profiles/' . $filename;
-            $user->save();
 
             return response()->json([
-                'message' => 'Profile image uploaded and optimized.',
-                'profileImage' => $user->profile_image
+                'success' => true,
+                'message' => 'រូបថតប្រវត្តិរូបត្រូវបានផ្លាស់ប្តូរដោយជោគជ័យ (Profile photo updated successfully).',
+                'profileImage' => $finalImageUrl,
             ]);
         }
 

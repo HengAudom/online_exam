@@ -146,9 +146,9 @@ Route::post('/api/password/verify-identity', [AuthController::class, 'verifyIden
 Route::post('/api/password/forgot', [AuthController::class, 'forgotPassword']);
 Route::post('/api/password/reset', [AuthController::class, 'resetPassword']);
 Route::get('/api/profile', [AuthController::class, 'profile']);
-Route::post('/api/profile/update', [AuthController::class, 'updateProfile']);
-Route::post('/api/profile/upload-image', [AuthController::class, 'uploadProfileImage']);
-Route::post('/api/profile/change-password', [AuthController::class, 'changePassword']);
+Route::match(['get', 'post'], '/api/profile/update', [AuthController::class, 'updateProfile']);
+Route::match(['get', 'post'], '/api/profile/upload-image', [AuthController::class, 'uploadProfileImage']);
+Route::match(['get', 'post'], '/api/profile/change-password', [AuthController::class, 'changePassword']);
 
 // ─── Admin & Super Admin ──────────────────────────────────────────────────────
 Route::get('/api/admin/dashboard', [AdminController::class, 'dashboard']);
