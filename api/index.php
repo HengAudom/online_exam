@@ -51,9 +51,9 @@ $_SERVER['DB_PASSWORD'] = '5lO5eZJXXll22jGP';
 
 // Ensure critical driver configs are never empty strings
 if (empty($_ENV['SESSION_DRIVER']) || trim($_ENV['SESSION_DRIVER']) === '') {
-    putenv('SESSION_DRIVER=cookie');
-    $_ENV['SESSION_DRIVER'] = 'cookie';
-    $_SERVER['SESSION_DRIVER'] = 'cookie';
+    putenv('SESSION_DRIVER=database');
+    $_ENV['SESSION_DRIVER'] = 'database';
+    $_SERVER['SESSION_DRIVER'] = 'database';
 }
 
 if (empty($_ENV['CACHE_STORE']) || trim($_ENV['CACHE_STORE']) === '') {
