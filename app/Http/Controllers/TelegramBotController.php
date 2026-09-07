@@ -575,5 +575,62 @@ class TelegramBotController extends Controller
             ], 500, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         }
     }
+
+    /**
+     * Direct incoming link notification from Telegram Bot / Google Apps Script.
+     * Updates tblstudent.TelegramChatId in the MySQL database in real-time.
+     */
+    public function syncLinkDirect(Request $request)
+    {
+        $code = trim($request->input('studentCode', ''));
+        $chatId = trim($request->input('chatId', ''));
+        $username = trim($request->input('username', ''));
+
+        if (empty($code) || empty($chatId)) {
+            return response()->json(['success' => false, 'message' => 'Missing studentCode or chatId'], 422);
+        }
+
+        $student = Student::where('StudentCode', $code)
+            ->orWhere('StudentId', $code)
+            ->orWhere('Phone', $code)
+            ->first();
+
+        if (!$student) {
+            return response()->json(['success' => false, 'message' => 'Student not found in database'], 404);
+        }
+
+        $student->TelegramChatId = $chatId;
+        if (!empty($username)) {
+            $student->TelegramUsername = str_starts_with($username, '@') ? $username : '@' . $username;
+        }
+        $student->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student telegram chat ID updated successfully in database',
+            'student' => [
+                'id' => $student->StudentId,
+                'code' => $student->StudentCode,
+                'name' => trim(($student->FirstName ?? '') . ' ' . ($student->LastName ?? '')),
+                'chatId' => $student->TelegramChatId,
+                'username' => $student->TelegramUsername,
+            ]
+        ]);
+    }
+
+    /**
+     * Direct incoming unlink notification from Telegram Bot / Google Apps Script.
+     */
+    public function syncUnlinkDirect(Request $request)
+    {
+        $chatId = trim($request->input('chatId', ''));
+        if (!empty($chatId)) {
+            Student::where('TelegramChatId', $chatId)->update([
+                'TelegramChatId' => null,
+                'TelegramUsername' => null,
+            ]);
+        }
+        return response()->json(['success' => true, 'message' => 'Student unlinked successfully from database']);
+    }
 }
 

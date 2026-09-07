@@ -17,6 +17,8 @@ Route::match(['get', 'post'], '/api/telegram/set-webhook', [TelegramBotControlle
 Route::match(['get', 'post'], '/api/telegram/delete-webhook', [TelegramBotController::class, 'deleteWebhook']);
 Route::post('/api/student/telegram/unlink', [TelegramBotController::class, 'unlinkStudent']);
 Route::post('/api/student/telegram/manual-link', [TelegramBotController::class, 'manualLinkStudent']);
+Route::post('/api/telegram/sync-link', [TelegramBotController::class, 'syncLinkDirect']);
+Route::post('/api/telegram/sync-unlink', [TelegramBotController::class, 'syncUnlinkDirect']);
 Route::match(['get', 'post'], '/api/telegram/sync-students', [TelegramBotController::class, 'syncAllStudentsToGas']);
 Route::match(['get', 'post'], '/sync-bot', [TelegramBotController::class, 'syncAllStudentsToGas']);
 
