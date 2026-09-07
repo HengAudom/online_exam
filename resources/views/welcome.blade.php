@@ -4,22 +4,175 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Online Exam System</title>
+    <title>{{ \App\Http\Controllers\AdminController::getSystemSettings()['institutionName'] ?? 'Online Exam System' }}</title>
+
+    <!-- Preload Local Material Symbols WOFF2 font for 0ms icon render -->
+    <link rel="preload" href="{{ asset('fonts/material-symbols-outlined.woff2') }}" as="font" type="font/woff2" crossorigin>
 
     <!-- Google Fonts: Manrope + Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" />
 
-    <!-- Material Symbols Outlined -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-
-    <!-- add icon -->
+    <!-- PWA Manifest & App Icons -->
     <link rel="icon" href="{{ asset('ico.svg') }}">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="alternate" type="application/manifest+json" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <meta name="theme-color" content="#00288e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="OnlineExam">
+    <meta name="application-name" content="OnlineExam">
+
+    <!-- Instant Standalone State & PWA Event Detection -->
+    <script>
+        window.__pwa_deferred_prompt = null;
+        window.__pwa_is_standalone = false;
+
+        try {
+            window.__pwa_is_standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                                         window.navigator.standalone === true ||
+                                         document.referrer.includes('android-app://') ||
+                                         window.location.search.includes('source=pwa');
+            if (window.__pwa_is_standalone) {
+                document.documentElement.classList.add('is-pwa-standalone');
+            }
+        } catch (e) {}
+
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            window.__pwa_deferred_prompt = e;
+            window.dispatchEvent(new CustomEvent('pwa-prompt-ready', { detail: e }));
+        });
+
+        window.addEventListener('appinstalled', function() {
+            window.__pwa_deferred_prompt = null;
+            window.__pwa_is_standalone = true;
+            window.dispatchEvent(new CustomEvent('pwa-installed'));
+        });
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                .then(function(reg) {
+                    window.__pwa_sw_reg = reg;
+                })
+                .catch(function(err) {
+                    console.warn('[PWA] SW register error:', err);
+                });
+        }
+    </script>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-gray-100">
-    <div id="app"></div>
+    <!-- Initial Startup Splash Screen (ONLY shown in standalone installed App, hidden in Web Browsers) -->
+    <style>
+            #splash-screen {
+                display: none;
+                position: fixed;
+                inset: 0;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background: radial-gradient(circle at 50% 40%, #0037c2 0%, #00288e 70%, #001f70 100%);
+                color: #ffffff;
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                z-index: 99999;
+                user-select: none;
+                -webkit-user-select: none;
+            }
+            html.is-pwa-standalone #splash-screen {
+                display: flex;
+            }
+            .splash-logo-box {
+                position: relative;
+                width: 92px;
+                height: 92px;
+                border-radius: 26px;
+                background: rgba(255, 255, 255, 0.12);
+                border: 1px solid rgba(255, 255, 255, 0.25);
+                box-shadow: 0 20px 40px -10px rgba(0, 10, 50, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 16px;
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                animation: splashPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+            .splash-logo-box img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3));
+            }
+            .splash-glow {
+                position: absolute;
+                width: 140px;
+                height: 140px;
+                background: radial-gradient(circle, rgba(56, 189, 248, 0.4) 0%, rgba(0, 40, 142, 0) 70%);
+                border-radius: 50%;
+                filter: blur(25px);
+                pointer-events: none;
+            }
+            .splash-title {
+                margin-top: 22px;
+                font-size: 18px;
+                font-weight: 800;
+                letter-spacing: -0.02em;
+                color: #ffffff;
+                text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            }
+            .splash-subtitle {
+                margin-top: 4px;
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+                color: #93c5fd;
+            }
+            .splash-loader {
+                margin-top: 28px;
+                width: 48px;
+                height: 4px;
+                background: rgba(255, 255, 255, 0.15);
+                border-radius: 999px;
+                overflow: hidden;
+                position: relative;
+            }
+            .splash-loader::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                height: 100%;
+                width: 40%;
+                background: #38bdf8;
+                border-radius: 999px;
+                animation: splashSlide 1.4s ease-in-out infinite;
+            }
+            @keyframes splashPulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.04); }
+            }
+            #splash-screen.fade-out {
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.35s ease-out;
+            }
+        </style>
+        <div id="splash-screen">
+            <div class="splash-glow"></div>
+            <div class="splash-logo-box">
+                <img src="{{ asset('pwa-192.png') }}?v=4" alt="Logo" />
+            </div>
+            <h1 class="splash-title">{{ \App\Http\Controllers\AdminController::getSystemSettings()['institutionName'] ?? 'Online Exam System' }}</h1>
+            <p class="splash-subtitle">Assessment Portal</p>
+            <div class="splash-loader"></div>
+        </div>
+        <div id="app"></div>
 </body>
 </html>

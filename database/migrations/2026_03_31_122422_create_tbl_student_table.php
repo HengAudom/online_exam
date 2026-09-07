@@ -13,19 +13,23 @@ return new class extends Migration
     {
         Schema::create('tblStudent', function (Blueprint $table) {
             $table->bigIncrements('StudentId');
-            $table->unsignedBigInteger('UserId');
-            $table->unsignedBigInteger('SkillId');
-            $table->unsignedBigInteger('BatchId');
+            $table->string('StudentCode', 50)->nullable()->unique();
+            $table->unsignedBigInteger('UserId')->nullable();
+            $table->unsignedBigInteger('SkillId')->nullable();
+            $table->unsignedBigInteger('GroupId')->nullable();
             $table->string('FirstName');
             $table->string('LastName');
-            $table->string('Gender');
-            $table->string('StudyShift');
-            $table->string('Phone');
+            $table->string('Gender')->default('Male');
+            $table->string('StudyShift')->default('Morning');
+            $table->string('Phone')->nullable();
+            $table->string('EnrolledMonth', 50)->nullable();
+            $table->string('EnrolledYear', 10)->nullable();
+            $table->string('DurationMonths', 50)->nullable();
+            $table->longText('Photo')->nullable();
             $table->timestamps();
 
-            $table->foreign('UserId')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('SkillId')->references('SkillId')->on('tblSkill')->onDelete('cascade');
-            $table->foreign('BatchId')->references('BatchId')->on('tblBatch')->onDelete('cascade');
+            $table->foreign('SkillId')->references('SkillId')->on('tblSkill')->onDelete('set null');
+            $table->foreign('GroupId')->references('GroupId')->on('tblgroup')->onDelete('set null');
         });
     }
 

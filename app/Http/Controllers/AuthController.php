@@ -2,93 +2,382 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Batch;
+use App\Models\Group;
 use App\Models\Skill;
 use App\Models\Student;
-use App\Models\User;
+use App\Models\Admin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
+        $settings = AdminController::getSystemSettings();
+        if (isset($settings['allowRegistration']) && !$settings['allowRegistration']) {
+            return response()->json([
+                'message' => 'ការចុះឈ្មោះបង្កើតគណនីដោយខ្លួនឯងត្រូវបានបិទជាបណ្ដោះអាសន្នដោយ Administrator (Self-registration is currently disabled).'
+            ], 403);
+        }
+
         $data = $request->validate([
+            'studentCode' => ['nullable', 'string', 'max:50'],
             'firstName' => ['required', 'string', 'max:255'],
             'lastName' => ['required', 'string', 'max:255'],
-            'username' => ['required', 'string', 'max:255', 'unique:users,name'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['required', 'string', 'max:50'],
-            'password' => ['required', 'string', 'min:6'],
             'gender' => ['required', 'string', 'max:50'],
             'shift' => ['required', 'string', 'max:50'],
             'skill' => ['required', 'string', 'max:255'],
-            'batch' => ['required', 'string', 'max:255'],
+            'group' => ['required', 'string', 'max:255'],
+            'intakeMonth' => ['nullable', 'string', 'max:50'],
+            'intakeYear' => ['nullable', 'string', 'max:10'],
+            'durationMonths' => ['nullable'],
+            'photo' => ['nullable'],
+        ], [
+            'firstName.required' => 'សូមបំពេញនាមខ្លួន (First Name is required).',
+            'lastName.required' => 'សូមបំពេញគោត្តនាម (Last Name is required).',
+            'phone.required' => 'សូមបំពេញលេខទូរស័ព្ទ (Phone is required).',
+            'gender.required' => 'សូមជ្រើសរើសភេទ (Gender is required).',
+            'shift.required' => 'សូមជ្រើសរើសវេនសិក្សា (Study shift is required).',
+            'skill.required' => 'សូមជ្រើសរើសជំនាញ (Skill is required).',
+            'group.required' => 'សូមជ្រើសរើសក្រុម (Group is required).',
         ]);
 
-        $skill = Skill::firstOrCreate(
-            ['SkillName' => $data['skill']],
-            ['Description' => '']
-        );
+        try {
+            return DB::transaction(function () use ($request, $data) {
+                $skill = Skill::firstOrCreate(
+                    ['SkillName' => $data['skill']],
+                    ['Description' => '']
+                );
 
-        $batch = Batch::firstOrCreate(
-            ['BatchName' => $data['batch']],
-            [
-                'StartDate' => now()->toDateString(),
-                'EndDate' => now()->addMonths(3)->toDateString(),
-            ]
-        );
+                $group = Group::firstOrCreate(
+                    ['GroupName' => $data['group']]
+                );
 
-        $user = User::create([
-            'name' => $data['username'],
-            'email' => $data['email'],
-            'password' => $data['password'],
-            'role' => 'Student',
-            'status' => 'Active',
+                // Process profile photo safely (never throws)
+                $photoPath = $this->processUploadedPhoto($request->input('photo'), $request->file('photo'));
+
+                // Use requested student code if provided and unique, otherwise generate unique student ID
+                $requestedCode = trim($request->input('studentCode', ''));
+                if (!empty($requestedCode) && !Student::where('StudentCode', $requestedCode)->exists()) {
+                    $studentCode = $requestedCode;
+                } else {
+                    $studentCode = $this->generateStudentCode($data['intakeYear'] ?? date('Y'));
+                }
+
+                $durationMonths = $this->parseDurationMonths($data['durationMonths'] ?? 4);
+
+                $dummyStudent = new Student();
+                $table = $dummyStudent->getTable();
+
+                // Proactively ensure UserId column is nullable if it exists
+                try {
+                    DB::statement("ALTER TABLE `{$table}` MODIFY COLUMN `UserId` BIGINT UNSIGNED NULL DEFAULT NULL");
+                } catch (\Throwable $t) {}
+
+                $availableColumns = [];
+                try {
+                    $availableColumns = Schema::getColumnListing($table);
+                } catch (\Throwable $e) {
+                    $availableColumns = [];
+                }
+
+                $payload = [
+                    'StudentCode' => $studentCode,
+                    'SkillId' => $skill->SkillId,
+                    'GroupId' => $group->GroupId,
+                    'FirstName' => $data['firstName'],
+                    'LastName' => $data['lastName'],
+                    'Gender' => $data['gender'],
+                    'StudyShift' => $data['shift'],
+                    'EnrolledMonth' => $data['intakeMonth'] ?? now()->format('F'),
+                    'EnrolledYear' => $data['intakeYear'] ?? date('Y'),
+                    'DurationMonths' => $durationMonths,
+                    'Phone' => $data['phone'],
+                    'Photo' => $photoPath,
+                ];
+
+                if (empty($availableColumns) || in_array('UserId', $availableColumns) || in_array('userid', array_map('strtolower', $availableColumns))) {
+                    $payload['UserId'] = null;
+                }
+
+                if (!empty($availableColumns)) {
+                    $lowerCols = array_map('strtolower', $availableColumns);
+                    $filteredPayload = [];
+                    foreach ($payload as $key => $val) {
+                        if (in_array(strtolower($key), $lowerCols)) {
+                            $filteredPayload[$key] = $val;
+                        }
+                    }
+                    $payload = $filteredPayload;
+                }
+
+                try {
+                    $student = Student::create($payload);
+                } catch (\Throwable $createEx) {
+                    // If error involves UserId constraint, remove UserId and retry
+                    if (str_contains(strtolower($createEx->getMessage()), 'userid')) {
+                        unset($payload['UserId']);
+                        $student = Student::create($payload);
+                    } else {
+                        throw $createEx;
+                    }
+                }
+
+                return response()->json([
+                    'message' => 'Registration successful. Your Student ID is ' . $studentCode . '. Please sign in to take exams.',
+                    'studentCode' => $studentCode,
+                    'student' => $student,
+                ], 201);
+            });
+        } catch (\Throwable $e) {
+            @file_put_contents(storage_path('app/reg_error.log'), date('Y-m-d H:i:s') . " - " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n\n", FILE_APPEND);
+            \Log::error('Registration exception: ' . $e->getMessage());
+
+            // If the student was already created in the DB (e.g. from duplicate submit or race condition)
+            $requestedCode = trim($request->input('studentCode', ''));
+            if (!empty($requestedCode)) {
+                try {
+                    $existing = Student::where('StudentCode', $requestedCode)->first();
+                    if ($existing) {
+                        return response()->json([
+                            'message' => 'Registration successful. Your Student ID is ' . $existing->StudentCode . '. Please sign in to take exams.',
+                            'studentCode' => $existing->StudentCode,
+                            'student' => $existing,
+                        ], 200);
+                    }
+                } catch (\Throwable $ex) {}
+            }
+
+            return response()->json([
+                'message' => 'មានបញ្ហាពេលចុះឈ្មោះ (Registration error: ' . $e->getMessage() . ')',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public static function recordLoginAudit(
+        ?int $userId,
+        string $username,
+        string $role,
+        ?string $displayName,
+        string $status,
+        ?string $details = null,
+        ?Request $request = null
+    ) {
+        try {
+            $ip = $request ? $request->ip() : request()->ip();
+            $userAgent = $request ? $request->userAgent() : request()->userAgent();
+
+            $dir = storage_path('app');
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            $file = storage_path('app/login_logs.json');
+            $logs = file_exists($file) ? (json_decode(file_get_contents($file), true) ?: []) : [];
+
+            array_unshift($logs, [
+                'id' => 'auth-' . uniqid(),
+                'userId' => $userId,
+                'username' => $username,
+                'role' => $role,
+                'displayName' => $displayName ?: $username,
+                'ipAddress' => $ip,
+                'userAgent' => $userAgent,
+                'status' => $status,
+                'details' => $details,
+                'date' => now()->toDateTimeString()
+            ]);
+
+            // Keep latest 300 logs
+            $logs = array_slice($logs, 0, 300);
+            file_put_contents($file, json_encode($logs, JSON_PRETTY_PRINT));
+        } catch (\Throwable $e) {
+            \Log::warning('Could not write login_logs.json: ' . $e->getMessage());
+        }
+    }
+
+    public function checkIdentifier(Request $request)
+    {
+        $identifier = trim($request->input('identifier') ?? $request->input('username') ?? '');
+        if ($identifier === '') {
+            return response()->json(['requiresPassword' => false, 'role' => null, 'exists' => false]);
+        }
+
+        // 1. Query Database for Admin / Super Admin (tbladmin)
+        $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($identifier)])
+            ->select('AdminId', 'Username', 'Role')
+            ->first();
+
+        if ($admin) {
+            return response()->json([
+                'requiresPassword' => true,
+                'role' => $admin->Role ?? 'Admin',
+                'exists' => true
+            ]);
+        }
+
+        // 2. Query Database for Student (tblstudent)
+        $student = self::findStudentByIdentifier($identifier);
+
+        if ($student) {
+            return response()->json([
+                'requiresPassword' => false,
+                'role' => 'Student',
+                'exists' => true
+            ]);
+        }
+
+        return response()->json([
+            'requiresPassword' => false,
+            'role' => null,
+            'exists' => false
         ]);
-
-        Student::create([
-            'UserId' => $user->id,
-            'SkillId' => $skill->SkillId,
-            'BatchId' => $batch->BatchId,
-            'FirstName' => $data['firstName'],
-            'LastName' => $data['lastName'],
-            'Gender' => $data['gender'],
-            'StudyShift' => $data['shift'],
-            'Phone' => $data['phone'],
-        ]);
-
-        return response()->json(['message' => 'Registration successful. Please log in.'], 201);
     }
 
     public function login(Request $request)
     {
-        $data = $request->validate([
-            'username' => ['required', 'string'],
-            'password' => ['required', 'string'],
-        ]);
+        $identifier = trim($request->input('identifier') ?? $request->input('username') ?? '');
+        $password = $request->input('password');
+        $lang = $request->input('lang') === 'en' ? 'en' : 'kh';
 
-        $user = User::where('name', $data['username'])
-            ->orWhere('email', $data['username'])
-            ->first();
-
-        if (! $user || ! Hash::check($data['password'], $user->password)) {
-            return response()->json(['message' => 'Invalid credentials.'], 422);
+        if ($identifier === '') {
+            return response()->json([
+                'message' => $lang === 'en' ? 'Please enter Student ID or Username.' : 'សូមបញ្ចូល Student ID ឬ Username'
+            ], 422);
         }
 
-        Auth::login($user);
+        try {
+            // 1. Try Admin / Super Admin Login (strictly from tbladmin)
+            $adminUser = Admin::whereRaw('LOWER(Username) = ?', [strtolower($identifier)])->first();
 
-        return response()->json([
-            'message' => 'Login successful.',
-            'role' => $user->role,
-        ]);
+            if ($adminUser) {
+                if (empty($password)) {
+                    return response()->json([
+                        'message' => $lang === 'en' ? 'Password is required for Admin login.' : 'សូមបញ្ចូល Password សម្រាប់គណនី Admin'
+                    ], 422);
+                }
+
+                if (!Hash::check($password, $adminUser->Password)) {
+                    self::recordLoginAudit(
+                        userId: $adminUser->AdminId,
+                        username: $identifier,
+                        role: $adminUser->Role,
+                        displayName: $adminUser->name,
+                        status: 'Failed',
+                        details: 'Invalid password attempt for admin account',
+                        request: $request
+                    );
+                    return response()->json([
+                        'message' => $lang === 'en' ? 'Invalid password.' : 'ពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
+                    ], 422);
+                }
+
+                if ($adminUser->Status !== 'Active') {
+                    return response()->json([
+                        'message' => $lang === 'en' ? 'Account is suspended.' : 'គណនីនេះត្រូវបានផ្អាកជាបណ្ដោះអាសន្ន'
+                    ], 403);
+                }
+
+                Auth::login($adminUser);
+
+                $displayName = trim(($adminUser->FirstName ?? '') . ' ' . ($adminUser->LastName ?? '')) ?: $adminUser->Username;
+
+                self::recordLoginAudit(
+                    userId: $adminUser->AdminId,
+                    username: $adminUser->Username,
+                    role: $adminUser->Role,
+                    displayName: $displayName,
+                    status: 'Success',
+                    details: "Admin logged in from IP {$request->ip()}",
+                    request: $request
+                );
+
+                return response()->json([
+                    'message' => 'Login successful.',
+                    'role' => $adminUser->Role,
+                    'user' => [
+                        'id' => $adminUser->AdminId,
+                        'name' => $displayName,
+                        'username' => $adminUser->Username,
+                        'email' => $adminUser->Username,
+                        'role' => $adminUser->Role,
+                        'status' => $adminUser->Status,
+                        'profile_image' => $adminUser->ProfileImage,
+                    ],
+                    'redirect' => '/admin/dashboard',
+                ]);
+            }
+
+            // 2. Student lookup strictly by StudentCode or StudentId in tblstudent
+            $student = self::findStudentByIdentifier($identifier);
+
+            if ($student) {
+                Auth::login($student);
+
+                $displayName = trim(($student->FirstName ?? '') . ' ' . ($student->LastName ?? '')) ?: ($student->StudentCode ?? ('Student #' . $student->StudentId));
+
+                self::recordLoginAudit(
+                    userId: $student->StudentId,
+                    username: $student->StudentCode ?? (string)$student->StudentId,
+                    role: 'Student',
+                    displayName: $displayName,
+                    status: 'Success',
+                    details: "Student login with ID: " . ($student->StudentCode ?? $student->StudentId) . " from IP {$request->ip()}",
+                    request: $request
+                );
+
+                return response()->json([
+                    'message' => 'Login successful.',
+                    'loginType' => 'student',
+                    'role' => 'Student',
+                    'user' => [
+                        'id' => $student->StudentId,
+                        'studentId' => $student->StudentCode ?? (string)$student->StudentId,
+                        'name' => $displayName,
+                        'role' => 'Student',
+                        'status' => 'Active',
+                        'profile_image' => $student->Photo,
+                    ],
+                    'redirect' => '/student',
+                ]);
+            }
+
+            // Neither admin nor student found
+            return response()->json([
+                'message' => $lang === 'en' ? 'Student ID not found.' : 'រកមិនឃើញ Student ID នេះឡើយ'
+            ], 422);
+
+        } catch (\Throwable $e) {
+            \Log::error('Login database exception: ' . $e->getMessage());
+            return response()->json([
+                'message' => $lang === 'en' ? 'Database connection error. Please try again.' : 'មានបញ្ហាតភ្ជាប់មូលដ្ឋានទិន្នន័យ សូមព្យាយាមម្តងទៀត'
+            ], 500);
+        }
     }
 
     public function logout(Request $request)
     {
+        $user = $request->user();
+        if ($user) {
+            self::recordLoginAudit(
+                userId: $user->id,
+                username: $user->name,
+                role: $user->role,
+                displayName: $user->name,
+                status: 'Logged Out',
+                details: 'Session ended by user logout',
+                request: $request
+            );
+        }
+
         Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return response()->json(['message' => 'Logged out.']);
     }
@@ -97,17 +386,24 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        if (! $user) {
+        if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $student = Student::where('UserId', $user->id)->with(['skill', 'batch'])->first();
+        if ($user instanceof Student) {
+            $student = $user->loadMissing(['skill', 'group']);
+        } else {
+            $student = Student::where('StudentId', $user->id ?? $user->AdminId)
+                ->orWhere('UserId', $user->id ?? $user->AdminId)
+                ->with(['skill', 'group'])
+                ->first();
+        }
 
         $payload = [
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
-                'email' => $user->email,
+                'email' => $user->email ?? $user->Username ?? $user->StudentCode ?? '',
                 'role' => $user->role,
                 'status' => $user->status,
                 'profileImage' => $user->profile_image,
@@ -115,24 +411,43 @@ class AuthController extends Controller
         ];
 
         if ($student) {
+            $displayCode = $student->StudentCode ?: ('RTC-2026-' . str_pad((string)$student->StudentId, 5, '0', STR_PAD_LEFT));
             $payload['student'] = [
                 'id' => $student->StudentId,
-                'name' => $student->FirstName . ' ' . $student->LastName,
-                'email' => $user->email,
+                'studentCode' => $displayCode,
+                'name' => trim($student->FirstName . ' ' . $student->LastName),
+                'firstName' => $student->FirstName,
+                'lastName' => $student->LastName,
+                'email' => $student->StudentCode ?? '',
                 'phone' => $student->Phone,
                 'skill' => $student->skill?->SkillName ?? '',
-                'batch' => $student->batch?->BatchName ?? '',
+                'group' => $student->group?->GroupName ?? '',
                 'shift' => $student->StudyShift,
+                'enrolledMonth' => $student->EnrolledMonth,
+                'enrolledYear' => $student->EnrolledYear,
+                'photo' => $student->Photo ?? $user->profile_image,
+                'profileImage' => $user->profile_image ?? $student->Photo,
+                'telegramChatId' => $student->TelegramChatId,
+                'telegramUsername' => $student->TelegramUsername,
+                'telegramConnected' => !empty($student->TelegramChatId),
+                'telegramConnectUrl' => 'https://t.me/onlinexam_bot?start=link_' . urlencode($student->StudentCode ?: $student->StudentId),
             ];
 
-            $payload['tests'] = DB::table('tblTest as t')
-                ->join('tblSkill as sk', 't.SkillId', '=', 'sk.SkillId')
+            $completedTestIds = DB::table('tblstudentsubmission')
+                ->where('StudentId', $student->StudentId)
+                ->whereNotNull('CompletedAt')
+                ->pluck('TestId')
+                ->toArray();
+
+            $payload['tests'] = DB::table('tbltest as t')
+                ->join('tblskill as sk', 't.SkillId', '=', 'sk.SkillId')
                 ->where('sk.SkillName', $student->skill?->SkillName)
-                ->where(function($q) use ($student) {
-                    $q->where('t.BatchId', $student->BatchId)
-                      ->orWhereNull('t.BatchId');
+                ->where(function ($q) use ($student) {
+                    $q->where('t.GroupId', $student->GroupId)
+                        ->orWhereNull('t.GroupId');
                 })
                 ->where('t.Status', 'Published')
+                ->whereNotIn('t.TestId', $completedTestIds)
                 ->select(
                     't.TestId as id',
                     't.TestName as name',
@@ -160,9 +475,11 @@ class AuthController extends Controller
                     }
                     $t->status = $status;
                     return $t;
-                });
+                })
+                ->filter(fn($t) => $t->status === 'Published')
+                ->values();
         } else {
-            $admin = \App\Models\AdminProfile::where('UserId', $user->id)->first();
+            $admin = ($user instanceof Admin) ? $user : Admin::find($user->id ?? $user->AdminId);
             if ($admin) {
                 $fullName = trim($admin->FirstName . ' ' . $admin->LastName);
                 if ($fullName) {
@@ -171,6 +488,14 @@ class AuthController extends Controller
             }
         }
 
+        $permsFile = storage_path('app/permissions.json');
+        $permissions = [];
+        if (file_exists($permsFile)) {
+            $permissions = json_decode(file_get_contents($permsFile), true) ?: [];
+        }
+        $payload['permissions'] = $permissions;
+        $payload['settings'] = AdminController::getSystemSettings();
+
         return response()->json($payload);
     }
 
@@ -178,109 +503,157 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        if (! $user) {
+        if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         $data = $request->validate([
             'firstName' => ['required', 'string', 'max:255'],
             'lastName' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
             'phone' => ['required', 'string', 'max:50'],
-            'shift' => ['required', 'string', 'max:50'],
+            'shift' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $student = Student::where('UserId', $user->id)->first();
-
-        $user->email = $data['email'];
-        $user->save();
+        $student = ($user instanceof Student) ? $user : Student::find($user->StudentId ?? $user->id);
 
         if ($student) {
-            $student->FirstName = $data['firstName'];
-            $student->LastName = $data['lastName'];
-            $student->Phone = $data['phone'];
-            $student->StudyShift = $data['shift'];
-            $student->save();
+            $studentUpdate = [
+                'FirstName' => $data['firstName'],
+                'LastName'  => $data['lastName'],
+                'Phone'     => $data['phone'],
+            ];
+            if (!empty($data['shift'])) {
+                $studentUpdate['StudyShift'] = $data['shift'];
+            }
+            $student->update($studentUpdate);
+
+            return response()->json([
+                'message' => 'ព័ត៌មានផ្ទាល់ខ្លួនត្រូវបានកែប្រែដោយជោគជ័យ (Profile updated successfully).',
+                'user' => [
+                    'id' => $student->StudentId,
+                    'name' => trim($student->FirstName . ' ' . $student->LastName),
+                    'phone' => $student->Phone,
+                    'shift' => $student->StudyShift,
+                ]
+            ]);
+        } else {
+            $admin = ($user instanceof Admin) ? $user : Admin::find($user->AdminId ?? $user->id);
+            if ($admin) {
+                $admin->update([
+                    'FirstName' => $data['firstName'],
+                    'LastName'  => $data['lastName'],
+                    'Phone'     => $data['phone'],
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'ព័ត៌មានផ្ទាល់ខ្លួនត្រូវបានកែប្រែដោយជោគជ័យ (Profile updated successfully).',
+                'user' => [
+                    'id' => $admin ? $admin->AdminId : $user->id,
+                    'name' => $admin ? trim($admin->FirstName . ' ' . $admin->LastName) : $user->name,
+                    'phone' => $admin ? $admin->Phone : null,
+                ]
+            ]);
+        }
+    }
+
+    public function verifyPhone(Request $request)
+    {
+        $data = $request->validate([
+            'username' => ['required', 'string'],
+            'phone'    => ['required', 'string'],
+        ]);
+
+        $username   = trim($data['username']);
+        $phoneInput = preg_replace('/[^0-9]/', '', $data['phone']);
+
+        if (!$phoneInput) {
+            return response()->json(['message' => 'សូមបញ្ចូលលេខទូរស័ព្ទឲ្យបានត្រឹមត្រូវ (Please enter a valid phone number).'], 422);
+        }
+
+        // Find Admin or Student
+        $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($username)])->first();
+        $student = $admin ? null : self::findStudentByIdentifier($username);
+
+        if (!$admin && !$student) {
+            return response()->json(['message' => 'រកមិនឃើញឈ្មោះគណនីនេះក្នុងប្រព័ន្ធឡើយ (Account not found).'], 404);
+        }
+
+        $matched = false;
+        $displayName = '';
+
+        if ($student) {
+            $studentPhone = preg_replace('/[^0-9]/', '', $student->Phone ?? '');
+            if ($studentPhone && (str_ends_with($studentPhone, $phoneInput) || str_ends_with($phoneInput, $studentPhone))) {
+                $matched = true;
+                $displayName = trim(($student->FirstName ?? '') . ' ' . ($student->LastName ?? '')) ?: $student->StudentCode;
+            }
+        }
+
+        if ($admin) {
+            $adminPhone = preg_replace('/[^0-9]/', '', $admin->Phone ?? '');
+            if ($adminPhone && (str_ends_with($adminPhone, $phoneInput) || str_ends_with($phoneInput, $adminPhone))) {
+                $matched = true;
+                $displayName = trim(($admin->FirstName ?? '') . ' ' . ($admin->LastName ?? '')) ?: $admin->Username;
+            }
+        }
+
+        if (!$matched) {
+            return response()->json(['message' => 'លេខទូរស័ព្ទមិនត្រូវគ្នានឹងគណនីនេះឡើយ សូមពិនិត្យលេខទូរស័ព្ទដែលបានចុះឈ្មោះ (Phone number does not match registered profile).'], 422);
         }
 
         return response()->json([
-            'message' => 'Profile updated successfully.',
-            'student' => [
-                'id' => $student?->StudentId,
-                'name' => $student ? $student->FirstName . ' ' . $student->LastName : '',
-                'email' => $user->email,
-                'phone' => $student?->Phone,
-                'skill' => $student?->skill?->SkillName ?? '',
-                'batch' => $student?->batch?->BatchName ?? '',
-                'shift' => $student?->StudyShift ?? '',
-            ],
+            'message' => 'ការផ្ទៀងផ្ទាត់ជោគជ័យ! (Identity verified successfully)',
+            'username' => $username,
+            'displayName' => $displayName,
         ]);
-    }
-
-    public function forgotPassword(Request $request)
-    {
-        $data = $request->validate([
-            'email' => ['required', 'email'],
-        ]);
-
-        $user = User::where('email', $data['email'])->first();
-
-        if (! $user) {
-            return response()->json(['message' => 'Email not found. Please check your spelling.'], 404);
-        }
-
-        $otp = rand(100000, 999999);
-        
-        \Illuminate\Support\Facades\DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $data['email']],
-            ['token' => $otp, 'created_at' => now()]
-        );
-
-        try {
-            \Illuminate\Support\Facades\Mail::raw("Your password reset OTP code is: {$otp}\n\nIf you did not request a password reset, please ignore this email.", function ($message) use ($user) {
-                $message->to($user->email)->subject('Password Reset OTP');
-            });
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Mail sending failed: ' . $e->getMessage());
-        }
-
-        return response()->json(['message' => 'An OTP code has been sent to your email address.']);
     }
 
     public function resetPassword(Request $request)
     {
         $data = $request->validate([
-            'email' => ['required', 'email'],
-            'otp' => ['required', 'string'],
+            'username' => ['required', 'string'],
+            'phone'    => ['required', 'string'],
             'password' => ['required', 'string', 'min:6'],
         ]);
 
-        $record = \Illuminate\Support\Facades\DB::table('password_reset_tokens')
-            ->where('email', $data['email'])
-            ->where('token', $data['otp'])
-            ->first();
+        $username   = trim($data['username']);
+        $phoneInput = preg_replace('/[^0-9]/', '', $data['phone']);
 
-        if (! $record) {
-            return response()->json(['message' => 'Invalid or expired OTP code.'], 404);
+        if (!$phoneInput) {
+            return response()->json(['message' => 'សូមបញ្ចូលលេខទូរស័ព្ទឲ្យបានត្រឹមត្រូវ (Please enter a valid phone number).'], 422);
         }
 
-        $user = User::where('email', $data['email'])->first();
+        $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($username)])->first();
 
-        if (! $user) {
-            return response()->json(['message' => 'User not found.'], 404);
+        if ($admin) {
+            $adminPhone = preg_replace('/[^0-9]/', '', $admin->Phone ?? '');
+            if (!$adminPhone || (!str_ends_with($adminPhone, $phoneInput) && !str_ends_with($phoneInput, $adminPhone))) {
+                return response()->json(['message' => 'លេខទូរស័ព្ទមិនត្រូវគ្នានឹងគណនីនេះឡើយ សូមពិនិត្យលេខទូរស័ព្ទដែលបានចុះឈ្មោះ (Phone number does not match registered profile).'], 422);
+            }
+
+            $admin->Password = Hash::make($data['password']);
+            $admin->save();
+
+            return response()->json([
+                'message' => 'ពាក្យសម្ងាត់ត្រូវបានផ្លាស់ប្តូរដោយជោគជ័យ! (Password changed successfully)',
+                'username' => $admin->Username,
+                'redirect' => '/login',
+            ]);
         }
 
-        $user->password = $data['password'];
-        $user->save();
+        return response()->json(['message' => 'ការកំណត់ពាក្យសម្ងាត់ថ្មីអាចធ្វើបានសម្រាប់ Admin តែប៉ុណ្ណោះ (Password reset is for Admin only).'], 422);
+    }
 
-        \Illuminate\Support\Facades\DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
-
-        return response()->json(['message' => 'Password updated successfully.']);
+    public function forgotPassword(Request $request)
+    {
+        return $this->resetPassword($request);
     }
     public function uploadProfileImage(Request $request)
     {
         $user = $request->user();
-        if (!$user) return response()->json(['message' => 'Unauthenticated.'], 401);
+        if (!$user)
+            return response()->json(['message' => 'Unauthenticated.'], 401);
 
         $request->validate([
             'image' => ['required', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:5120'], // Increased to 5MB
@@ -291,7 +664,7 @@ class AuthController extends Controller
             $extension = strtolower($file->getClientOriginalExtension());
             $filename = time() . '_' . $user->id . '.jpg'; // Always save as jpg for consistent compression
             $destinationPath = public_path('uploads/profiles');
-            
+
             if (!file_exists($destinationPath)) {
                 mkdir($destinationPath, 0755, true);
             }
@@ -337,7 +710,7 @@ class AuthController extends Controller
                     $newWidth = $maxDim * $ratio;
                     $newHeight = $maxDim;
                 }
-                
+
                 $newImage = imagecreatetruecolor($newWidth, $newHeight);
                 imagecopyresampled($newImage, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
                 imagedestroy($image);
@@ -372,7 +745,8 @@ class AuthController extends Controller
     public function changePassword(Request $request)
     {
         $user = $request->user();
-        if (!$user) return response()->json(['message' => 'Unauthenticated.'], 401);
+        if (!$user)
+            return response()->json(['message' => 'Unauthenticated.'], 401);
 
         $request->validate([
             'currentPassword' => ['required', 'string'],
@@ -387,5 +761,116 @@ class AuthController extends Controller
         $user->save();
 
         return response()->json(['message' => 'Password changed successfully.']);
+    }
+
+    private function generateStudentCode(?string $year = null): string
+    {
+        $yearStr = !empty($year) ? trim($year) : date('Y');
+        for ($i = 0; $i < 100; $i++) {
+            $randomNum = str_pad((string)mt_rand(10000, 99999), 5, '0', STR_PAD_LEFT);
+            $candidateCode = 'RTC-' . $yearStr . '-' . $randomNum;
+            $exists = Student::where('StudentCode', $candidateCode)->exists();
+            if (!$exists) {
+                return $candidateCode;
+            }
+        }
+        $nextId = (Student::max('StudentId') ?? 0) + 1;
+        return 'RTC-' . $yearStr . '-' . str_pad((string)$nextId, 5, '0', STR_PAD_LEFT);
+    }
+
+    private function processUploadedPhoto($photoInput, $uploadedFile = null): ?string
+    {
+        if (empty($photoInput) && empty($uploadedFile)) {
+            return null;
+        }
+
+        try {
+            $uploadDir = public_path('uploads/profiles');
+            if (!is_dir($uploadDir)) {
+                @mkdir($uploadDir, 0777, true);
+            }
+
+            if ($uploadedFile && $uploadedFile->isValid()) {
+                $filename = time() . '_' . uniqid() . '.' . $uploadedFile->getClientOriginalExtension();
+                $uploadedFile->move($uploadDir, $filename);
+                return '/uploads/profiles/' . $filename;
+            }
+
+            if (!empty($photoInput) && is_string($photoInput) && str_starts_with($photoInput, 'data:image/')) {
+                $parts = explode(',', $photoInput);
+                if (count($parts) === 2) {
+                    $data = base64_decode($parts[1]);
+                    $ext = 'jpg';
+                    if (str_contains($parts[0], 'png')) $ext = 'png';
+                    if (str_contains($parts[0], 'webp')) $ext = 'webp';
+                    $filename = time() . '_' . uniqid() . '.' . $ext;
+                    @file_put_contents($uploadDir . '/' . $filename, $data);
+                    return '/uploads/profiles/' . $filename;
+                }
+            }
+
+            if (!empty($photoInput) && is_string($photoInput) && str_starts_with($photoInput, '/uploads/')) {
+                return $photoInput;
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('processUploadedPhoto notice: ' . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    private function parseDurationMonths($input): int
+    {
+        if (empty($input)) return 4;
+        if (is_numeric($input)) return (int)$input;
+        $str = (string)$input;
+        if (preg_match('/(\d+)\s*(ឆ្នាំ|year)/iu', $str, $m)) {
+            return (int)$m[1] * 12;
+        }
+        if (preg_match('/(\d+)/', $str, $m)) {
+            return (int)$m[1];
+        }
+        return 4;
+    }
+
+    public static function findStudentByIdentifier(?string $identifier): ?Student
+    {
+        $id = trim($identifier ?? '');
+        if ($id === '') return null;
+
+        // 1. Direct exact match (case-insensitive)
+        $student = Student::with(['skill', 'group'])
+            ->whereRaw('LOWER(StudentCode) = ?', [strtolower($id)])
+            ->first();
+
+        if ($student) return $student;
+
+        // 2. Direct numeric match for StudentId
+        if (is_numeric($id)) {
+            $student = Student::with(['skill', 'group'])->find((int)$id);
+            if ($student) return $student;
+        }
+
+        // 3. Flexible match for RTC-YYYY-XXXXX (handling varying zero padding: e.g. 0002 vs 00002)
+        if (preg_match('/^RTC-(\d{4})-(\d+)$/i', $id, $matches)) {
+            $year = $matches[1];
+            $num = (int)$matches[2];
+
+            $variations = [
+                'RTC-' . $year . '-' . $num,
+                'RTC-' . $year . '-' . str_pad((string)$num, 4, '0', STR_PAD_LEFT),
+                'RTC-' . $year . '-' . str_pad((string)$num, 5, '0', STR_PAD_LEFT),
+                'RTC-' . $year . '-' . str_pad((string)$num, 6, '0', STR_PAD_LEFT),
+            ];
+
+            $student = Student::with(['skill', 'group'])
+                ->whereIn('StudentCode', $variations)
+                ->orWhere('StudentId', $num)
+                ->first();
+
+            if ($student) return $student;
+        }
+
+        return null;
     }
 }

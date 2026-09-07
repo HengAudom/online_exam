@@ -1,11 +1,165 @@
+/* ── Kantumruy Pro (Khmer + Latin) & Plus Jakarta Sans / Inter fallback ──────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,100..700;1,100..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+/* ── Material Symbols Local Offline Font (0ms Latency, Instant Load, display: block) ──────────────── */
+@font-face {
+    font-family: 'Material Symbols Outlined';
+    font-style: normal;
+    font-weight: 100 700;
+    font-display: block;
+    src: url('/fonts/material-symbols-outlined.woff2') format('woff2');
+}
+
 @import 'tailwindcss';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+@source '../**/*.vue';
 
+/* ── Design System Theme Tokens ───────────────────────────────────────── */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Kantumruy Pro', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+    --color-primary-50: #eef4ff;
+    --color-primary-100: #dbeafe;
+    --color-primary-200: #bfdbfe;
+    --color-primary-300: #93c5fd;
+    --color-primary-400: #60a5fa;
+    --color-primary-500: #2563eb;
+    --color-primary-600: #1d4ed8;
+    --color-primary-700: #1e40af;
+    --color-primary-800: #1e3a8a;
+    --color-primary-900: #172554;
+
+    --color-surface-bg: #f8fafc;
+    --color-surface-card: #ffffff;
+    --color-surface-subtle: #f1f5f9;
+    --color-surface-border: #e2e8f0;
 }
+
+/* ── Global Typography & Resets ────────────────────────────────────────── */
+html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    min-height: 100%;
+}
+
+body {
+    background-color: #f8fafc;
+    color: #0f172a;
+    font-family: 'Kantumruy Pro', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    line-height: 1.6;
+    min-height: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Apply Khmer-friendly typography to all text elements except icons */
+*:not(.material-icons):not(.material-symbols-outlined):not(.material-symbols-rounded):not(.material-symbols-sharp):not([class*="material"]) {
+    font-family: 'Kantumruy Pro', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── Material Symbols & Icons Fallback & Overflow Protection ─────────── */
+.material-symbols-outlined,
+.material-symbols-rounded,
+.material-symbols-sharp,
+.material-icons,
+[class*="material-symbols"] {
+    font-family: 'Material Symbols Outlined', 'Material Icons' !important;
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'liga';
+    user-select: none;
+    /* Strict dimensions to prevent raw ligature text from blowing up the UI */
+    max-width: 1.4em;
+    max-height: 1.4em;
+    overflow: hidden;
+    vertical-align: middle;
+    font-display: block;
+}
+
+/* ── Custom Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* ── Focus Rings & Utility Classes ────────────────────────────────────── */
+.focus-ring {
+    outline: none;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.focus-ring:focus-visible {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+/* ── Subtle Elevation Shadows ─────────────────────────────────────────── */
+.shadow-soft-xs {
+    box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+}
+.shadow-soft-sm {
+    box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+}
+.shadow-soft-md {
+    box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+}
+.shadow-soft-lg {
+    box-shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.06), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+}
+.shadow-soft-xl {
+    box-shadow: 0 20px 25px -5px rgba(15, 23, 42, 0.07), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+}
+
+/* ── Animations ───────────────────────────────────────────────────────── */
+@keyframes pulseSubtle {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.85; transform: scale(1.02); }
+}
+.animate-pulse-subtle {
+    animation: pulseSubtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+/* ── Disable Native Browser Clear Buttons (Chromium, Edge, Safari, IE) ── */
+input::-webkit-search-decoration,
+input::-webkit-search-cancel-button,
+input::-webkit-search-results-button,
+input::-webkit-search-results-decoration,
+input::-ms-clear,
+input::-ms-reveal {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+

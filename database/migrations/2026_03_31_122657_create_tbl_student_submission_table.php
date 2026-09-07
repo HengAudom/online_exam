@@ -19,6 +19,7 @@ return new class extends Migration
             $table->timestamp('CompletedAt')->nullable();
             $table->integer('TotalCorrect')->default(0);
             $table->decimal('Score', 8, 2)->default(0.00);
+            $table->integer('Interruptions')->default(0)->nullable();
             $table->timestamps();
 
             $table->foreign('StudentId')->references('StudentId')->on('tblStudent')->onDelete('cascade');

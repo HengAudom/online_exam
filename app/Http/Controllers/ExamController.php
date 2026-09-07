@@ -19,17 +19,19 @@ class ExamController extends Controller
     public function start(Request $request, $testId)
     {
         $user = $request->user();
-        if (! $user) {
+        if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $student = Student::where('UserId', $user->id)->first();
-        if (! $student) {
+        $student = ($user instanceof Student) 
+            ? $user 
+            : (Student::find($user->StudentId ?? $user->id) ?? Student::where('UserId', $user->id)->first());
+        if (!$student) {
             return response()->json(['message' => 'Student profile not found.'], 404);
         }
 
         $test = Test::with(['questions.answers'])->find($testId);
-        if (! $test) {
+        if (!$test) {
             return response()->json(['message' => 'Test not found.'], 404);
         }
 
@@ -53,6 +55,20 @@ class ExamController extends Controller
             return response()->json(['message' => 'This exam has already finished and is no longer available.'], 403);
         }
 
+        // Security check: Only 1 attempt allowed per exam
+        $alreadyCompleted = StudentSubmission::where('StudentId', $student->StudentId)
+            ->where('TestId', $testId)
+            ->whereNotNull('CompletedAt')
+            ->first();
+
+        if ($alreadyCompleted) {
+            return response()->json([
+                'message' => 'ការប្រឡងនេះអនុញ្ញាតឱ្យធ្វើតែ ១ លើកប៉ុណ្ណោះ។ អ្នកបានប្រឡងរួចរាល់ហើយ មិនអាចប្រឡងឡើងវិញបានទេ (You have already completed this exam).',
+                'alreadyCompleted' => true,
+                'submissionId' => $alreadyCompleted->SubmissionId
+            ], 403);
+        }
+
         // Check for an existing incomplete submission
         $existing = StudentSubmission::where('StudentId', $student->StudentId)
             ->where('TestId', $testId)
@@ -64,32 +80,147 @@ class ExamController extends Controller
         } else {
             $submission = StudentSubmission::create([
                 'StudentId' => $student->StudentId,
-                'TestId'    => $testId,
+                'TestId' => $testId,
                 'StartedAt' => now(),
             ]);
         }
 
-        // Build questions payload WITHOUT IsCorrect
-        $questions = $test->questions->map(function ($question) {
+        // Build questions payload WITHOUT IsCorrect (except defaultAnswerId for example questions)
+        $questions = $test->questions->map(function ($question) use ($submission) {
+            $isExample = (bool)($question->IsExample || preg_match('/^(?:0\.|០\.|Example|Ex\.|គំរូ)/iu', trim($question->QuestionText)));
+            $defaultAnswerId = null;
+            if ($isExample) {
+                $correct = $question->answers->firstWhere('IsCorrect', true) ?? $question->answers->first();
+                $defaultAnswerId = $correct?->AnswerId;
+
+                // Pre-save answer in SubmissionDetail if not already saved
+                if ($defaultAnswerId && $submission) {
+                    SubmissionDetail::updateOrCreate(
+                        [
+                            'SubmissionId' => $submission->SubmissionId,
+                            'QuestionId' => $question->QuestionId,
+                        ],
+                        [
+                            'SelectedAnswerId' => $defaultAnswerId,
+                            'IsCorrect' => true,
+                        ]
+                    );
+                }
+            }
+
             return [
-                'id'      => $question->QuestionId,
-                'text'    => $question->QuestionText,
+                'id' => $question->QuestionId,
+                'text' => $question->QuestionText,
+                'passage' => $question->Passage,
+                'isExample' => $isExample,
+                'defaultAnswerId' => $defaultAnswerId,
                 'answers' => $question->answers->map(fn($a) => [
-                    'id'   => $a->AnswerId,
+                    'id' => $a->AnswerId,
                     'text' => $a->AnswerText,
                 ])->values(),
             ];
         })->values();
 
+        // Load any previously saved answers for this incomplete submission
+        $savedAnswers = [];
+        $savedDetails = SubmissionDetail::where('SubmissionId', $submission->SubmissionId)->get();
+        foreach ($savedDetails as $sd) {
+            if ($sd->SelectedAnswerId) {
+                $savedAnswers[$sd->QuestionId] = $sd->SelectedAnswerId;
+            }
+        }
+
+        // Calculate remaining seconds strictly capped to DurationMinutes * 60
+        $durationMin = (int) max(1, round((float) $test->DurationMinutes));
+        $totalSeconds = $durationMin * 60;
+        $elapsedSeconds = 0;
+        if ($submission->StartedAt) {
+            $startedAt = \Carbon\Carbon::parse($submission->StartedAt);
+            $elapsedSeconds = max(0, now()->getTimestamp() - $startedAt->getTimestamp());
+        }
+        $remainingSeconds = max(0, $totalSeconds - $elapsedSeconds);
+        $remainingSeconds = min($remainingSeconds, $totalSeconds);
+
+        // If test has a hard deadline FinishedAt, clamp further
+        if ($test->FinishedAt) {
+            $globalEnd = \Carbon\Carbon::parse($test->FinishedAt);
+            $secondsUntilGlobalEnd = max(0, $globalEnd->getTimestamp() - now()->getTimestamp());
+            $remainingSeconds = min($remainingSeconds, $secondsUntilGlobalEnd);
+        }
+
+        $sysSettings = AdminController::getSystemSettings();
+
         return response()->json([
-            'submissionId'    => $submission->SubmissionId,
-            'testId'          => $test->TestId,
-            'testName'        => $test->TestName,
-            'durationMinutes' => $test->DurationMinutes,
-            'totalMarks'      => $test->TotalMarks,
-            'scheduledAt'     => $test->ScheduledAt,
-            'finishedAt'      => $test->FinishedAt,
-            'questions'       => $questions,
+            'submissionId' => $submission->SubmissionId,
+            'testId' => $test->TestId,
+            'testName' => $test->TestName,
+            'durationMinutes' => $durationMin,
+            'totalMarks' => $test->TotalMarks,
+            'scheduledAt' => $test->ScheduledAt,
+            'finishedAt' => $test->FinishedAt,
+            'isStarted' => (bool) $existing,
+            'startedAt' => $submission->StartedAt ? \Carbon\Carbon::parse($submission->StartedAt)->toIso8601String() : null,
+            'serverTime' => now()->toIso8601String(),
+            'questions' => $questions,
+            'savedAnswers' => $savedAnswers,
+            'interruptions' => (int) ($submission->Interruptions ?? 0),
+            'remainingSeconds' => (int) $remainingSeconds,
+            'antiCheatPause' => (bool) ($sysSettings['antiCheatPause'] ?? true),
+            'autosaveIntervalSeconds' => (int) ($sysSettings['autosaveIntervalSeconds'] ?? 3),
+            'autoSubmitOnTimeout' => (bool) ($sysSettings['autoSubmitOnTimeout'] ?? true),
+            'studentTelegramLinked' => !empty($student->TelegramChatId),
+            'telegramConnectUrl' => 'https://t.me/onlinexam_bot?start=link_' . urlencode($student->StudentCode ?: $student->StudentId),
+        ]);
+    }
+
+    /**
+     * Check submission status (used for real-time heartbeat sync / force submit detection).
+     */
+    public function checkStatus(Request $request, $submissionId)
+    {
+        $submission = StudentSubmission::find($submissionId);
+        if (!$submission) {
+            return response()->json(['exists' => false], 404);
+        }
+
+        return response()->json([
+            'submissionId' => $submission->SubmissionId,
+            'isCompleted' => !empty($submission->CompletedAt),
+            'completedAt' => $submission->CompletedAt,
+        ]);
+    }
+
+    /**
+     * Record focus loss / tab switch incident in real time.
+     */
+    public function recordInterruption(Request $request)
+    {
+        $data = $request->validate([
+            'submissionId' => ['required', 'integer'],
+            'interruptions' => ['nullable', 'integer'],
+        ]);
+
+        $submission = StudentSubmission::find($data['submissionId']);
+        if (!$submission || $submission->CompletedAt) {
+            return response()->json(['message' => 'Submission not found or already completed.'], 404);
+        }
+
+        if (isset($data['interruptions']) && $data['interruptions'] !== null) {
+            $submission->Interruptions = (int) $data['interruptions'];
+        } else {
+            $submission->increment('Interruptions');
+        }
+        $submission->save();
+
+        if ((int)$submission->Interruptions === 3) {
+            try {
+                app(\App\Services\TelegramService::class)->sendInterruptionAlert($submission, (int)$submission->Interruptions);
+            } catch (\Throwable $e) {}
+        }
+
+        return response()->json([
+            'success' => true,
+            'interruptions' => (int) $submission->Interruptions,
         ]);
     }
 
@@ -99,10 +230,18 @@ class ExamController extends Controller
     public function saveAnswer(Request $request)
     {
         $data = $request->validate([
-            'submissionId'     => ['required', 'integer'],
-            'questionId'       => ['required', 'integer'],
+            'submissionId' => ['required', 'integer'],
+            'questionId' => ['required', 'integer'],
             'selectedAnswerId' => ['nullable', 'integer'],
         ]);
+
+        $submission = StudentSubmission::find($data['submissionId']);
+        if ($submission && $submission->CompletedAt) {
+            return response()->json([
+                'message' => 'Submission already completed.',
+                'isCompleted' => true
+            ], 403);
+        }
 
         $answer = null;
         $isCorrect = false;
@@ -115,11 +254,11 @@ class ExamController extends Controller
         SubmissionDetail::updateOrCreate(
             [
                 'SubmissionId' => $data['submissionId'],
-                'QuestionId'   => $data['questionId'],
+                'QuestionId' => $data['questionId'],
             ],
             [
                 'SelectedAnswerId' => $data['selectedAnswerId'],
-                'IsCorrect'        => $isCorrect,
+                'IsCorrect' => $isCorrect,
             ]
         );
 
@@ -132,12 +271,14 @@ class ExamController extends Controller
     public function complete(Request $request, $submissionId)
     {
         $user = $request->user();
-        if (! $user) {
+        if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $student = Student::where('UserId', $user->id)->first();
-        if (! $student) {
+        $student = ($user instanceof Student) 
+            ? $user 
+            : (Student::find($user->StudentId ?? $user->id) ?? Student::where('UserId', $user->id)->first());
+        if (!$student) {
             return response()->json(['message' => 'Student not found.'], 404);
         }
 
@@ -145,7 +286,7 @@ class ExamController extends Controller
             ->where('StudentId', $student->StudentId)
             ->first();
 
-        if (! $submission) {
+        if (!$submission) {
             return response()->json(['message' => 'Submission not found.'], 404);
         }
 
@@ -155,24 +296,65 @@ class ExamController extends Controller
 
         $test = Test::find($submission->TestId);
         $totalQuestions = Question::where('TestId', $submission->TestId)->count();
-        $totalCorrect   = SubmissionDetail::where('SubmissionId', $submissionId)->where('IsCorrect', true)->count();
+        $answeredCount = SubmissionDetail::where('SubmissionId', $submissionId)
+            ->whereNotNull('SelectedAnswerId')
+            ->count();
+
+        $isForced = $request->boolean('forcedTimeout') || $request->boolean('autoSubmit');
+        if (!$isForced && $answeredCount < $totalQuestions) {
+            $unanswered = $totalQuestions - $answeredCount;
+            return response()->json([
+                'success' => false,
+                'message' => "មិនអាចបញ្ជូនការប្រឡងបានទេ! អ្នកត្រូវតែឆ្លើយសំណួរឱ្យបានគ្រប់ទាំងអស់ (នៅសល់ {$unanswered} សំណួរទៀតមិនទាន់ឆ្លើយ)។",
+                'unansweredCount' => $unanswered,
+            ], 422);
+        }
+
+        $totalCorrect = SubmissionDetail::where('SubmissionId', $submissionId)->where('IsCorrect', true)->count();
 
         $score = $totalQuestions > 0
             ? round(($totalCorrect / $totalQuestions) * $test->TotalMarks, 2)
             : 0;
 
-        $submission->TotalCorrect  = $totalCorrect;
-        $submission->Score         = $score;
-        $submission->CompletedAt   = now();
+        $interruptions = (int) $request->input('interruptions', 0);
+
+        $submission->TotalCorrect = $totalCorrect;
+        $submission->Score = $score;
+        $submission->CompletedAt = now();
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasColumn('tblstudentsubmission', 'Interruptions') ||
+                \Illuminate\Support\Facades\Schema::hasColumn('tblStudentSubmission', 'Interruptions')) {
+                $submission->Interruptions = $interruptions;
+            }
+        } catch (\Throwable $e) {}
+
         $submission->save();
 
+        // ─── Telegram Notification Alert via Google Apps Script Cloud Bridge ───
+        $telegramSent = false;
+        $studentTelegramLinked = false;
+        try {
+            $telegramService = app(\App\Services\TelegramService::class);
+            $freshStudent = \App\Models\Student::find($student->StudentId);
+            if ($freshStudent) {
+                $submission->setRelation('student', $freshStudent);
+                $studentTelegramLinked = !empty($freshStudent->TelegramChatId);
+            }
+            // Dispatches result to Google Apps Script (handles both Student notification & Admin alert in one fast non-blocking request)
+            $res = $telegramService->sendExamSubmissionAlert($submission);
+            $telegramSent = !empty($res['ok']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Telegram exam submission alert failed: ' . $e->getMessage());
+        }
+
         return response()->json([
-            'message'        => 'Exam completed.',
-            'submissionId'   => $submission->SubmissionId,
-            'totalCorrect'   => $totalCorrect,
-            'totalQuestions' => $totalQuestions,
-            'totalMarks'     => $test->TotalMarks,
-            'score'          => $score,
+            'success' => true,
+            'submitted' => true,
+            'message' => 'ការប្រឡងត្រូវបាន Submit ជោគជ័យ (Your exam has been submitted successfully).',
+            'submissionId' => $submission->SubmissionId,
+            'telegramSent' => $telegramSent,
+            'studentTelegramLinked' => $studentTelegramLinked,
         ]);
     }
 }

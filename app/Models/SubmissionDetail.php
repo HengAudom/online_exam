@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class SubmissionDetail extends Model
 {
-    protected $table = 'tblSubmissionDetail';
+    protected $table = 'tblsubmissiondetail';
     protected $primaryKey = 'DetailId';
 
     protected $fillable = [

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Test extends Model
 {
-    protected $table = 'tblTest';
+    protected $table = 'tbltest';
     protected $primaryKey = 'TestId';
 
     protected $fillable = [
@@ -18,12 +18,12 @@ class Test extends Model
         'ScheduledAt',
         'FinishedAt',
         'Status',
-        'BatchId',
+        'GroupId',
     ];
 
     protected $casts = [
         'ScheduledAt' => 'datetime',
-        'FinishedAt'  => 'datetime',
+        'FinishedAt' => 'datetime',
     ];
 
     public function skill()
@@ -31,14 +31,14 @@ class Test extends Model
         return $this->belongsTo(Skill::class, 'SkillId', 'SkillId');
     }
 
-    public function batch()
+    public function group()
     {
-        return $this->belongsTo(Batch::class, 'BatchId', 'BatchId');
+        return $this->belongsTo(Group::class, 'GroupId', 'GroupId');
     }
 
     public function createdBy()
     {
-        return $this->belongsTo(User::class, 'CreatedByUserId', 'id');
+        return $this->belongsTo(Admin::class, 'CreatedByUserId', 'AdminId');
     }
 
     public function questions()

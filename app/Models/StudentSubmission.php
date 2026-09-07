@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class StudentSubmission extends Model
 {
-    protected $table = 'tblStudentSubmission';
+    protected $table = 'tblstudentsubmission';
     protected $primaryKey = 'SubmissionId';
 
     protected $fillable = [
@@ -16,12 +16,14 @@ class StudentSubmission extends Model
         'CompletedAt',
         'TotalCorrect',
         'Score',
+        'Interruptions',
     ];
 
     protected $casts = [
-        'StartedAt'   => 'datetime',
-        'CompletedAt' => 'datetime',
-        'Score'       => 'decimal:2',
+        'StartedAt'     => 'datetime',
+        'CompletedAt'   => 'datetime',
+        'Score'         => 'decimal:2',
+        'Interruptions' => 'integer',
     ];
 
     public function student()

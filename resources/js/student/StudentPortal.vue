@@ -1,417 +1,636 @@
 <template>
-  <div class="min-h-screen bg-[#f0f4ff]">
-    <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+  <StudentLayout>
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-      <!-- Top Header -->
-      <div class="rounded-2xl bg-[#00288e] px-8 py-6 mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between shadow-lg relative overflow-hidden">
-        <!-- Decoration -->
-        <div class="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/5 blur-3xl"></div>
+      <!-- ── Candidate Welcome & Exam Shift Card ───────────────────────────── -->
+      <div class="rounded-3xl bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white p-5 sm:p-8 shadow-soft-lg relative overflow-hidden">
+        <div class="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-blue-500/10 blur-3xl pointer-events-none"></div>
 
-        <div class="flex items-center gap-5 relative z-10">
-          <!-- Profile Pic Upload — input must NOT be display:none on iOS -->
-          <div class="relative group h-16 w-16 shrink-0 cursor-pointer" :title="t.changePhoto">
-            <img
-              v-if="student.profileImage"
-              :src="student.profileImage"
-              class="h-full w-full rounded-2xl object-cover border-2 border-white/20 shadow-md"
-            />
-            <div
-              v-else
-              class="flex h-full w-full items-center justify-center rounded-2xl bg-white/10 border-2 border-dashed border-white/20"
+        <div class="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5 sm:gap-6">
+          <div class="flex items-start sm:items-center gap-3.5 sm:gap-5 min-w-0">
+            <!-- Profile Avatar with upload -->
+            <div class="relative group h-16 w-16 sm:h-20 sm:w-20 shrink-0 cursor-pointer rounded-2xl bg-white/10 border-2 border-white/20 overflow-hidden flex items-center justify-center shadow-soft-sm">
+              <img v-if="student.profileImage" :src="student.profileImage" class="h-full w-full object-cover" />
+              <span v-else class="material-symbols-outlined text-white/60 text-3xl">person</span>
+
+              <div class="absolute inset-0 bg-slate-900/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none text-white">
+                <span class="material-symbols-outlined text-sm">photo_camera</span>
+              </div>
+              <input
+                type="file"
+                accept="image/*"
+                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                title="Change Photo"
+                @change="onFileChange"
+              />
+            </div>
+
+            <div class="min-w-0 flex-1 space-y-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-blue-300 whitespace-nowrap">
+                  {{ t.candidateBadge }}
+                </span>
+                <span v-if="student.studentCode || student.studentId" class="px-2.5 py-0.5 rounded-lg bg-blue-500/25 text-blue-200 text-xs font-mono font-bold border border-blue-400/30 whitespace-nowrap inline-flex items-center shrink-0">
+                  ID: {{ student.studentCode || student.studentId }}
+                </span>
+              </div>
+              <h1 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight mt-0.5 truncate capitalize">
+                {{ studentDisplayName }}
+              </h1>
+
+              <!-- Exam Session & Shift Details -->
+              <div class="flex items-center gap-2 pt-0.5 flex-wrap">
+                <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-200 border border-blue-400/30 whitespace-nowrap">
+                  <span class="material-symbols-outlined text-xs">calendar_clock</span>
+                  <span>{{ student.sessionName || t.generalSession }}</span>
+                </div>
+
+                <div v-if="student.examDate" class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-white/10 text-slate-200 border border-white/10 font-mono whitespace-nowrap">
+                  <span class="material-symbols-outlined text-xs">event</span>
+                  <span>{{ student.examDate }}</span>
+                  <span v-if="student.startTime">({{ formatTime(student.startTime) }} - {{ formatTime(student.endTime) }})</span>
+                </div>
+
+                <!-- Telegram Notification Badge -->
+                <a
+                  v-if="student.telegramConnected"
+                  href="https://t.me/onlinexam_bot"
+                  target="_blank"
+                  class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 whitespace-nowrap hover:bg-emerald-500/30 transition-colors"
+                  :title="lang === 'kh' ? 'Telegram ត្រូវបានភ្ជាប់រួចរាល់' : 'Telegram Connected'"
+                >
+                  <span class="material-symbols-outlined text-xs">send</span>
+                  <span>{{ student.telegramUsername ? student.telegramUsername : (lang === 'kh' ? 'Telegram: បានភ្ជាប់' : 'Telegram: Connected') }}</span>
+                </a>
+                <a
+                  v-else
+                  :href="student.telegramConnectUrl || 'https://t.me/onlinexam_bot'"
+                  target="_blank"
+                  class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 whitespace-nowrap hover:bg-amber-500/30 transition-colors cursor-pointer"
+                  :title="lang === 'kh' ? 'ចុចដើម្បីភ្ជាប់ Telegram ទទួលលទ្ធផលប្រឡង' : 'Click to connect Telegram for exam results'"
+                  @click="onConnectTelegramClick"
+                >
+                  <span class="material-symbols-outlined text-xs">notifications_active</span>
+                  <span>{{ lang === 'kh' ? 'ភ្ជាប់ Telegram' : 'Connect Telegram' }}</span>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Settings Trigger -->
+          <div class="flex items-center sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t border-white/10 sm:border-t-0">
+            <Button
+              variant="outline"
+              size="sm"
+              :icon="editing ? 'close' : 'manage_accounts'"
+              class="bg-white/10 text-white border-white/20 hover:bg-white/20 w-full sm:w-auto justify-center font-bold text-xs"
+              @click="toggleEdit"
             >
-              <span class="material-symbols-outlined text-white text-3xl opacity-50">add_a_photo</span>
-            </div>
-            <!-- Camera icon overlay -->
-            <div class="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <span class="material-symbols-outlined text-white text-sm">photo_camera</span>
-            </div>
-            <!-- Invisible input covers the full area — works on iOS/Android -->
-            <input
-              type="file"
-              accept="image/*"
-              class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              style="font-size: 0;"
-              @change="onFileChange"
-            />
+              {{ editing ? t.closeSettings : t.accountSettings }}
+            </Button>
           </div>
-
-          <div>
-            <p class="text-xs font-bold uppercase tracking-widest text-blue-300 opacity-80">{{ t.welcomeBack }}</p>
-            <h1 class="font-manrope text-2xl font-bold text-white mt-1">{{ studentDisplayName }}</h1>
-            <div class="flex items-center gap-2 mt-1">
-              <span class="inline-block h-2 w-2 rounded-full bg-green-400"></span>
-              <p class="text-sm text-blue-200">{{ student.skill }} · {{ student.batch }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex flex-row flex-wrap gap-3 relative z-10 shrink-0">
-          <!-- Language Toggle -->
-          <button
-            @click="toggleLang"
-            class="flex items-center gap-1.5 rounded-xl border-2 border-white/30 bg-white/10 px-3 py-2 text-sm font-bold text-white transition hover:bg-white/20"
-            :title="lang === 'en' ? 'ប្តូរទៅភាសាខ្មែរ' : 'Switch to English'"
-          >
-            <span class="material-symbols-outlined text-base">language</span>
-            {{ lang === 'en' ? 'ខ្មែរ' : 'EN' }}
-          </button>
-
-          <button
-            @click="toggleEdit"
-            class="flex items-center gap-2 rounded-xl border-2 border-white/30 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
-          >
-            <span class="material-symbols-outlined text-lg">{{ editing ? 'close' : 'settings' }}</span>
-            {{ editing ? t.closeSettings : t.profileSettings }}
-          </button>
-          <button
-            @click="handleLogout"
-            class="flex items-center gap-2 rounded-xl bg-red-500/80 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500 shadow-lg shadow-red-500/20"
-          >
-            <span class="material-symbols-outlined text-lg">logout</span>
-            {{ t.signOut }}
-          </button>
         </div>
       </div>
 
-      <div class="grid gap-6 lg:grid-cols-[1fr_360px]">
-
-        <!-- ── Left ─────────────────────────────── -->
-        <div class="space-y-6">
-
-          <div v-if="editing" class="space-y-6">
-            <!-- Edit Profile -->
-            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
-              <div class="flex items-center gap-2 mb-4">
-                <span class="material-symbols-outlined text-[#00288e]" style="font-variation-settings:'FILL' 1;">manage_accounts</span>
-                <h2 class="font-manrope font-bold text-slate-900">{{ t.editProfile }}</h2>
+      <!-- ── Candidate Information Settings ───────────────────── -->
+      <transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="transform opacity-0 -translate-y-2"
+        enter-to-class="transform opacity-100 translate-y-0"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="transform opacity-100 translate-y-0"
+        leave-to-class="transform opacity-0 -translate-y-2"
+      >
+        <div v-if="editing" class="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-soft-md space-y-5">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div class="flex items-center gap-2.5">
+              <div class="h-9 w-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <span class="material-symbols-outlined text-lg">person_edit</span>
               </div>
-              <div class="grid gap-4 sm:grid-cols-2">
-                <label class="block space-y-1"><span class="label-text">{{ t.firstName }}</span>
-                  <input v-model="profileForm.firstName" type="text" class="field" /></label>
-                <label class="block space-y-1"><span class="label-text">{{ t.lastName }}</span>
-                  <input v-model="profileForm.lastName" type="text" class="field" /></label>
-                <label class="block space-y-1 sm:col-span-2"><span class="label-text">{{ t.email }}</span>
-                  <input v-model="profileForm.email" type="email" class="field" /></label>
-                <label class="block space-y-1"><span class="label-text">{{ t.phone }}</span>
-                  <input v-model="profileForm.phone" type="tel" class="field" /></label>
-                <label class="block space-y-1"><span class="label-text">{{ t.shift }}</span>
-                  <select v-model="profileForm.shift" class="field">
-                    <option value="Morning">{{ t.morning }}</option>
-                    <option value="Afternoon">{{ t.afternoon }}</option>
-                    <option value="Evening">{{ t.evening }}</option>
-                  </select>
-                </label>
+              <div>
+                <h3 class="font-extrabold text-slate-900 text-base leading-tight">
+                  {{ t.editProfile }}
+                </h3>
+                <p class="text-xs text-slate-500">
+                  {{ lang === 'kh' ? 'ពិនិត្យ និងកែប្រែព័ត៌មានផ្ទាល់ខ្លួនរបស់បេក្ខជន' : 'Review and update your candidate information' }}
+                </p>
               </div>
-              <button @click="saveProfile" class="mt-4 flex items-center gap-2 rounded-xl bg-[#00288e] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1e40af] shadow-lg shadow-[#00288e]/20">
-                <span class="material-symbols-outlined text-lg">save</span>
-                {{ t.saveChanges }}
-              </button>
             </div>
-
-            <!-- Change Password -->
-            <div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
-              <div class="flex items-center gap-2 mb-4">
-                <span class="material-symbols-outlined text-[#00288e]" style="font-variation-settings:'FILL' 1;">lock_reset</span>
-                <h2 class="font-manrope font-bold text-slate-900">{{ t.accountSecurity }}</h2>
-              </div>
-              <div class="grid gap-4 sm:grid-cols-2">
-                <label class="block space-y-1 sm:col-span-2">
-                  <span class="label-text">{{ t.currentPassword }}</span>
-                  <input v-model="passForm.currentPassword" type="password" class="field" placeholder="••••••••" />
-                </label>
-                <label class="block space-y-1">
-                  <span class="label-text">{{ t.newPassword }}</span>
-                  <input v-model="passForm.newPassword" type="password" class="field" placeholder="••••••••" />
-                </label>
-                <label class="block space-y-1">
-                  <span class="label-text">{{ t.confirmNewPassword }}</span>
-                  <input v-model="passForm.newPassword_confirmation" type="password" class="field" placeholder="••••••••" />
-                </label>
-              </div>
-              <button @click="changePassword" class="mt-4 flex items-center gap-2 rounded-xl bg-slate-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-black shadow-lg shadow-black/10">
-                <span class="material-symbols-outlined text-lg">vpn_key</span>
-                {{ t.updatePassword }}
-              </button>
-            </div>
+            <button
+              type="button"
+              class="h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors"
+              @click="editing = false"
+            >
+              <span class="material-symbols-outlined text-lg">close</span>
+            </button>
           </div>
 
-          <!-- Available Exams -->
-          <div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
-            <div class="flex items-center justify-between mb-5">
+          <form @submit.prevent="saveProfile" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                v-model="profileForm.firstName"
+                :label="t.firstName"
+                :placeholder="t.firstName"
+                required
+              />
+              <Input
+                v-model="profileForm.lastName"
+                :label="t.lastName"
+                :placeholder="t.lastName"
+                required
+              />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                v-model="profileForm.phone"
+                :label="t.phone"
+                icon="call"
+                placeholder="012 345 678"
+                required
+              />
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                  {{ lang === 'kh' ? 'អត្តលេខបេក្ខជន' : 'Candidate ID' }}
+                </label>
+                <div class="h-10 px-3.5 rounded-xl bg-slate-100/80 border border-slate-200 text-slate-600 font-mono text-sm font-bold flex items-center select-none">
+                  {{ student.studentCode || student.studentId }}
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <Button
+                variant="outline"
+                size="md"
+                type="button"
+                @click="editing = false"
+              >
+                {{ lang === 'kh' ? 'បោះបង់' : 'Cancel' }}
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                type="submit"
+                icon="save"
+                :loading="savingProfile"
+              >
+                {{ t.saveProfile }}
+              </Button>
+            </div>
+          </form>
+
+          <!-- ── Telegram Notification Settings ───────────────────── -->
+          <div class="p-5 rounded-2xl border border-slate-200 bg-slate-50/80 space-y-3 mt-4">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <div class="flex items-center gap-2.5">
+                <div class="h-8 w-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                  <span class="material-symbols-outlined text-base">send</span>
+                </div>
+                <div>
+                  <h4 class="font-bold text-slate-800 text-xs sm:text-sm">
+                    {{ lang === 'kh' ? 'ការជូនដំណឹងតាម Telegram (Telegram Exam Alerts)' : 'Telegram Exam Result Notifications' }}
+                  </h4>
+                  <p class="text-[11px] text-slate-500">
+                    {{ lang === 'kh' ? 'ទទួលលទ្ធផលប្រឡង និងពិន្ទុរបស់អ្នកដោយស្វ័យប្រវត្តិតាម Telegram ពេលប្រឡងចប់' : 'Receive instant score notifications in your Telegram when you finish an exam.' }}
+                  </p>
+                </div>
+              </div>
+              <span
+                v-if="student.telegramConnected"
+                class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1"
+              >
+                <span class="material-symbols-outlined text-xs">verified</span>
+                {{ lang === 'kh' ? 'បានភ្ជាប់រួចរាល់' : 'Connected' }} {{ student.telegramUsername ? `(${student.telegramUsername})` : '' }}
+              </span>
+              <span
+                v-else
+                class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 border border-amber-200 inline-flex items-center gap-1"
+              >
+                <span class="material-symbols-outlined text-xs">link_off</span>
+                {{ lang === 'kh' ? 'មិនទាន់ភ្ជាប់' : 'Not Connected' }}
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-200/60 flex-wrap gap-2">
+              <div class="text-[11px] text-slate-500 max-w-md leading-relaxed">
+                {{ student.telegramConnected
+                  ? (lang === 'kh' ? 'គណនីរបស់អ្នកបានភ្ជាប់ជាមួយ OnlinExam Bot រួចរាល់។ ពេលប្រឡងចប់ ពិន្ទុនឹងផ្ញើមកទីនេះស្វ័យប្រវត្តិ។' : 'Your account is linked. Score alerts will be sent to your Telegram automatically.')
+                  : (lang === 'kh' ? 'ចុចប៊ូតុងខាងស្ដាំដើម្បីបើក Telegram Bot ឬបញ្ចូល Chat ID របស់អ្នកខាងក្រោមដើម្បីភ្ជាប់ដោយផ្ទាល់។' : 'Click to open Telegram Bot or enter your Chat ID below to connect directly.')
+                }}
+              </div>
               <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-[#00288e]" style="font-variation-settings:'FILL' 1;">quiz</span>
-                <h2 class="font-manrope font-bold text-slate-900">{{ t.availableExams }}</h2>
-              </div>
-              <span class="rounded-full bg-[#00288e]/10 px-3 py-1 text-xs font-semibold text-[#00288e]">{{ availableTests.length }} {{ t.exams }}</span>
-            </div>
-
-            <div class="space-y-4">
-              <div
-                v-for="test in availableTests"
-                :key="test.id"
-                class="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-5 py-4 hover:border-[#00288e]/30 hover:bg-blue-50/30 transition-all"
-              >
-                <div>
-                  <p class="font-semibold text-slate-900">{{ test.name }}</p>
-                  <div class="mt-1.5 flex flex-wrap gap-3 text-xs text-slate-500">
-                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm text-[#00288e]">category</span>{{ test.skill }}</span>
-                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm text-slate-400">timer</span>{{ test.durationMinutes }} {{ t.min }}</span>
-                    <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm text-slate-400">star</span>{{ test.totalMarks }} {{ t.marks }}</span>
-                  </div>
-                </div>
-                <div v-if="test.status === 'Finished'" class="text-right flex flex-col items-end gap-1 px-4 py-2">
-                  <span class="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">{{ t.finished }}</span>
-                  <span class="text-[10px] text-slate-400 mt-0.5">{{ t.examEnded }}</span>
-                </div>
-                <template v-else>
-                  <div v-if="test.scheduledAt && new Date(test.scheduledAt) > new Date()" class="text-right flex flex-col items-end gap-1 px-4 py-2">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-[#00288e]/60">{{ t.scheduledFor }}</span>
-                    <div class="flex items-center gap-2 rounded-xl bg-[#00288e]/5 px-4 py-2 border border-[#00288e]/10">
-                      <span class="material-symbols-outlined text-lg text-[#00288e]">calendar_month</span>
-                      <span class="text-sm font-bold text-[#00288e]">
-                        {{ new Date(test.scheduledAt).toLocaleDateString(lang === 'en' ? 'en-US' : 'km-KH', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    v-else
-                    @click="startExam(test)"
-                    class="shrink-0 flex items-center gap-2 rounded-xl bg-[#00288e] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#1e40af]"
-                  >
-                    <span class="material-symbols-outlined text-lg">play_arrow</span>
-                    {{ t.start }}
-                  </button>
-                </template>
-              </div>
-
-              <div v-if="availableTests.length === 0" class="rounded-xl border-2 border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
-                <span class="material-symbols-outlined block text-4xl mb-2">event_busy</span>
-                {{ t.noExams }}
+                <a
+                  v-if="!student.telegramConnected"
+                  :href="student.telegramConnectUrl || 'https://t.me/onlinexam_bot'"
+                  target="_blank"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors cursor-pointer"
+                  @click="onConnectTelegramClick"
+                >
+                  <span class="material-symbols-outlined text-sm">open_in_new</span>
+                  <span>{{ lang === 'kh' ? 'ភ្ជាប់ជាមួយ Telegram' : 'Connect Telegram' }}</span>
+                </a>
+                <button
+                  v-else
+                  type="button"
+                  class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors"
+                  @click="unlinkTelegram"
+                >
+                  <span class="material-symbols-outlined text-sm">link_off</span>
+                  <span>{{ lang === 'kh' ? 'ផ្តាច់ការភ្ជាប់' : 'Unlink' }}</span>
+                </button>
               </div>
             </div>
-          </div>
 
-          <!-- My Results -->
-          <div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
-            <div class="flex items-center gap-2 mb-5">
-              <span class="material-symbols-outlined text-[#00288e]" style="font-variation-settings:'FILL' 1;">bar_chart</span>
-              <h2 class="font-manrope font-bold text-slate-900">{{ t.myResults }}</h2>
-            </div>
-            <div class="space-y-3">
-              <div
-                v-for="result in myResults"
-                :key="result.id"
-                class="flex items-center justify-between gap-3 rounded-xl bg-slate-50 border border-slate-200 px-4 py-3"
-              >
-                <div>
-                  <p class="text-sm font-semibold text-slate-800">{{ result.testName }}</p>
-                  <p class="text-xs text-slate-400 mt-0.5">{{ formatDate(result.completedAt) }}</p>
-                </div>
-                <div class="flex items-center gap-3">
-                  <div class="text-right">
-                    <p class="font-manrope text-lg font-bold text-[#00288e]">{{ result.score }}<span class="text-sm text-slate-400">/{{ result.totalMarks }}</span></p>
-                  </div>
-                  <button
-                    @click="viewResult(result)"
-                    class="flex items-center gap-1 rounded-lg bg-[#00288e]/10 px-3 py-1.5 text-xs font-semibold text-[#00288e] hover:bg-[#00288e] hover:text-white transition"
-                  >
-                    <span class="material-symbols-outlined text-sm">open_in_new</span>
-                    {{ t.view }}
-                  </button>
-                </div>
+            <!-- Manual Telegram Chat ID entry fallback -->
+            <div v-if="!student.telegramConnected" class="pt-3 border-t border-slate-200/60">
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">
+                {{ lang === 'kh' ? 'ឬបញ្ចូល Telegram Chat ID ដោយផ្ទាល់ (ប្រសិនបើមិនទាន់ភ្ជាប់)៖' : 'Or enter your Telegram Chat ID directly:' }}
+              </label>
+              <div class="flex items-center gap-2 max-w-md">
+                <input
+                  v-model="manualChatId"
+                  type="text"
+                  :placeholder="lang === 'kh' ? 'បញ្ចូល Telegram Chat ID របស់អ្នក...' : 'Enter your Telegram Chat ID...'"
+                  class="flex-1 px-3 py-1.5 rounded-xl text-xs border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  @keyup.enter="linkTelegramManually"
+                />
+                <button
+                  type="button"
+                  :disabled="linkingTelegram || !manualChatId"
+                  class="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 transition-colors shrink-0"
+                  @click="linkTelegramManually"
+                >
+                  <span class="material-symbols-outlined text-xs">link</span>
+                  <span>{{ linkingTelegram ? '...' : (lang === 'kh' ? 'ភ្ជាប់' : 'Link') }}</span>
+                </button>
               </div>
-              <div v-if="myResults.length === 0" class="rounded-xl border-2 border-dashed border-slate-200 py-6 text-center text-sm text-slate-400">
-                {{ t.noResults }}
-              </div>
+              <p class="text-[10px] text-slate-400 mt-1">
+                {{ lang === 'kh' ? '💡 ដើម្បីដឹង Chat ID របស់អ្នក៖ ចូលទៅកាន់ Telegram Bot (@onlinexam_bot) រួចផ្ញើសារ /myid ឬ /chatid' : '💡 Tip: To find your Chat ID, send /myid or /chatid to @onlinexam_bot.' }}
+              </p>
             </div>
           </div>
         </div>
+      </transition>
 
-        <!-- ── Right: Profile Card ────────────────────────────────── -->
-        <aside class="space-y-4">
-          <div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
-            <div class="flex items-center gap-2 mb-4">
-              <span class="material-symbols-outlined text-[#00288e]" style="font-variation-settings:'FILL' 1;">account_circle</span>
-              <span class="font-manrope font-bold text-slate-900">{{ t.profile }}</span>
-              <span class="ml-auto rounded-full bg-[#00288e]/10 px-2.5 py-0.5 text-xs font-semibold text-[#00288e]">{{ t.studentBadge }}</span>
-            </div>
-            <div class="space-y-3">
-              <div v-for="field in profileFields" :key="field.label" class="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                <span class="text-xs font-semibold text-slate-400 uppercase">{{ field.label }}</span>
-                <span class="text-sm font-semibold text-slate-800 text-right max-w-[55%] truncate">{{ field.value }}</span>
-              </div>
-            </div>
+      <!-- ── Featured Next Urgent Exam Banner ──────────────────────── -->
+      <div v-if="nextUrgentExam && !editing" class="p-6 rounded-3xl bg-blue-600 text-white shadow-soft-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 relative overflow-hidden">
+        <div class="space-y-2 max-w-xl">
+          <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/20 text-xs font-extrabold tracking-wide uppercase">
+            <span class="h-2 w-2 rounded-full" :class="getExamTimingStatus(nextUrgentExam).isOpen ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'"></span>
+            {{ t.nextExamPrompt }}
           </div>
+          <h2 class="text-2xl font-extrabold tracking-tight text-white leading-snug">
+            {{ nextUrgentExam.name }}
+          </h2>
+          <div class="flex items-center gap-4 text-xs text-blue-100 flex-wrap font-medium">
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">schedule</span>{{ nextUrgentExam.durationMinutes }} {{ t.minutes }}</span>
+            <span class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">star</span>{{ nextUrgentExam.totalMarks }} {{ t.marks }}</span>
+            <span v-if="nextUrgentExam.sessionName" class="flex items-center gap-1"><span class="material-symbols-outlined text-sm">calendar_clock</span>{{ nextUrgentExam.sessionName }}</span>
+            <span v-if="getExamTimingStatus(nextUrgentExam).isUpcoming" class="flex items-center gap-1 text-amber-200 font-bold bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-300/30">
+              <span class="material-symbols-outlined text-sm">alarm</span>
+              {{ lang === 'kh' ? 'បើកនៅ៖ ' : 'Opens at: ' }}{{ getExamTimingStatus(nextUrgentExam).timeText }}
+            </span>
+          </div>
+        </div>
 
-          <div class="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
-            <div class="flex items-center gap-2 mb-4">
-              <span class="material-symbols-outlined text-[#00288e]" style="font-variation-settings:'FILL' 1;">school</span>
-              <span class="font-manrope font-bold text-slate-900">{{ t.enrollment }}</span>
-            </div>
-            <div class="space-y-3">
-              <div class="rounded-xl bg-[#00288e]/5 px-4 py-3">
-                <p class="text-xs text-slate-400 uppercase font-semibold">{{ t.skill }}</p>
-                <p class="mt-1 font-semibold text-[#00288e]">{{ student.skill }}</p>
-              </div>
-              <div class="rounded-xl bg-slate-50 px-4 py-3">
-                <p class="text-xs text-slate-400 uppercase font-semibold">{{ t.batch }}</p>
-                <p class="mt-1 font-semibold text-slate-800">{{ student.batch }}</p>
-              </div>
-              <div class="rounded-xl bg-slate-50 px-4 py-3">
-                <p class="text-xs text-slate-400 uppercase font-semibold">{{ t.studyShift }}</p>
-                <p class="mt-1 font-semibold text-slate-800">{{ student.shift }}</p>
-              </div>
-            </div>
-          </div>
-        </aside>
+        <div class="flex items-center gap-2 shrink-0">
+          <Button
+            variant="secondary"
+            size="lg"
+            :icon="getExamTimingStatus(nextUrgentExam).isOpen ? 'play_arrow' : 'schedule'"
+            :disabled="!getExamTimingStatus(nextUrgentExam).isOpen"
+            class="bg-white text-blue-700 hover:bg-blue-50 font-extrabold shadow-soft-md disabled:opacity-60"
+            @click="startExam(nextUrgentExam.id)"
+          >
+            {{ getExamTimingStatus(nextUrgentExam).isOpen ? t.startExamNow : getExamTimingStatus(nextUrgentExam).btnText }}
+          </Button>
+        </div>
       </div>
+
+      <!-- ── Main Grid: Available Exams & Exam History ─────────────── -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Available Exams (7 cols) -->
+        <Card
+          :title="t.availableExams"
+          :subtitle="t.availableSubtitle"
+          class="lg:col-span-7 shadow-soft-sm"
+          padding="normal"
+        >
+          <template #actions>
+            <span class="rounded-full bg-blue-50 text-blue-700 font-bold px-2.5 py-0.5 text-xs">
+              {{ availableTests.length }}
+            </span>
+          </template>
+
+          <div v-if="availableTests.length > 0" class="space-y-3">
+            <div
+              v-for="exam in availableTests"
+              :key="exam.id"
+              class="p-4 rounded-2xl border border-slate-200/80 bg-white hover:border-blue-300 hover:shadow-soft-xs transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+            >
+              <div class="space-y-1.5">
+                <h3 class="font-bold text-slate-900 text-sm sm:text-base leading-snug">
+                  {{ exam.name }}
+                </h3>
+                <div class="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
+                  <span class="inline-flex items-center gap-1 font-medium">
+                    <span class="material-symbols-outlined text-sm text-slate-400">schedule</span>
+                    {{ exam.durationMinutes }} {{ t.minutes }}
+                  </span>
+                  <span class="inline-flex items-center gap-1 font-medium">
+                    <span class="material-symbols-outlined text-sm text-slate-400">star</span>
+                    {{ exam.totalMarks }} {{ t.marks }}
+                  </span>
+                  <span v-if="exam.sessionName" class="inline-flex items-center gap-1 font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+                    <span class="material-symbols-outlined text-xs">calendar_clock</span>
+                    {{ exam.sessionName }}
+                  </span>
+                  <span
+                    v-if="getExamTimingStatus(exam).isUpcoming"
+                    class="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md"
+                  >
+                    <span class="material-symbols-outlined text-xs">alarm</span>
+                    {{ lang === 'kh' ? 'បើកនៅ៖ ' : 'Starts: ' }}{{ getExamTimingStatus(exam).timeText }}
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                :variant="getExamTimingStatus(exam).isOpen ? 'primary' : 'outline'"
+                size="sm"
+                :icon="getExamTimingStatus(exam).isOpen ? 'arrow_forward' : 'schedule'"
+                :disabled="!getExamTimingStatus(exam).isOpen"
+                class="shrink-0"
+                @click="startExam(exam.id)"
+              >
+                {{ getExamTimingStatus(exam).btnText }}
+              </Button>
+            </div>
+          </div>
+
+          <EmptyState
+            v-else
+            icon="event_available"
+            :title="t.noExamsAvailable"
+            :description="t.noExamsDesc"
+          />
+        </Card>
+
+        <!-- Exam History (5 cols) -->
+        <Card
+          :title="t.examHistory"
+          :subtitle="t.historySubtitle"
+          class="lg:col-span-5 shadow-soft-sm"
+          padding="normal"
+        >
+          <div v-if="examResults.length > 0" class="space-y-3">
+            <div
+              v-for="res in examResults"
+              :key="res.id || res.submissionId"
+              class="p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between gap-3 cursor-pointer group"
+              @click="router.push(`/student/results/${res.id || res.submissionId}`)"
+            >
+              <div class="min-w-0">
+                <h4 class="font-bold text-slate-900 text-xs sm:text-sm truncate group-hover:text-blue-600 transition-colors">
+                  {{ res.testName }}
+                </h4>
+                <p class="text-[11px] text-slate-400 mt-0.5 font-mono">
+                  {{ formatDate(res.completedAt) }}
+                </p>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span class="material-symbols-outlined text-xs" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                  {{ lang === 'kh' ? 'បានប្រគល់រួច' : 'Submitted' }}
+                </span>
+                <span class="material-symbols-outlined text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all text-base">
+                  arrow_forward
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <EmptyState
+            v-else
+            icon="history_edu"
+            :title="t.noHistoryYet"
+            :description="t.noHistoryDesc"
+          />
+        </Card>
+
+      </div>
+
     </div>
-  </div>
+  </StudentLayout>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import StudentLayout from '../layouts/StudentLayout.vue'
+import Card from '../components/ui/Card.vue'
+import Button from '../components/ui/Button.vue'
+import Input from '../components/ui/Input.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import { useLang } from '../utils/useLang'
+import { useToast } from '../composables/useToast'
+import { useSettings } from '../composables/useSettings'
 
 const router = useRouter()
+const { lang } = useLang()
+const { success: toastSuccess, error: toastError } = useToast()
+const { settings, fetchSettings } = useSettings()
 
-// ── Language ──────────────────────────────────────────────────────────
-const lang = ref(localStorage.getItem('student_lang') || 'en')
-const toggleLang = () => {
-  lang.value = lang.value === 'en' ? 'kh' : 'en'
-  localStorage.setItem('student_lang', lang.value)
-}
+const student = reactive({
+  name: '',
+  firstName: '',
+  lastName: '',
+  studentId: '',
+  studentCode: '',
+  phone: '',
+  sessionId: null,
+  sessionName: '',
+  examDate: null,
+  startTime: null,
+  endTime: null,
+  profileImage: '',
+  telegramChatId: null,
+  telegramUsername: null,
+  telegramConnected: false,
+  telegramConnectUrl: ''
+})
 
-const translations = {
-  en: {
-    changePhoto:       'Click to change photo',
-    welcomeBack:       'Welcome Back,',
-    profileSettings:   'Profile Settings',
-    closeSettings:     'Close Settings',
-    signOut:           'Sign Out',
-    editProfile:       'Edit Profile',
-    firstName:         'First Name',
-    lastName:          'Last Name',
-    email:             'Email',
-    phone:             'Phone',
-    shift:             'Shift',
-    morning:           'Morning',
-    afternoon:         'Afternoon',
-    evening:           'Evening',
-    saveChanges:       'Save Changes',
-    accountSecurity:   'Account Security',
-    currentPassword:   'Current Password',
-    newPassword:       'New Password',
-    confirmNewPassword:'Confirm New Password',
-    updatePassword:    'Update Password',
-    availableExams:    'Available Exams',
-    exams:             'exams',
-    min:               'min',
-    marks:             'marks',
-    finished:          'Finished',
-    examEnded:         'Exam duration ended',
-    scheduledFor:      'Scheduled for',
-    start:             'Start',
-    noExams:           'No exams available for your skill and batch yet.',
-    myResults:         'My Results',
-    view:              'View',
-    noResults:         'No completed exams yet.',
-    profile:           'Profile',
-    studentBadge:      'Student',
-    studentId:         'Student ID',
-    status:            'Status',
-    active:            'Active',
-    enrollment:        'Enrollment',
-    skill:             'Skill',
-    batch:             'Batch',
-    studyShift:        'Study Shift',
-  },
-  kh: {
-    changePhoto:       'ចុចដើម្បីប្តូររូបថត',
-    welcomeBack:       'សូមស្វាគមន៍,',
-    profileSettings:   'កំណត់ព័ត៌មាន',
-    closeSettings:     'បិទការកំណត់',
-    signOut:           'ចេញពីប្រព័ន្ធ',
-    editProfile:       'កែតម្រូវព័ត៌មាន',
-    firstName:         'នាមខ្លួន',
-    lastName:          'នាមត្រកូល',
-    email:             'អ៊ីមែល',
-    phone:             'លេខទូរស័ព្ទ',
-    shift:             'វេននៅពេល',
-    morning:           'ព្រឹក',
-    afternoon:         'ថ្ងៃ',
-    evening:           'ល្ងាច',
-    saveChanges:       'រក្សាទុកការផ្លាស់ប្តូរ',
-    accountSecurity:   'សុវត្ថិភាពគណនី',
-    currentPassword:   'លេខសម្ងាត់បច្ចុប្បន្ន',
-    newPassword:       'លេខសម្ងាត់ថ្មី',
-    confirmNewPassword:'បញ្ជាក់លេខសម្ងាត់ថ្មី',
-    updatePassword:    'ផ្លាស់ប្តូរលេខសម្ងាត់',
-    availableExams:    'ការប្រឡងទំនេរ',
-    exams:             'ការប្រឡង',
-    min:               'នាទី',
-    marks:             'ពិន្ទុ',
-    finished:          'បានបញ្ចប់',
-    examEnded:         'ការប្រឡងបានបញ្ចប់',
-    scheduledFor:      'កំណត់ពេលវេលា',
-    start:             'ចាប់ផ្ដើម',
-    noExams:           'មិនទាន់មានការប្រឡងសម្រាប់ជំនាញ និងថ្នាក់របស់អ្នក។',
-    myResults:         'លទ្ធផលរបស់ខ្ញុំ',
-    view:              'មើល',
-    noResults:         'មិនទាន់មានការប្រឡងដែលបានបញ្ចប់។',
-    profile:           'ព័ត៌មានផ្ទាល់ខ្លួន',
-    studentBadge:      'សិស្ស',
-    studentId:         'លេខសម្គាល់សិស្ស',
-    status:            'ស្ថានភាព',
-    active:            'សកម្ម',
-    enrollment:        'ការចុះឈ្មោះ',
-    skill:             'ជំនាញ',
-    batch:             'ថ្នាក់',
-    studyShift:        'វេនសិក្សា',
-  },
-}
+const profileForm = reactive({
+  firstName: '',
+  lastName: '',
+  phone: ''
+})
 
-const t = computed(() => translations[lang.value])
-
-// ── Data ──────────────────────────────────────────────────────────────
-const editing = ref(false)
-const student = ref({ id: '', name: '', email: '', phone: '', skill: '', batch: '', shift: '', profileImage: null })
 const availableTests = ref([])
-const myResults = ref([])
+const examResults = ref([])
+const editing = ref(false)
+const savingProfile = ref(false)
+const manualChatId = ref('')
+const linkingTelegram = ref(false)
 
-const profileForm = reactive({ firstName: '', lastName: '', email: '', phone: '', shift: '' })
-const passForm = reactive({ currentPassword: '', newPassword: '', newPassword_confirmation: '' })
+const studentDisplayName = computed(() => {
+  return student.name || 'Candidate'
+})
 
-const studentDisplayName = computed(() => student.value.name || 'Student')
+const nextUrgentExam = computed(() => {
+  return availableTests.value.length > 0 ? availableTests.value[0] : null
+})
 
-const profileFields = computed(() => [
-  { label: t.value.studentId, value: student.value.id || '—' },
-  { label: t.value.email,     value: student.value.email || '—' },
-  { label: t.value.phone,     value: student.value.phone || '—' },
-  { label: t.value.status,    value: t.value.active },
-])
+const formatTime = (timeStr) => {
+  if (!timeStr) return ''
+  return timeStr.substring(0, 5)
+}
+
+const formatDateTime = (iso) => {
+  if (!iso) return ''
+  const d = new Date(String(iso).replace(' ', 'T'))
+  if (isNaN(d.getTime())) return ''
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = d.getFullYear()
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  return `${day}/${month}/${year} ${hours}:${minutes}`
+}
+
+const getExamTimingStatus = (exam) => {
+  if (!exam) return { isOpen: true, isUpcoming: false, isExpired: false, label: 'Open', btnText: 'Start' }
+  const now = new Date()
+
+  let isUpcoming = exam.isUpcoming === true
+  let isExpired = exam.isFinished === true
+
+  let startDate = null
+  if (exam.scheduledAt) {
+    const s = new Date(String(exam.scheduledAt).replace(' ', 'T'))
+    if (!isNaN(s.getTime())) {
+      startDate = s
+      if (now < s) {
+        isUpcoming = true
+      }
+    }
+  }
+
+  let endDate = null
+  if (exam.finishedAt) {
+    const e = new Date(String(exam.finishedAt).replace(' ', 'T'))
+    if (!isNaN(e.getTime())) endDate = e
+  } else if (startDate) {
+    endDate = new Date(startDate.getTime() + (exam.durationMinutes || 45) * 60000)
+  }
+
+  if (endDate && now > endDate) {
+    isExpired = true
+  }
+
+  if (isUpcoming) {
+    return {
+      isOpen: false,
+      isUpcoming: true,
+      isExpired: false,
+      label: lang.value === 'kh' ? 'មិនទាន់ដល់ម៉ោង' : 'Upcoming',
+      btnText: lang.value === 'kh' ? 'មិនទាន់ដល់ម៉ោង' : 'Upcoming',
+      timeText: formatDateTime(exam.scheduledAt)
+    }
+  }
+
+  if (isExpired) {
+    return {
+      isOpen: false,
+      isUpcoming: false,
+      isExpired: true,
+      label: lang.value === 'kh' ? 'បានផុតកំណត់' : 'Expired',
+      btnText: lang.value === 'kh' ? 'បានផុតកំណត់' : 'Expired',
+      timeText: formatDateTime(endDate)
+    }
+  }
+
+  return {
+    isOpen: true,
+    isUpcoming: false,
+    isExpired: false,
+    label: lang.value === 'kh' ? 'កំពុងបើកដំណើរការ' : 'Open',
+    btnText: lang.value === 'kh' ? 'ចូលប្រឡង' : 'Take Exam'
+  }
+}
+
+const t = computed(() => {
+  if (lang.value === 'kh') {
+    return {
+      welcomeBack: 'សូមស្វាគមន៍មកកាន់ប្រព័ន្ធប្រឡងអាហារូបករណ៍',
+      candidateBadge: 'បេក្ខជនអាហារូបករណ៍',
+      generalSession: 'វេនទូទៅ',
+      accountSettings: 'កែសម្រួលព័ត៌មាន',
+      closeSettings: 'បិទ',
+      editProfile: 'កែសម្រួលព័ត៌មានផ្ទាល់ខ្លួន',
+      firstName: 'នាមខ្លួន',
+      lastName: 'គោត្តនាម',
+      phone: 'លេខទូរស័ព្ទ',
+      saveProfile: 'រក្សាទុកព័ត៌មាន',
+      nextExamPrompt: 'វិញ្ញាសាប្រឡងបន្ទាប់របស់អ្នក',
+      startExamNow: 'ចាប់ផ្ដើមធ្វើវិញ្ញាសាឥឡូវនេះ',
+      minutes: 'នាទី',
+      marks: 'ពិន្ទុ',
+      availableExams: 'វិញ្ញាសាប្រឡងដែលមាន',
+      availableSubtitle: 'វិញ្ញាសាប្រឡងដែលបានចេញផ្សាយសម្រាប់វេនប្រឡងរបស់អ្នក',
+      noExamsAvailable: 'មិនទាន់មានវិញ្ញាសាប្រឡងថ្មីទេ',
+      noExamsDesc: 'នៅពេលគណៈកម្មការចេញវិញ្ញាសាប្រឡង វានឹងបង្ហាញនៅទីនេះ។',
+      startExam: 'ចូលប្រឡង',
+      examHistory: 'ប្រវត្តិការប្រឡង',
+      historySubtitle: 'បញ្ជីវិញ្ញាសាដែលបានប្រគល់រួចរាល់',
+      noHistoryYet: 'មិនទាន់មានប្រវត្តិប្រឡងទេ',
+      noHistoryDesc: 'នៅពេលអ្នកបញ្ចប់ការប្រឡង កំណត់ត្រានឹងបង្ហាញនៅទីនេះ។'
+    }
+  }
+  return {
+    welcomeBack: 'Scholarship Entrance Assessment Portal',
+    candidateBadge: 'Scholarship Candidate',
+    generalSession: 'General Shift',
+    accountSettings: 'Edit Profile',
+    closeSettings: 'Close',
+    editProfile: 'Edit Candidate Profile',
+    firstName: 'First Name',
+    lastName: 'Last Name',
+    phone: 'Phone Number',
+    saveProfile: 'Save Profile',
+    nextExamPrompt: 'Next Scheduled Exam',
+    startExamNow: 'Start Exam Now',
+    minutes: 'min',
+    marks: 'marks',
+    availableExams: 'Available Exams',
+    availableSubtitle: 'Exams published for your assigned exam shift',
+    noExamsAvailable: 'No exams currently open',
+    noExamsDesc: 'When examination papers are released for your session, they will appear here.',
+    startExam: 'Take Exam',
+    examHistory: 'Exam History',
+    historySubtitle: 'Archive of submitted examination papers',
+    noHistoryYet: 'No previous exam submissions',
+    noHistoryDesc: 'Completed exams and submissions will be archived here.'
+  }
+})
 
 const toggleEdit = () => {
   editing.value = !editing.value
   if (editing.value) {
-    const [first, ...rest] = (student.value.name || '').split(' ')
-    profileForm.firstName = first || ''
-    profileForm.lastName  = rest.join(' ') || ''
-    profileForm.email     = student.value.email
-    profileForm.phone     = student.value.phone
-    profileForm.shift     = student.value.shift
-  }
-}
+    profileForm.firstName = student.firstName || ''
+    profileForm.lastName = student.lastName || ''
+    profileForm.phone = student.phone || ''
 
-const saveProfile = async () => {
-  try {
-    const res = await axios.post('/api/profile/update', profileForm)
-    if (res.data.student) {
-      student.value = { ...student.value, ...res.data.student }
-      editing.value = false
+    if (!profileForm.firstName && !profileForm.lastName && student.name) {
+      const parts = student.name.trim().split(' ')
+      profileForm.firstName = parts[0] || ''
+      profileForm.lastName = parts.slice(1).join(' ') || ''
     }
-  } catch (e) { alert(e.response?.data?.message || 'Update failed.') }
+  }
 }
 
 const onFileChange = async (e) => {
@@ -423,83 +642,172 @@ const onFileChange = async (e) => {
     const res = await axios.post('/api/profile/upload-image', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
-    student.value.profileImage = res.data.profileImage
+    student.profileImage = res.data.profileImage
+    toastSuccess(lang.value === 'kh' ? 'បានផ្លាស់ប្តូររូបថតជោគជ័យ' : 'Profile photo updated!')
   } catch (err) {
-    alert(err.response?.data?.message || 'Upload failed')
+    toastError(err.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចផ្ទុករូបភាពបានទេ' : 'Upload failed'))
   }
 }
 
-const changePassword = async () => {
+const saveProfile = async () => {
+  savingProfile.value = true
   try {
-    await axios.post('/api/profile/change-password', passForm)
-    alert(lang.value === 'en' ? 'Password updated successfully!' : 'លេខសម្ងាត់ត្រូវបានផ្លាស់ប្តូរ!')
-    passForm.currentPassword = ''
-    passForm.newPassword = ''
-    passForm.newPassword_confirmation = ''
+    await axios.post('/api/profile/update', profileForm)
+    Object.assign(student, profileForm)
+    student.name = `${profileForm.firstName} ${profileForm.lastName}`.trim()
+    toastSuccess(lang.value === 'kh' ? 'បានកែប្រែព័ត៌មានជោគជ័យ' : 'Profile updated successfully!')
     editing.value = false
   } catch (e) {
-    alert(e.response?.data?.message || 'Failed to update password.')
+    toastError(e.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចកែប្រែបានទេ' : 'Failed to update profile.'))
+  } finally {
+    savingProfile.value = false
   }
 }
 
-const startExam  = (test) => router.push({ name: 'Exam',        params: { testId: test.id } })
-const viewResult = (r)    => router.push({ name: 'ExamResults', params: { submissionId: r.id } })
-
-const handleLogout = async () => {
-  try { await axios.post('/api/logout') } catch {}
-  router.push('/login')
-}
-
-const formatDate = (d) => d
-  ? new Date(d).toLocaleDateString(lang.value === 'en' ? 'en-US' : 'km-KH', { month: 'short', day: 'numeric', year: 'numeric' })
-  : '—'
-
-onMounted(async () => {
+const unlinkTelegram = async () => {
+  if (!confirm(lang.value === 'kh' ? 'តើអ្នកពិតជាចង់ផ្តាច់ការភ្ជាប់ Telegram មែនទេ?' : 'Are you sure you want to unlink Telegram?')) return
   try {
-    const [profileRes, resultsRes] = await Promise.all([
-      axios.get('/api/profile'),
-      axios.get('/api/student/results').catch(() => ({ data: { results: [] } })),
-    ])
-    if (profileRes.data.student) {
-      student.value = {
-        ...profileRes.data.student,
-        profileImage: profileRes.data.user.profileImage
-      }
-      availableTests.value = profileRes.data.tests || []
-    } else {
-      router.push('/login')
-    }
-    myResults.value = resultsRes.data.results || []
-  } catch {
-    router.push('/login')
+    await axios.post('/api/student/telegram/unlink')
+    student.telegramConnected = false
+    student.telegramChatId = null
+    student.telegramUsername = null
+    toastSuccess(lang.value === 'kh' ? 'បានផ្តាច់ការភ្ជាប់គណនី Telegram រួចរាល់' : 'Telegram unlinked successfully')
+  } catch (e) {
+    toastError(e.response?.data?.message || (lang.value === 'kh' ? 'មានបញ្ហាក្នុងការផ្តាច់' : 'Failed to unlink Telegram'))
   }
+}
+
+const linkTelegramManually = async () => {
+  if (!manualChatId.value.trim()) {
+    toastError(lang.value === 'kh' ? 'សូមបញ្ចូល Telegram Chat ID របស់អ្នក' : 'Please enter your Telegram Chat ID')
+    return
+  }
+  linkingTelegram.value = true
+  try {
+    const res = await axios.post('/api/student/telegram/manual-link', { chatId: manualChatId.value.trim() })
+    student.telegramConnected = true
+    student.telegramChatId = res.data.telegramChatId || manualChatId.value.trim()
+    toastSuccess(lang.value === 'kh' ? 'បានភ្ជាប់ Telegram ដោយជោគជ័យ!' : 'Telegram linked successfully!')
+    manualChatId.value = ''
+    loadStudentData()
+  } catch (e) {
+    toastError(e.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចភ្ជាប់ Telegram បានទេ' : 'Failed to link Telegram'))
+  } finally {
+    linkingTelegram.value = false
+  }
+}
+
+const startExam = (testId) => {
+  router.push({ name: 'Exam', params: { testId } })
+}
+
+const formatDate = (iso) => {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString(lang.value === 'kh' ? 'km-KH' : 'en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+let pollingActive = false
+const loadStudentData = async (forcePollTelegram = false) => {
+  try {
+    // If not yet connected, poll updates from Telegram queue via hosting server
+    if ((!student.telegramConnected || forcePollTelegram) && !pollingActive) {
+      pollingActive = true
+      try {
+        await axios.get('/api/telegram/poll-once')
+      } catch (e) {
+        // Silently continue if polling is unavailable
+      } finally {
+        pollingActive = false
+      }
+    }
+
+    const profileRes = await axios.get('/api/profile')
+    const s = profileRes.data.student || {}
+    const wasConnected = student.telegramConnected
+
+    student.name = s.name || profileRes.data.user?.name || ''
+    student.firstName = s.firstName || ''
+    student.lastName = s.lastName || ''
+    student.studentId = s.studentId || ''
+    student.studentCode = s.studentCode || s.studentId || ''
+    student.phone = s.phone || ''
+    student.sessionId = s.sessionId || null
+    student.sessionName = s.sessionName || ''
+    student.examDate = s.examDate || null
+    student.startTime = s.startTime || null
+    student.endTime = s.endTime || null
+    student.profileImage = profileRes.data.user?.profileImage || ''
+    student.telegramChatId = s.telegramChatId || null
+    student.telegramUsername = s.telegramUsername || null
+    student.telegramConnected = Boolean(s.telegramConnected)
+    student.telegramConnectUrl = s.telegramConnectUrl || ('https://t.me/onlinexam_bot?start=link_' + encodeURIComponent(student.studentCode || student.studentId))
+
+    if (!wasConnected && student.telegramConnected) {
+      toastSuccess(lang.value === 'kh' ? '🎉 ការភ្ជាប់ Telegram បានជោគជ័យ!' : '🎉 Telegram connected successfully!')
+    }
+
+    if (!student.firstName && !student.lastName && student.name) {
+      const parts = student.name.trim().split(' ')
+      student.firstName = parts[0] || ''
+      student.lastName = parts.slice(1).join(' ') || ''
+    }
+
+    if (!editing.value) {
+      profileForm.firstName = student.firstName
+      profileForm.lastName = student.lastName
+      profileForm.phone = student.phone
+    }
+
+    availableTests.value = profileRes.data.tests || []
+
+    const resultsRes = await axios.get('/api/student/results')
+    examResults.value = resultsRes.data.results || []
+  } catch (e) {
+    console.error('Failed to load student data', e)
+  }
+}
+
+const onConnectTelegramClick = () => {
+  let attempts = 0
+  const timer = setInterval(async () => {
+    attempts++
+    if (student.telegramConnected || attempts > 8) {
+      clearInterval(timer)
+      return
+    }
+    await loadStudentData(true)
+  }, 5000)
+}
+
+let lastFocusCheck = Date.now()
+const onFocusCheck = () => {
+  if (!student.telegramConnected && Date.now() - lastFocusCheck > 25000) {
+    lastFocusCheck = Date.now()
+    loadStudentData(true)
+  }
+}
+
+import { useRealtimeSync } from '../composables/useRealtimeSync'
+
+// Poll conservatively (60s) to strictly protect free hosting resources
+useRealtimeSync(() => {
+  if (document.visibilityState === 'visible') {
+    loadStudentData()
+  }
+}, 60000)
+
+onMounted(() => {
+  fetchSettings()
+  loadStudentData(true)
+  window.addEventListener('focus', onFocusCheck)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('focus', onFocusCheck)
 })
 </script>
-
-<style scoped>
-.font-manrope { font-family: 'Manrope', sans-serif; }
-.field {
-  width: 100%;
-  border-radius: 0.75rem;
-  border: 1px solid #e2e8f0;
-  background-color: #f8fafc;
-  padding: 0.625rem 1rem;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  outline: none;
-  transition: border-color 150ms, background-color 150ms;
-}
-.field:focus {
-  border-color: #00288e;
-  background-color: #fff;
-}
-.label-text {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #64748b;
-  margin-bottom: 0.25rem;
-}
-</style>

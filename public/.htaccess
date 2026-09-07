@@ -5,6 +5,21 @@
 
     RewriteEngine On
 
+    # Force HTTPS (Essential for PWA Installation on mobile devices)
+    RewriteCond %{HTTPS} off
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Allow all asset files
+    <FilesMatch "\.(png|ico|svg|json|woff2|jpg|jpeg|gif|css|js)$">
+        <IfModule mod_authz_core.c>
+            Require all granted
+        </IfModule>
+        <IfModule !mod_authz_core.c>
+            Allow from all
+        </IfModule>
+    </FilesMatch>
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

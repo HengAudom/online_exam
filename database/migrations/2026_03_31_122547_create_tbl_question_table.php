@@ -15,6 +15,8 @@ return new class extends Migration
             $table->bigIncrements('QuestionId');
             $table->unsignedBigInteger('TestId');
             $table->text('QuestionText');
+            $table->longText('Passage')->nullable();
+            $table->boolean('IsExample')->default(false);
             $table->integer('Points')->default(1);
             $table->timestamps();
 

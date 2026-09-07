@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Answer extends Model
 {
-    protected $table = 'tblAnswer';
+    protected $table = 'tblanswer';
     protected $primaryKey = 'AnswerId';
 
     protected $fillable = [

@@ -11,12 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('tblSkill', function (Blueprint $table) {
-            $table->bigIncrements('SkillId');
-            $table->string('SkillName');
-            $table->text('Description')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('tblskill') && !Schema::hasTable('tblSkill')) {
+            Schema::create('tblSkill', function (Blueprint $table) {
+                $table->bigIncrements('SkillId');
+                $table->string('SkillName');
+                $table->text('Description')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**

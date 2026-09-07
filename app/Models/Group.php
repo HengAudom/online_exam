@@ -5,16 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Batch extends Model
+class Group extends Model
 {
     use HasFactory;
 
-    protected $table = 'tblBatch';
-    protected $primaryKey = 'BatchId';
+    protected $table = 'tblgroup';
+    protected $primaryKey = 'GroupId';
+    public $timestamps = true;
 
     protected $fillable = [
-        'BatchName',
+        'GroupName',
         'StartDate',
         'EndDate'
     ];
 }
+

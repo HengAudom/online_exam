@@ -21,24 +21,29 @@ class ResultController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $student = Student::where('UserId', $user->id)->first();
+        $student = ($user instanceof Student) 
+            ? $user 
+            : (Student::find($user->StudentId ?? $user->id) ?? Student::where('UserId', $user->id)->first());
         if (! $student) {
             return response()->json(['results' => []]);
         }
 
-        $submissions = DB::table('tblStudentSubmission as ss')
-            ->join('tblTest as t', 'ss.TestId', '=', 't.TestId')
+        $submissions = DB::table('tblstudentsubmission as ss')
+            ->join('tbltest as t', 'ss.TestId', '=', 't.TestId')
             ->where('ss.StudentId', $student->StudentId)
             ->whereNotNull('ss.CompletedAt')
             ->select(
                 'ss.SubmissionId as id',
+                'ss.SubmissionId as submissionId',
+                't.TestId as testId',
                 't.TestName as testName',
                 't.TotalMarks as totalMarks',
                 't.DurationMinutes as durationMinutes',
                 'ss.TotalCorrect as totalCorrect',
                 'ss.Score as score',
                 'ss.StartedAt as startedAt',
-                'ss.CompletedAt as completedAt'
+                'ss.CompletedAt as completedAt',
+                DB::raw("'Submitted' as status")
             )
             ->orderBy('ss.CompletedAt', 'desc')
             ->get();
@@ -47,7 +52,8 @@ class ResultController extends Controller
     }
 
     /**
-     * Detailed result for one submission (per-question breakdown).
+     * Detailed result for one submission.
+     * Accessible by Admins and the Student who took the exam.
      */
     public function submissionDetail(Request $request, $submissionId)
     {
@@ -56,79 +62,83 @@ class ResultController extends Controller
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
-        $student = Student::where('UserId', $user->id)->first();
-
-        $submission = StudentSubmission::with(['student', 'test', 'details.question', 'details.selectedAnswer'])
-            ->find($submissionId);
+        $submission = StudentSubmission::with([
+            'student',
+            'test.questions.answers',
+            'details.question',
+            'details.selectedAnswer'
+        ])->find($submissionId);
 
         if (! $submission) {
             return response()->json(['message' => 'Submission not found.'], 404);
         }
 
-        // Students can only see their own; admins see all
-        if ($user->role === 'Student' && $student && $submission->StudentId !== $student->StudentId) {
-            return response()->json(['message' => 'Forbidden.'], 403);
+        // Determine user type and enforce permissions:
+        // Students can only view their own submission; Admins/Super Admins can view any submission.
+        $isStudent = ($user instanceof Student) || (($user->role ?? null) === 'Student');
+        if ($isStudent) {
+            $student = ($user instanceof Student) 
+                ? $user 
+                : (Student::find($user->StudentId ?? $user->id) ?? Student::where('UserId', $user->id)->first());
+
+            if (! $student || (int)$submission->StudentId !== (int)$student->StudentId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'លទ្ធផលប្រឡងនេះមិនមែនជារបស់អ្នកទេ (Forbidden. You do not have permission to view this submission).'
+                ], 403);
+            }
         }
 
         $test = $submission->test;
-        $totalQuestions = Question::where('TestId', $submission->TestId)->count();
-        $correct        = $submission->TotalCorrect ?? 0;
+        $allQuestions = $test ? $test->questions : collect();
+        $totalQuestions = $allQuestions->count();
+        $correct = $submission->TotalCorrect ?? 0;
         
-        // Count how many questions were actually answered (non-null)
-        $answered = $submission->details()
-            ->whereNotNull('SelectedAnswerId')
-            ->count();
-
-        $skipped   = max(0, $totalQuestions - $answered);
-        $incorrect = max(0, $answered - $correct);
+        // Use the loaded details collection to avoid redundant DB queries
+        $details = $submission->details;
 
         // Elapsed time in minutes
-        $startedAt    = $submission->StartedAt;
-        $completedAt  = $submission->CompletedAt;
-        $elapsedMin   = $startedAt && $completedAt
-            ? (int) round($startedAt->diffInSeconds($completedAt) / 60)
+        $startedAt    = $submission->StartedAt ? \Carbon\Carbon::parse($submission->StartedAt) : null;
+        $completedAt  = $submission->CompletedAt ? \Carbon\Carbon::parse($submission->CompletedAt) : null;
+        $elapsedMin   = ($startedAt && $completedAt)
+            ? (int) max(0, round(($completedAt->getTimestamp() - $startedAt->getTimestamp()) / 60))
             : 0;
 
         $accuracy = $totalQuestions > 0
             ? round(($correct / $totalQuestions) * 100, 1)
             : 0;
 
-        $questions = DB::table('tblQuestion as q')
-            ->where('q.TestId', $submission->TestId)
-            ->get()
-            ->map(function ($q) use ($submissionId) {
-                $detail = DB::table('tblSubmissionDetail')
-                    ->where('SubmissionId', $submissionId)
-                    ->where('QuestionId', $q->QuestionId)
-                    ->first();
+        $questionsData = $allQuestions->map(function ($q) use ($details) {
+            $detail = $details->firstWhere('QuestionId', $q->QuestionId);
 
-                $answers = DB::table('tblAnswer')
-                    ->where('QuestionId', $q->QuestionId)
-                    ->get()
-                    ->map(fn($a) => [
-                        'id'        => $a->AnswerId,
-                        'text'      => $a->AnswerText,
-                        'isCorrect' => (bool) $a->IsCorrect,
-                    ]);
+            $answers = $q->answers->map(fn($a) => [
+                'id'        => $a->AnswerId,
+                'text'      => $a->AnswerText,
+                'isCorrect' => (bool) $a->IsCorrect,
+            ]);
 
-                $selectedAnswer = $detail?->SelectedAnswerId
-                    ? DB::table('tblAnswer')->where('AnswerId', $detail->SelectedAnswerId)->first()
-                    : null;
+            $isSkipped = $detail === null || is_null($detail->SelectedAnswerId);
 
-                return [
-                    'id'             => $q->QuestionId,
-                    'text'           => $q->QuestionText,
-                    'answers'        => $answers,
-                    'selectedId'     => $detail?->SelectedAnswerId,
-                    'selectedText'   => $selectedAnswer?->AnswerText,
-                    'isCorrect'      => (bool) ($detail?->IsCorrect ?? false),
-                    'skipped'        => $detail === null,
-                ];
-            });
+            return [
+                'id'             => $q->QuestionId,
+                'text'           => $q->QuestionText,
+                'passage'        => $q->Passage,
+                'points'         => $q->Points,
+                'answers'        => $answers,
+                'selectedId'     => $detail?->SelectedAnswerId,
+                'selectedText'   => $detail?->selectedAnswer?->AnswerText,
+                'isCorrect'      => (bool) ($detail?->IsCorrect ?? false),
+                'skipped'        => $isSkipped,
+            ];
+        });
+
+        $skipped = $questionsData->where('skipped', true)->count();
+        $incorrect = max(0, $totalQuestions - $correct - $skipped);
 
         return response()->json([
             'submissionId'   => $submission->SubmissionId,
-            'studentName'    => $submission->student ? ($submission->student->FirstName . ' ' . $submission->student->LastName) : 'N/A',
+            'studentId'      => $submission->student ? ($submission->student->StudentCode ?? (string)$submission->student->StudentId) : 'N/A',
+            'studentName'    => $submission->student ? trim(($submission->student->FirstName ?? '') . ' ' . ($submission->student->LastName ?? '')) : 'N/A',
             'testName'       => $test?->TestName,
             'totalMarks'     => $test?->TotalMarks,
             'score'          => $submission->Score,
@@ -136,10 +146,11 @@ class ResultController extends Controller
             'totalQuestions' => $totalQuestions,
             'incorrect'      => $incorrect,
             'skipped'        => $skipped,
+            'interruptions'  => (int) ($submission->Interruptions ?? 0),
             'accuracy'       => $accuracy,
             'elapsedMinutes' => $elapsedMin,
             'completedAt'    => $completedAt ? $completedAt->toIso8601String() : null,
-            'questions'      => $questions,
+            'questions'      => $questionsData,
         ]);
     }
 }

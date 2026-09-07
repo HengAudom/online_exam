@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('tblTest', function (Blueprint $table) {
             $table->bigIncrements('TestId');
             $table->unsignedBigInteger('SkillId');
-            $table->unsignedBigInteger('BatchId')->nullable();
-            $table->unsignedBigInteger('CreatedByUserId');
+            $table->unsignedBigInteger('GroupId')->nullable();
+            $table->unsignedBigInteger('CreatedByUserId')->nullable();
             $table->string('TestName');
             $table->integer('DurationMinutes');
             $table->integer('TotalMarks');
@@ -25,8 +25,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('SkillId')->references('SkillId')->on('tblSkill')->onDelete('cascade');
-            $table->foreign('BatchId')->references('BatchId')->on('tblBatch')->onDelete('set null');
-            $table->foreign('CreatedByUserId')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('GroupId')->references('GroupId')->on('tblgroup')->onDelete('set null');
         });
     }
 

@@ -6,13 +6,19 @@ use Illuminate\Database\Eloquent\Model;
 
 class Question extends Model
 {
-    protected $table = 'tblQuestion';
+    protected $table = 'tblquestion';
     protected $primaryKey = 'QuestionId';
 
     protected $fillable = [
         'TestId',
         'QuestionText',
+        'Passage',
+        'IsExample',
         'Points',
+    ];
+
+    protected $casts = [
+        'IsExample' => 'boolean',
     ];
 
     public function test()
