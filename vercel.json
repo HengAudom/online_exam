@@ -2,35 +2,16 @@
   "version": 2,
   "framework": null,
   "buildCommand": "npm run build",
+  "outputDirectory": "public",
   "functions": {
     "api/index.php": {
       "runtime": "vercel-php@0.7.4"
     }
   },
-  "routes": [
+  "rewrites": [
     {
-      "src": "/build/(.*)",
-      "dest": "/public/build/$1"
-    },
-    {
-      "src": "/fonts/(.*)",
-      "dest": "/public/fonts/$1"
-    },
-    {
-      "src": "/uploads/(.*)",
-      "dest": "/public/uploads/$1"
-    },
-    {
-      "src": "/(favicon\\.ico|ico\\.svg|apple-touch-icon\\.png|manifest\\.json|manifest\\.webmanifest|sw\\.js)",
-      "dest": "/public/$1"
-    },
-    {
-      "src": "/pwa-(.*)",
-      "dest": "/public/pwa-$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.php"
+      "source": "/(.*)",
+      "destination": "/api/index.php"
     }
   ],
   "env": {
