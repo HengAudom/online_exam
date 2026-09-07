@@ -9,14 +9,14 @@ use App\Http\Controllers\TelegramBotController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Telegram Bot Integration ────────────────────────────────────────────────
-Route::get('/api/telegram/get-chat-id', [TelegramBotController::class, 'getChatId']);
+Route::match(['get', 'post'], '/api/telegram/get-chat-id', [TelegramBotController::class, 'getChatId']);
 Route::match(['get', 'post'], '/api/telegram/test-send', [TelegramBotController::class, 'testSend']);
-Route::post('/api/telegram/webhook', [TelegramBotController::class, 'webhook']);
-Route::get('/api/telegram/poll-once', [TelegramBotController::class, 'pollUpdates']);
+Route::match(['get', 'post'], '/api/telegram/webhook', [TelegramBotController::class, 'webhook']);
+Route::match(['get', 'post'], '/api/telegram/poll-once', [TelegramBotController::class, 'pollUpdates']);
 Route::match(['get', 'post'], '/api/telegram/set-webhook', [TelegramBotController::class, 'setWebhook']);
 Route::match(['get', 'post'], '/api/telegram/delete-webhook', [TelegramBotController::class, 'deleteWebhook']);
-Route::post('/api/student/telegram/unlink', [TelegramBotController::class, 'unlinkStudent']);
-Route::post('/api/student/telegram/manual-link', [TelegramBotController::class, 'manualLinkStudent']);
+Route::match(['get', 'post'], '/api/student/telegram/unlink', [TelegramBotController::class, 'unlinkStudent']);
+Route::match(['get', 'post'], '/api/student/telegram/manual-link', [TelegramBotController::class, 'manualLinkStudent']);
 Route::match(['get', 'post'], '/api/telegram/sync-link', [TelegramBotController::class, 'syncLinkDirect']);
 Route::match(['get', 'post'], '/api/telegram/sync-unlink', [TelegramBotController::class, 'syncUnlinkDirect']);
 Route::match(['get', 'post'], '/api/telegram/sync-students', [TelegramBotController::class, 'syncAllStudentsToGas']);

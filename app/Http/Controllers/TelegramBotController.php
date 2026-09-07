@@ -459,9 +459,21 @@ class TelegramBotController extends Controller
             return response()->json(['message' => 'Student not found.'], 404);
         }
 
+        $chatId = $student->TelegramChatId;
         $student->TelegramChatId = null;
         $student->TelegramUsername = null;
         $student->save();
+
+        // Sync unlink to Google Apps Script (24/7 Bot Cloud Bridge)
+        $gasUrl = env('TELEGRAM_GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbydj3645-4Rojs9THlBGD8jSAbpMcu5eUdLEaBCIDUXlNRR6gtVKhWrciD44SxLH565qg/exec');
+        if (!empty($gasUrl) && !empty($chatId)) {
+            try {
+                \Illuminate\Support\Facades\Http::timeout(5)->post($gasUrl, [
+                    'action' => 'unlink_student',
+                    'chatId' => $chatId,
+                ]);
+            } catch (\Throwable $gasErr) {}
+        }
 
         return response()->json([
             'success' => true,
