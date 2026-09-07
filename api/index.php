@@ -10,9 +10,11 @@ $dirs = [
     '/tmp/bootstrap/cache',
 ];
 
-foreach ($dirs as $dir) {
-    if (!is_dir($dir)) {
-        @mkdir($dir, 0755, true);
+if (!is_dir('/tmp/storage/framework/sessions')) {
+    foreach ($dirs as $dir) {
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
     }
 }
 

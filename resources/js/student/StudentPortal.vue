@@ -714,19 +714,20 @@ const formatDate = (iso) => {
 let pollingActive = false
 const loadStudentData = async (forcePollTelegram = false) => {
   try {
-    // If not yet connected, poll updates from Telegram queue via hosting server
+    // Non-blocking Telegram queue check in background
     if ((!student.telegramConnected || forcePollTelegram) && !pollingActive) {
       pollingActive = true
-      try {
-        await axios.get('/api/telegram/poll-once')
-      } catch (e) {
-        // Silently continue if polling is unavailable
-      } finally {
+      axios.get('/api/telegram/poll-once').catch(() => {}).finally(() => {
         pollingActive = false
-      }
+      })
     }
 
-    const profileRes = await axios.get('/api/profile')
+    // Parallel fetch profile & results for instant load
+    const [profileRes, resultsRes] = await Promise.all([
+      axios.get('/api/profile'),
+      axios.get('/api/student/results').catch(() => ({ data: { results: [] } }))
+    ])
+
     const s = profileRes.data.student || {}
     const wasConnected = student.telegramConnected
 
@@ -764,8 +765,6 @@ const loadStudentData = async (forcePollTelegram = false) => {
     }
 
     availableTests.value = profileRes.data.tests || []
-
-    const resultsRes = await axios.get('/api/student/results')
     examResults.value = resultsRes.data.results || []
   } catch (e) {
     console.error('Failed to load student data', e)
