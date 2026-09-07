@@ -32,9 +32,11 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    'lifetime' => (env('SESSION_LIFETIME') && is_numeric(env('SESSION_LIFETIME')) && (int) env('SESSION_LIFETIME') > 0)
+        ? (int) env('SESSION_LIFETIME')
+        : 1440,
 
-    'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
+    'expire_on_close' => filter_var(env('SESSION_EXPIRE_ON_CLOSE', false), FILTER_VALIDATE_BOOLEAN),
 
     /*
     |--------------------------------------------------------------------------
@@ -127,10 +129,9 @@ return [
     |
     */
 
-    'cookie' => env(
-        'SESSION_COOKIE',
-        Str::slug((string) env('APP_NAME', 'laravel')).'-session'
-    ),
+    'cookie' => (env('SESSION_COOKIE') && env('SESSION_COOKIE') !== '')
+        ? env('SESSION_COOKIE')
+        : (Str::slug((string) env('APP_NAME', 'online_exam')) ?: 'online_exam') . '_session',
 
     /*
     |--------------------------------------------------------------------------
@@ -169,7 +170,7 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------

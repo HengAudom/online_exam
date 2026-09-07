@@ -49,11 +49,36 @@ $_SERVER['DB_DATABASE'] = 'online_exam_db';
 $_SERVER['DB_USERNAME'] = 'qGXpz3gtCzEhHAf.root';
 $_SERVER['DB_PASSWORD'] = '5lO5eZJXXll22jGP';
 
+// Detect HTTPS behind reverse proxies like Vercel
+if ((isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
+    (isset($_SERVER['HTTP_X_FORWARDED_PORT']) && (string)$_SERVER['HTTP_X_FORWARDED_PORT'] === '443')) {
+    $_SERVER['HTTPS'] = 'on';
+    $_SERVER['SERVER_PORT'] = 443;
+}
+
 // Ensure critical driver configs are never empty strings
+if (empty($_ENV['APP_NAME']) || trim($_ENV['APP_NAME']) === '') {
+    putenv('APP_NAME=OnlineExam');
+    $_ENV['APP_NAME'] = 'OnlineExam';
+    $_SERVER['APP_NAME'] = 'OnlineExam';
+}
+
 if (empty($_ENV['SESSION_DRIVER']) || trim($_ENV['SESSION_DRIVER']) === '') {
     putenv('SESSION_DRIVER=database');
     $_ENV['SESSION_DRIVER'] = 'database';
     $_SERVER['SESSION_DRIVER'] = 'database';
+}
+
+if (empty($_ENV['SESSION_LIFETIME']) || (int)$_ENV['SESSION_LIFETIME'] <= 0) {
+    putenv('SESSION_LIFETIME=1440');
+    $_ENV['SESSION_LIFETIME'] = '1440';
+    $_SERVER['SESSION_LIFETIME'] = '1440';
+}
+
+if (empty($_ENV['SESSION_COOKIE']) || trim($_ENV['SESSION_COOKIE']) === '') {
+    putenv('SESSION_COOKIE=online_exam_session');
+    $_ENV['SESSION_COOKIE'] = 'online_exam_session';
+    $_SERVER['SESSION_COOKIE'] = 'online_exam_session';
 }
 
 if (empty($_ENV['CACHE_STORE']) || trim($_ENV['CACHE_STORE']) === '') {

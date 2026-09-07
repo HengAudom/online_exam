@@ -51,8 +51,11 @@
     "APP_ROUTES_CACHE": "/tmp/bootstrap/cache/routes.php",
     "APP_SERVICES_CACHE": "/tmp/bootstrap/cache/services.php",
     "VIEW_COMPILED_PATH": "/tmp/storage/framework/views",
-    "CACHE_STORE": "array",
+    "APP_NAME": "OnlineExam",
     "SESSION_DRIVER": "database",
+    "SESSION_LIFETIME": "1440",
+    "SESSION_COOKIE": "online_exam_session",
+    "SESSION_SECURE_COOKIE": "true",
     "LOG_CHANNEL": "stderr"
   }
 }
