@@ -19,6 +19,14 @@ foreach ($dirs as $dir) {
 // Adjust script name so Laravel router resolves correctly
 $_SERVER['SCRIPT_NAME'] = '/index.php';
 
+// Ensure APP_KEY is always set
+if (empty($_ENV['APP_KEY']) || trim($_ENV['APP_KEY']) === '') {
+    $appKey = 'base64:0JcCxZW+s3AKthTJcXnH1u/tP/LPMtoHoeB07s7d4zk=';
+    putenv("APP_KEY={$appKey}");
+    $_ENV['APP_KEY'] = $appKey;
+    $_SERVER['APP_KEY'] = $appKey;
+}
+
 // Ensure critical driver configs are never empty strings
 if (empty($_ENV['SESSION_DRIVER']) || trim($_ENV['SESSION_DRIVER']) === '') {
     putenv('SESSION_DRIVER=cookie');
