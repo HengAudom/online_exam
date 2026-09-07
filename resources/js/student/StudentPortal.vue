@@ -40,9 +40,22 @@
 
               <!-- Exam Session & Shift Details -->
               <div class="flex items-center gap-2 pt-0.5 flex-wrap">
-                <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-200 border border-blue-400/30 whitespace-nowrap">
-                  <span class="material-symbols-outlined text-xs">calendar_clock</span>
-                  <span>{{ student.sessionName || t.generalSession }}</span>
+                <!-- Shift Badge -->
+                <div v-if="student.shift || student.sessionName" class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-200 border border-blue-400/30 whitespace-nowrap">
+                  <span class="material-symbols-outlined text-xs">schedule</span>
+                  <span>{{ formatShift(student.shift) || student.sessionName }}</span>
+                </div>
+
+                <!-- Group Badge -->
+                <div v-if="student.group" class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 whitespace-nowrap">
+                  <span class="material-symbols-outlined text-xs">groups</span>
+                  <span>{{ student.group }}</span>
+                </div>
+
+                <!-- Skill Badge -->
+                <div v-if="student.skill" class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 whitespace-nowrap">
+                  <span class="material-symbols-outlined text-xs">school</span>
+                  <span>{{ student.skill }}</span>
                 </div>
 
                 <div v-if="student.examDate" class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-white/10 text-slate-200 border border-white/10 font-mono whitespace-nowrap">
@@ -518,6 +531,21 @@ const studentDisplayName = computed(() => {
 const nextUrgentExam = computed(() => {
   return availableTests.value.length > 0 ? availableTests.value[0] : null
 })
+
+const formatShift = (shift) => {
+  if (!shift) return ''
+  const s = String(shift).trim().toLowerCase()
+  if (s.includes('morning') || s.includes('ព្រឹក')) {
+    return lang.value === 'kh' ? 'វេនព្រឹក (Morning)' : 'Morning'
+  }
+  if (s.includes('afternoon') || s.includes('រសៀល')) {
+    return lang.value === 'kh' ? 'វេនរសៀល (Afternoon)' : 'Afternoon'
+  }
+  if (s.includes('evening') || s.includes('យប់')) {
+    return lang.value === 'kh' ? 'វេនយប់ (Evening)' : 'Evening'
+  }
+  return shift
+}
 
 const formatTime = (timeStr) => {
   if (!timeStr) return ''

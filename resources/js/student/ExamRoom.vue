@@ -35,8 +35,8 @@
       <Card padding="lg" class="max-w-xl w-full shadow-soft-xl border-slate-200">
         <!-- Header -->
         <div class="text-center pb-6 border-b border-slate-100">
-          <div class="mx-auto flex h-16 w-16 items-center justify-center mb-3">
-            <img :src="settings.logoUrl || '/logo.png'" alt="Logo" class="w-full h-full object-contain drop-shadow-xs" />
+          <div class="mx-auto flex h-16 w-16 items-center justify-center mb-3 rounded-2xl bg-blue-50/90 border border-blue-100/80 shadow-soft-sm p-2.5">
+            <img :src="settings.logoUrl || icoSvg" alt="OnlineExam Logo" class="w-full h-full object-contain select-none drop-shadow-xs" />
           </div>
           <span class="text-xs font-bold uppercase tracking-wider text-blue-600">{{ t.preExamCheck }}</span>
           <h1 class="text-2xl font-extrabold text-slate-900 mt-1 tracking-tight">{{ examData?.testName }}</h1>
@@ -790,6 +790,7 @@ import { renderMath } from '../utils/mathRender'
 import { useToast } from '../composables/useToast'
 import { useSettings } from '../composables/useSettings'
 import { useRealtimeSync, notifyRealtimeChange } from '../composables/useRealtimeSync'
+import icoSvg from '../../../public/ico.svg'
 
 const route = useRoute()
 const router = useRouter()
