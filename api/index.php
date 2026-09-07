@@ -27,6 +27,28 @@ if (empty($_ENV['APP_KEY']) || trim($_ENV['APP_KEY']) === '') {
     $_SERVER['APP_KEY'] = $appKey;
 }
 
+// Always ensure database points to TiDB Cloud
+putenv('DB_CONNECTION=mysql');
+putenv('DB_HOST=gateway01.ap-southeast-1.prod.aws.tidbcloud.com');
+putenv('DB_PORT=4000');
+putenv('DB_DATABASE=online_exam_db');
+putenv('DB_USERNAME=qGXpz3gtCzEhHAf.root');
+putenv('DB_PASSWORD=5lO5eZJXXll22jGP');
+
+$_ENV['DB_CONNECTION'] = 'mysql';
+$_ENV['DB_HOST'] = 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com';
+$_ENV['DB_PORT'] = '4000';
+$_ENV['DB_DATABASE'] = 'online_exam_db';
+$_ENV['DB_USERNAME'] = 'qGXpz3gtCzEhHAf.root';
+$_ENV['DB_PASSWORD'] = '5lO5eZJXXll22jGP';
+
+$_SERVER['DB_CONNECTION'] = 'mysql';
+$_SERVER['DB_HOST'] = 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com';
+$_SERVER['DB_PORT'] = '4000';
+$_SERVER['DB_DATABASE'] = 'online_exam_db';
+$_SERVER['DB_USERNAME'] = 'qGXpz3gtCzEhHAf.root';
+$_SERVER['DB_PASSWORD'] = '5lO5eZJXXll22jGP';
+
 // Ensure critical driver configs are never empty strings
 if (empty($_ENV['SESSION_DRIVER']) || trim($_ENV['SESSION_DRIVER']) === '') {
     putenv('SESSION_DRIVER=cookie');
