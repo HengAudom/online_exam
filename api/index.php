@@ -16,5 +16,8 @@ foreach ($dirs as $dir) {
     }
 }
 
+// Adjust script name so Laravel router resolves correctly
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+
 // Forward the request to Laravel's public entrypoint
 require __DIR__ . '/../public/index.php';

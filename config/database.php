@@ -60,7 +60,16 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA') ?: (
+                    file_exists('C:/laragon/etc/ssl/cacert.pem')
+                        ? 'C:/laragon/etc/ssl/cacert.pem'
+                        : (file_exists('/etc/pki/tls/certs/ca-bundle.crt')
+                            ? '/etc/pki/tls/certs/ca-bundle.crt'
+                            : (file_exists('/etc/ssl/certs/ca-certificates.crt')
+                                ? '/etc/ssl/certs/ca-certificates.crt'
+                                : null))
+                ),
+                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false,
             ]) : [],
         ],
 
