@@ -126,6 +126,7 @@
           </div>
 
           <form @submit.prevent="saveProfile" class="space-y-4">
+            <!-- ── Part 1: Names ────────────────────────────────────── -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 v-model="profileForm.firstName"
@@ -141,6 +142,7 @@
               />
             </div>
 
+            <!-- ── Part 2: Phone & Candidate ID ────────────────────── -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 v-model="profileForm.phone"
@@ -153,45 +155,36 @@
                 <label class="block text-xs font-bold text-slate-700 mb-1.5">
                   {{ lang === 'kh' ? 'អត្តលេខបេក្ខជន' : 'Candidate ID' }}
                 </label>
-                <div class="h-10 px-3.5 rounded-xl bg-slate-100/80 border border-slate-200 text-slate-600 font-mono text-sm font-bold flex items-center select-none">
+                <div class="h-10 px-3.5 rounded-xl bg-slate-100/80 border border-slate-200 text-slate-700 font-mono text-sm font-bold flex items-center select-none">
                   {{ student.studentCode || student.studentId }}
                 </div>
               </div>
             </div>
 
-            <!-- Telegram Connection Status in Edit Form -->
-            <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between flex-wrap gap-2">
-              <div class="flex items-center gap-2.5">
-                <div
-                  class="h-8 w-8 rounded-xl flex items-center justify-center shrink-0"
-                  :class="student.telegramConnected ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'"
-                >
-                  <span class="material-symbols-outlined text-base">
-                    {{ student.telegramConnected ? 'verified' : 'notifications_active' }}
-                  </span>
-                </div>
-                <div>
-                  <div class="text-[11px] font-bold text-slate-500">
-                    {{ lang === 'kh' ? 'ស្ថានភាពភ្ជាប់ Telegram ទទួលពិន្ទុ' : 'Telegram Score Alerts' }}
-                  </div>
-                  <div class="text-xs font-extrabold" :class="student.telegramConnected ? 'text-emerald-700' : 'text-amber-700'">
-                    {{ student.telegramConnected
-                      ? (student.telegramUsername ? `${student.telegramUsername} (${lang === 'kh' ? 'បានភ្ជាប់' : 'Connected'})` : (lang === 'kh' ? 'បានភ្ជាប់រួចរាល់' : 'Connected'))
-                      : (lang === 'kh' ? 'មិនទាន់ភ្ជាប់ (Not Connected)' : 'Not Connected')
-                    }}
-                  </div>
+            <!-- ── Part 3: Skill & Study Group (ជំនាញ និងក្រុមដែលគាត់រៀន) ── -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                  {{ lang === 'kh' ? 'ជំនាញដែលកំពុងរៀន' : 'Enrolled Skill / Major' }}
+                </label>
+                <div class="h-10 px-3.5 rounded-xl bg-blue-50/60 border border-blue-200/80 text-blue-950 text-xs font-bold flex items-center gap-2 select-none">
+                  <span class="material-symbols-outlined text-blue-600 text-base">school</span>
+                  <span class="truncate">{{ student.skill || (lang === 'kh' ? 'ទូទៅ' : 'General') }}</span>
                 </div>
               </div>
-              <a
-                v-if="!student.telegramConnected"
-                :href="student.telegramConnectUrl || 'https://t.me/onlinexam_bot'"
-                target="_blank"
-                class="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-                @click="onConnectTelegramClick"
-              >
-                <span class="material-symbols-outlined text-xs">send</span>
-                <span>{{ lang === 'kh' ? 'ភ្ជាប់ឥឡូវនេះ' : 'Connect' }}</span>
-              </a>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">
+                  {{ lang === 'kh' ? 'ក្រុមសិក្សា និងវេន' : 'Study Group & Shift' }}
+                </label>
+                <div class="h-10 px-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200/80 text-emerald-950 text-xs font-bold flex items-center gap-2 select-none">
+                  <span class="material-symbols-outlined text-emerald-600 text-base">groups</span>
+                  <span class="truncate">{{ student.group || (lang === 'kh' ? 'ក្រុមទូទៅ' : 'General Group') }}</span>
+                  <span v-if="student.shift" class="ml-auto text-[11px] font-semibold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md">
+                    {{ student.shift }}
+                  </span>
+                </div>
+              </div>
             </div>
 
             <div class="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
@@ -215,51 +208,54 @@
             </div>
           </form>
 
-          <!-- ── Telegram Notification Settings ───────────────────── -->
-          <div class="p-5 rounded-2xl border border-slate-200 bg-slate-50/80 space-y-3 mt-4">
-            <div class="flex items-center justify-between flex-wrap gap-2">
-              <div class="flex items-center gap-2.5">
-                <div class="h-8 w-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
-                  <span class="material-symbols-outlined text-base">send</span>
+          <!-- ── Telegram Notification Settings (Clean, Unified Single Card) ───────────────────── -->
+          <div class="p-5 rounded-2xl border transition-all mt-4" :class="student.telegramConnected ? 'border-emerald-200 bg-emerald-50/40' : 'border-slate-200 bg-slate-50/80'">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+              <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0" :class="student.telegramConnected ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'">
+                  <span class="material-symbols-outlined text-xl">{{ student.telegramConnected ? 'verified' : 'send' }}</span>
                 </div>
                 <div>
-                  <h4 class="font-bold text-slate-800 text-xs sm:text-sm">
+                  <h4 class="font-extrabold text-slate-900 text-sm leading-tight">
                     {{ lang === 'kh' ? 'ការជូនដំណឹងតាម Telegram (Telegram Exam Alerts)' : 'Telegram Exam Result Notifications' }}
                   </h4>
-                  <p class="text-[11px] text-slate-500">
+                  <p class="text-xs text-slate-500 mt-0.5">
                     {{ lang === 'kh' ? 'ទទួលលទ្ធផលប្រឡង និងពិន្ទុរបស់អ្នកដោយស្វ័យប្រវត្តិតាម Telegram ពេលប្រឡងចប់' : 'Receive instant score notifications in your Telegram when you finish an exam.' }}
                   </p>
                 </div>
               </div>
+
+              <!-- Status Badge -->
               <span
                 v-if="student.telegramConnected"
-                class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1"
+                class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-300 inline-flex items-center gap-1.5"
               >
-                <span class="material-symbols-outlined text-xs">verified</span>
+                <span class="material-symbols-outlined text-sm">verified</span>
                 {{ lang === 'kh' ? 'បានភ្ជាប់រួចរាល់' : 'Connected' }} {{ student.telegramUsername ? `(${student.telegramUsername})` : '' }}
               </span>
               <span
                 v-else
-                class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-700 border border-amber-200 inline-flex items-center gap-1"
+                class="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300 inline-flex items-center gap-1.5"
               >
-                <span class="material-symbols-outlined text-xs">link_off</span>
+                <span class="material-symbols-outlined text-sm">link_off</span>
                 {{ lang === 'kh' ? 'មិនទាន់ភ្ជាប់' : 'Not Connected' }}
               </span>
             </div>
 
-            <div class="flex items-center justify-between pt-2 border-t border-slate-200/60 flex-wrap gap-2">
-              <div class="text-[11px] text-slate-500 max-w-md leading-relaxed">
+            <div class="flex items-center justify-between pt-3 mt-3 border-t flex-wrap gap-3" :class="student.telegramConnected ? 'border-emerald-200/60' : 'border-slate-200/60'">
+              <div class="text-xs text-slate-600 max-w-lg leading-relaxed">
                 {{ student.telegramConnected
-                  ? (lang === 'kh' ? 'គណនីរបស់អ្នកបានភ្ជាប់ជាមួយ OnlinExam Bot រួចរាល់។ ពេលប្រឡងចប់ ពិន្ទុនឹងផ្ញើមកទីនេះស្វ័យប្រវត្តិ។' : 'Your account is linked. Score alerts will be sent to your Telegram automatically.')
+                  ? (lang === 'kh' ? 'គណនីរបស់អ្នកបានភ្ជាប់ជាមួយ OnlineExam Bot រួចរាល់។ ពេលប្រឡងចប់ ពិន្ទុនឹងផ្ញើមកទីនេះដោយស្វ័យប្រវត្តិ។' : 'Your account is linked. Score alerts will be sent to your Telegram automatically.')
                   : (lang === 'kh' ? 'ចុចប៊ូតុងខាងស្ដាំដើម្បីបើក Telegram Bot ឬបញ្ចូល Chat ID របស់អ្នកខាងក្រោមដើម្បីភ្ជាប់ដោយផ្ទាល់។' : 'Click to open Telegram Bot or enter your Chat ID below to connect directly.')
                 }}
               </div>
+
               <div class="flex items-center gap-2">
                 <a
                   v-if="!student.telegramConnected"
                   :href="student.telegramConnectUrl || 'https://t.me/onlinexam_bot'"
                   target="_blank"
-                  class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors cursor-pointer"
+                  class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors cursor-pointer"
                   @click="onConnectTelegramClick"
                 >
                   <span class="material-symbols-outlined text-sm">open_in_new</span>
@@ -268,7 +264,7 @@
                 <button
                   v-else
                   type="button"
-                  class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors"
+                  class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-100/60 border border-rose-200 transition-colors cursor-pointer"
                   @click="unlinkTelegram"
                 >
                   <span class="material-symbols-outlined text-sm">link_off</span>
@@ -487,6 +483,9 @@ const student = reactive({
   studentId: '',
   studentCode: '',
   phone: '',
+  skill: '',
+  group: '',
+  shift: '',
   sessionId: null,
   sessionName: '',
   examDate: null,
@@ -772,6 +771,9 @@ const loadStudentData = async (forcePollTelegram = false) => {
     student.studentId = s.studentId || ''
     student.studentCode = s.studentCode || s.studentId || ''
     student.phone = s.phone || ''
+    student.skill = s.skill || ''
+    student.group = s.group || ''
+    student.shift = s.shift || ''
     student.sessionId = s.sessionId || null
     student.sessionName = s.sessionName || ''
     student.examDate = s.examDate || null

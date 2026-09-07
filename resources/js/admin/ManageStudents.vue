@@ -525,15 +525,6 @@
             <CustomDropdown v-model="editForm.intakeYear" :options="yearOptions" />
           </div>
         </div>
-
-        <!-- Optional Password Reset -->
-        <div class="pt-2 border-t border-slate-100">
-          <p class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">{{ t.changePasswordOptional }}</p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <PasswordInput v-model="editForm.newPassword" :label="t.newPassword" placeholder="Leave blank to keep" />
-            <PasswordInput v-model="editForm.confirmPassword" :label="t.confirmPassword" placeholder="Confirm password" />
-          </div>
-        </div>
       </div>
 
       <template #footer>
