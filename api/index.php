@@ -59,6 +59,12 @@ if ((isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PRO
 }
 
 // Ensure critical driver configs are never empty strings
+if (empty($_ENV['APP_URL']) || trim($_ENV['APP_URL']) === '' || str_contains($_ENV['APP_URL'], 'onlin-exam.vercel.app')) {
+    putenv('APP_URL=https://onlinexam.site');
+    $_ENV['APP_URL'] = 'https://onlinexam.site';
+    $_SERVER['APP_URL'] = 'https://onlinexam.site';
+}
+
 if (empty($_ENV['APP_NAME']) || trim($_ENV['APP_NAME']) === '') {
     putenv('APP_NAME=OnlineExam');
     $_ENV['APP_NAME'] = 'OnlineExam';

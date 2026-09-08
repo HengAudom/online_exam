@@ -78,13 +78,8 @@ class TelegramBotController extends Controller
         }
 
         $hostingUrl = config('app.url');
-        if (empty($hostingUrl) || str_contains($hostingUrl, 'localhost')) {
-            $currentRoot = $request->root();
-            if ($currentRoot && !str_contains($currentRoot, 'localhost')) {
-                $hostingUrl = $currentRoot;
-            } else {
-                $hostingUrl = $currentRoot ?: ($hostingUrl ?: 'http://localhost:8000');
-            }
+        if (empty($hostingUrl) || str_contains($hostingUrl, 'localhost') || str_contains($hostingUrl, 'onlin-exam.vercel.app')) {
+            $hostingUrl = 'https://onlinexam.site';
         }
 
         $dateStr = now()->setTimezone('Asia/Phnom_Penh')->format('d-m-Y H:i:s');
@@ -347,12 +342,13 @@ class TelegramBotController extends Controller
                 . "💡 <b>របៀបភ្ជាប់គណនី:</b> វាយពាក្យ <code>/link [លេខកូដសិស្ស]</code> (ឧទាហរណ៍៖ <code>/link RTC-2026-0002</code>)។";
 
             $appUrl = config('app.url', url('/'));
-            $inlineKeyboard = [];
-            if (str_starts_with($appUrl, 'https://')) {
-                $inlineKeyboard[] = [
-                    ['text' => '🌐 ចូលគេហទំព័រប្រឡង (Student Portal)', 'url' => $appUrl . '/student']
-                ];
+            if (empty($appUrl) || str_contains($appUrl, 'localhost') || str_contains($appUrl, 'onlin-exam.vercel.app')) {
+                $appUrl = 'https://onlinexam.site';
             }
+            $inlineKeyboard = [];
+            $inlineKeyboard[] = [
+                ['text' => '🌐 ចូលគេហទំព័រប្រឡង (Student Portal)', 'url' => rtrim($appUrl, '/') . '/student']
+            ];
             $adminUser = config('services.telegram.admin_username', env('TELEGRAM_ADMIN_USERNAME', 'DomAi1'));
             $inlineKeyboard[] = [
                 ['text' => '👨‍💼 ទំនាក់ទំនង Admin', 'url' => 'https://t.me/' . ltrim($adminUser, '@')]
