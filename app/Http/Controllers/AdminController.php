@@ -1262,9 +1262,6 @@ class AdminController extends Controller
         }
 
         try {
-            $hasInterruptions = \Illuminate\Support\Facades\Schema::hasColumn('tblstudentsubmission', 'Interruptions')
-                || \Illuminate\Support\Facades\Schema::hasColumn('tblStudentSubmission', 'Interruptions');
-
             $selectFields = [
                 'ss.SubmissionId as submissionId',
                 'ss.StudentId as studentId',
@@ -1285,15 +1282,10 @@ class AdminController extends Controller
                 'ss.Score as score',
                 'ss.StartedAt as startedAt',
                 'ss.CompletedAt as completedAt',
+                'ss.Interruptions as interruptions',
                 DB::raw('(SELECT COUNT(*) FROM tblquestion WHERE tblquestion.TestId = t.TestId) as totalQuestions'),
                 DB::raw('(SELECT COUNT(*) FROM tblsubmissiondetail WHERE tblsubmissiondetail.SubmissionId = ss.SubmissionId AND tblsubmissiondetail.SelectedAnswerId IS NOT NULL) as answeredCount')
             ];
-
-            if ($hasInterruptions) {
-                $selectFields[] = 'ss.Interruptions as interruptions';
-            } else {
-                $selectFields[] = DB::raw('0 as interruptions');
-            }
 
             $todayCompletedCount = DB::table('tblstudentsubmission')
                 ->whereDate('CompletedAt', now()->toDateString())

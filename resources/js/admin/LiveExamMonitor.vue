@@ -46,7 +46,7 @@
       />
       <StatCard
         :title="t.completedToday"
-        :value="completedCount"
+        :value="completedTodayCount"
         icon="task_alt"
         color="purple"
         :description="t.completedTodayDesc"
@@ -64,14 +64,14 @@
           />
         </div>
 
-        <!-- Shift & Test Dropdowns (Always side-by-side) -->
+        <!-- Group & Test Dropdowns (Always side-by-side) -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 flex-1">
           <CustomDropdown
-            v-model="selectedSessionId"
-            :options="[{ sessionId: '', sessionLabel: t.allSessions }, ...sessionDropdownOptions]"
-            labelKey="sessionLabel"
-            valueKey="sessionId"
-            :placeholder="t.allSessions"
+            v-model="selectedGroupId"
+            :options="[{ GroupId: '', GroupName: t.allGroups }, ...groups]"
+            labelKey="GroupName"
+            valueKey="GroupId"
+            :placeholder="t.allGroups"
             class="w-full text-xs"
           />
 
@@ -87,7 +87,7 @@
 
         <!-- Reset Button -->
         <IconButton
-          v-if="searchQuery || selectedSessionId || selectedTestId"
+          v-if="searchQuery || selectedGroupId || selectedTestId"
           icon="restart_alt"
           variant="ghost"
           size="md"
@@ -144,15 +144,29 @@
                 </div>
               </td>
 
-              <!-- Shift & Room -->
+              <!-- Shift & Room / Gender -->
               <td class="px-4 py-3.5 whitespace-nowrap">
-                <span
-                  v-if="item.sessionName"
-                  class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/80"
-                >
-                  <span class="material-symbols-outlined text-sm text-blue-600">schedule</span>
-                  <span>{{ item.sessionName }}</span>
-                </span>
+                <div v-if="item.shift || item.group || item.gender" class="space-y-1">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      v-if="item.shift"
+                      class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100"
+                    >
+                      <span class="material-symbols-outlined text-[13px] text-blue-600">schedule</span>
+                      <span>{{ formatShift(item.shift) }}</span>
+                    </span>
+                    <span
+                      v-if="item.gender"
+                      class="inline-flex items-center px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200"
+                    >
+                      {{ formatGender(item.gender) }}
+                    </span>
+                  </div>
+                  <div v-if="item.group" class="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                    <span class="material-symbols-outlined text-[14px] text-slate-400">meeting_room</span>
+                    <span>{{ item.group }}</span>
+                  </div>
+                </div>
                 <span v-else class="text-slate-400 text-xs">-</span>
               </td>
 
@@ -310,9 +324,13 @@
               <span class="text-slate-500 font-semibold">{{ t.examTitle }}:</span>
               <span class="font-bold text-slate-800 truncate max-w-[180px]">{{ item.testName }}</span>
             </div>
-            <div v-if="item.sessionName" class="flex items-center justify-between">
+            <div v-if="item.shift || item.group || item.gender" class="flex items-center justify-between">
               <span class="text-slate-500 font-semibold">{{ t.shiftAndRoom }}:</span>
-              <span class="font-bold text-blue-700">{{ item.sessionName }}</span>
+              <div class="flex items-center gap-1.5 font-bold text-slate-800 text-xs">
+                <span v-if="item.shift" class="text-blue-700">{{ formatShift(item.shift) }}</span>
+                <span v-if="item.gender" class="text-slate-500">({{ formatGender(item.gender) }})</span>
+                <span v-if="item.group" class="text-slate-700">· {{ item.group }}</span>
+              </div>
             </div>
           </div>
 
@@ -390,7 +408,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import Card from '../components/ui/Card.vue'
@@ -404,7 +422,6 @@ import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import CustomDropdown from '../components/CustomDropdown.vue'
 import { useLang } from '../utils/useLang'
 import { useToast } from '../composables/useToast'
-import { useRealtimeSync } from '../composables/useRealtimeSync'
 
 const router = useRouter()
 const { lang } = useLang()
@@ -412,17 +429,36 @@ const { success: toastSuccess, error: toastError } = useToast()
 
 const examinees = ref([])
 const activeCount = ref(0)
-const sessions = ref([])
+const completedTodayCount = ref(0)
+const groups = ref([])
 const tests = ref([])
 const loading = ref(false)
 
 const searchQuery = ref('')
-const selectedSessionId = ref('')
+const selectedGroupId = ref('')
 const selectedTestId = ref('')
 
 const showForceSubmitDialog = ref(false)
 const targetSubmission = ref(null)
 const forceSubmittingId = ref(null)
+
+const formatShift = (shift) => {
+  if (!shift) return ''
+  const s = String(shift).toLowerCase().trim()
+  if (s === 'morning') return lang.value === 'kh' ? 'វេនព្រឹក' : 'Morning'
+  if (s === 'afternoon') return lang.value === 'kh' ? 'វេនរសៀល' : 'Afternoon'
+  if (s === 'evening') return lang.value === 'kh' ? 'វេនយប់' : 'Evening'
+  return shift
+}
+
+const formatGender = (gender) => {
+  if (!gender) return ''
+  const g = String(gender).toLowerCase().trim()
+  if (g === 'female' || g === 'f') return lang.value === 'kh' ? 'ស្រី' : 'Female'
+  if (g === 'male' || g === 'm') return lang.value === 'kh' ? 'ប្រុស' : 'Male'
+  if (g === 'other') return lang.value === 'kh' ? 'ផ្សេងៗ' : 'Other'
+  return gender
+}
 
 const t = computed(() => {
   if (lang.value === 'kh') {
@@ -439,8 +475,8 @@ const t = computed(() => {
       completedToday: 'បានប្រគល់វិញ្ញាសា',
       completedTodayDesc: 'បេក្ខជនបានប្រគល់រួចរាល់',
       searchPlaceholder: 'ស្វែងរកតាមឈ្មោះ ឬ លេខកូដបេក្ខជន...',
-      allSessions: 'គ្រប់វេនប្រឡងទាំងអស់',
-      filterSession: 'ជ្រើសរើសវេនប្រឡង',
+      allGroups: 'គ្រប់ក្រុម/បន្ទប់ទាំងអស់',
+      filterGroup: 'ជ្រើសរើសក្រុម/បន្ទប់',
       allTests: 'គ្រប់វិញ្ញាសាទាំងអស់',
       filterTest: 'ជ្រើសរើសវិញ្ញាសា',
       reset: 'កំណត់ឡើងវិញ',
@@ -471,13 +507,13 @@ const t = computed(() => {
     completedToday: 'Completed Submissions',
     completedTodayDesc: 'Submitted in this session',
     searchPlaceholder: 'Search candidate name or code...',
-    allSessions: 'All Exam Shifts',
-    filterSession: 'Filter Shift',
+    allGroups: 'All Groups/Venues',
+    filterGroup: 'Filter Group',
     allTests: 'All Exams',
     filterTest: 'Filter Exam',
     reset: 'Reset Filters',
     candidate: 'Candidate',
-    shiftAndRoom: 'Shift & Venue',
+    shiftAndRoom: 'Shift & Room',
     examTitle: 'Exam Title',
     progress: 'Answer Progress',
     timeRemaining: 'Time Remaining',
@@ -491,13 +527,6 @@ const t = computed(() => {
   }
 })
 
-const sessionDropdownOptions = computed(() => {
-  return sessions.value.map(s => ({
-    sessionId: s.SessionId,
-    sessionLabel: `${s.SessionName} (${s.ExamDate || ''})`
-  }))
-})
-
 const avgProgress = computed(() => {
   const active = examinees.value.filter(e => e.status === 'In Progress')
   if (!active.length) return 0
@@ -509,13 +538,9 @@ const totalInterruptions = computed(() => {
   return examinees.value.reduce((acc, curr) => acc + (curr.interruptions || 0), 0)
 })
 
-const completedCount = computed(() => {
-  return examinees.value.filter(e => e.status === 'Completed').length
-})
-
 const filteredExaminees = computed(() => {
   return examinees.value.filter(e => {
-    if (selectedSessionId.value && e.sessionId != selectedSessionId.value) return false
+    if (selectedGroupId.value && e.groupId != selectedGroupId.value) return false
     if (selectedTestId.value && e.testId != selectedTestId.value) return false
     if (searchQuery.value) {
       const q = searchQuery.value.toLowerCase().trim()
@@ -529,7 +554,7 @@ const filteredExaminees = computed(() => {
 
 const resetFilters = () => {
   searchQuery.value = ''
-  selectedSessionId.value = ''
+  selectedGroupId.value = ''
   selectedTestId.value = ''
 }
 
@@ -539,7 +564,8 @@ const fetchData = async (isBg = false) => {
     const res = await axios.get('/api/admin/live-monitor')
     examinees.value = res.data.examinees || []
     activeCount.value = res.data.activeCount || 0
-    sessions.value = res.data.sessions || []
+    completedTodayCount.value = Number(res.data.completedTodayCount || 0)
+    groups.value = res.data.groups || []
     tests.value = res.data.tests || []
   } catch (e) {
     if (!isBg) toastError(lang.value === 'kh' ? 'មិនអាចទាញយកទិន្នន័យបានទេ' : 'Failed to fetch live monitoring data')
@@ -578,13 +604,66 @@ const executeForceSubmit = async () => {
   }
 }
 
-useRealtimeSync(() => {
+// ─── Real-Time 3s Polling & Instant Broadcast Sync ───────────────────────────
+let pollTimer = null
+let channel = null
+
+const startPolling = () => {
+  stopPolling()
+  // Poll exactly every 3 seconds while active
+  pollTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      fetchData(true)
+    }
+  }, 3000)
+}
+
+const stopPolling = () => {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+const handleVisibilityChange = () => {
   if (document.visibilityState === 'visible') {
     fetchData(true)
+    startPolling()
+  } else {
+    stopPolling()
   }
-}, 30000)
+}
+
+const handleBroadcast = (event) => {
+  const type = event.data?.type
+  if (['exam_answer_saved', 'exam_interruption', 'exam_submitted', 'general'].includes(type)) {
+    fetchData(true)
+  }
+}
 
 onMounted(() => {
   fetchData(false)
+  startPolling()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      channel = new BroadcastChannel('rtc_exam_realtime_sync')
+      channel.addEventListener('message', handleBroadcast)
+    }
+  } catch (e) {
+    console.warn('BroadcastChannel error:', e)
+  }
+})
+
+onUnmounted(() => {
+  stopPolling()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  if (channel) {
+    try {
+      channel.removeEventListener('message', handleBroadcast)
+      channel.close()
+    } catch (e) {}
+  }
 })
 </script>
