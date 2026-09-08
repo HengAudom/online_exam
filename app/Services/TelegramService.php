@@ -145,7 +145,7 @@ class TelegramService
 
             $hostingUrl = env('TELEGRAM_HOSTING_URL') ?: config('app.url');
             if (empty($hostingUrl) || str_contains($hostingUrl, 'localhost')) {
-                $hostingUrl = 'https://onlin-exam.vercel.app';
+                $hostingUrl = 'https://onlinexam.site';
             }
             $resultUrl = rtrim($hostingUrl, '/') . "/student/results/{$submission->SubmissionId}";
 
