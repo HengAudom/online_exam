@@ -34,6 +34,22 @@
       }
     },
     {
+      "src": "/sitemap\\.xml",
+      "dest": "/sitemap.xml",
+      "headers": {
+        "content-type": "application/xml; charset=utf-8",
+        "cache-control": "public, max-age=3600"
+      }
+    },
+    {
+      "src": "/robots\\.txt",
+      "dest": "/robots.txt",
+      "headers": {
+        "content-type": "text/plain; charset=utf-8",
+        "cache-control": "public, max-age=86400"
+      }
+    },
+    {
       "src": "/(favicon\\.ico|ico\\.svg|apple-touch-icon\\.png|manifest\\.json|manifest\\.webmanifest|sw\\.js)",
       "dest": "/$1",
       "headers": {

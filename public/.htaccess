@@ -11,7 +11,7 @@
     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
     # Allow all asset files
-    <FilesMatch "\.(png|ico|svg|json|woff2|jpg|jpeg|gif|css|js)$">
+    <FilesMatch "\.(png|ico|svg|json|woff2|jpg|jpeg|gif|css|js|xml|txt)$">
         <IfModule mod_authz_core.c>
             Require all granted
         </IfModule>

@@ -296,5 +296,31 @@ Route::get('/favicon.ico', function () {
     ]);
 });
 
+Route::get('/sitemap.xml', function () {
+    $path = public_path('sitemap.xml');
+
+    if (! file_exists($path)) {
+        abort(404);
+    }
+
+    return response()->file($path, [
+        'Content-Type' => 'application/xml; charset=utf-8',
+        'Cache-Control' => 'public, max-age=3600',
+    ]);
+});
+
+Route::get('/robots.txt', function () {
+    $path = public_path('robots.txt');
+
+    if (! file_exists($path)) {
+        abort(404);
+    }
+
+    return response()->file($path, [
+        'Content-Type' => 'text/plain; charset=utf-8',
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+});
+
 // ─── SPA Catch-all ────────────────────────────────────────────────────────────
 Route::view('/{any}', 'welcome')->where('any', '.*');

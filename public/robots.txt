@@ -1,2 +1,4 @@
 User-agent: *
 Disallow:
+
+Sitemap: https://onlinexam.site/sitemap.xml
