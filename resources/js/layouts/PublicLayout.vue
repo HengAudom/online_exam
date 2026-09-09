@@ -55,9 +55,41 @@
       <!-- Footer Info -->
       <div class="relative z-10 flex items-center justify-between text-xs text-slate-500">
         <p>© 2026 OnlineXam</p>
-        <div class="flex items-center gap-1">
-          <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-          <span>System Operational</span>
+        <!-- Developer Info Section (2 Rows) -->
+        <div class="flex flex-col items-end justify-center text-right">
+          <!-- Row 1: Social Contact Icons -->
+          <div class="flex items-center gap-3 mb-1">
+            <!-- Facebook Link -->
+            <a 
+              href="https://www.facebook.com/may.dom.bon.1502" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              title="Facebook: Heng Audom"
+              class="text-slate-400 hover:text-blue-500 transition-colors duration-200"
+            >
+              <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+            </a>
+
+            <!-- Telegram Link -->
+            <a 
+              href="https://t.me/DomAi1" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              title="Telegram: @DomAi1"
+              class="text-slate-400 hover:text-sky-400 transition-colors duration-200"
+            >
+              <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.325-.635.325l.19-2.71 4.935-4.46c.214-.19-.047-.295-.332-.105L8.46 14.15l-2.628-.823c-.573-.18-.584-.573.12-.85L16.2 8.41c.475-.18.89.112.694.811z"/>
+              </svg>
+            </a>
+          </div>
+
+          <!-- Row 2: Developer Name -->
+          <div class="text-[11px] font-medium tracking-wide text-slate-400">
+            Dev by <span class="text-slate-200 font-semibold hover:text-white transition-colors">Heng Audom (ហេង ឧត្តម)</span>
+          </div>
         </div>
       </div>
     </div>

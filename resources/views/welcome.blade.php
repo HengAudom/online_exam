@@ -11,8 +11,29 @@
     <meta name="title" content="OnlineXam - Online Examination System">
     <meta name="description" content="OnlineXam - ប្រព័ន្ធគ្រប់គ្រងការប្រឡងអនឡាញ រៀបចំការប្រឡង វាយតម្លៃលទ្ធផលសិស្ស និងគ្រប់គ្រងទិន្នន័យប្រឡងដោយសុវត្ថិភាព។">
     <meta name="keywords" content="OnlineXam, onlinexam, Online Examination System, ប្រព័ន្ធប្រឡងអនឡាញ">
+    <meta name="author" content="Heng Audom (ហេង ឧត្តម)">
     <meta name="robots" content="index, follow">
     <link rel="canonical" href="https://onlinexam.site/login">
+
+    <!-- JSON-LD Structured Data for Google Indexing -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "OnlineXam",
+      "url": "https://onlinexam.site",
+      "applicationCategory": "EducationalApplication",
+      "author": {
+        "@type": "Person",
+        "name": "Heng Audom",
+        "alternateName": "ហេង ឧត្តម",
+        "sameAs": [
+          "https://www.facebook.com/may.dom.bon.1502",
+          "https://t.me/DomAi1"
+        ]
+      }
+    }
+    </script>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
