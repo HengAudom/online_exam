@@ -4,7 +4,32 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ \App\Http\Controllers\AdminController::getSystemSettings()['institutionName'] ?? 'Online Exam System' }}</title>
+    <!-- Page Title -->
+    <title>OnlineXam - Online Examination System</title>
+
+    <!-- Primary Meta Tags -->
+    <meta name="title" content="OnlineXam - Online Examination System">
+    <meta name="description" content="OnlineXam - ប្រព័ន្ធគ្រប់គ្រងការប្រឡងអនឡាញ រៀបចំការប្រឡង វាយតម្លៃលទ្ធផលសិស្ស និងគ្រប់គ្រងទិន្នន័យប្រឡងដោយសុវត្ថិភាព។">
+    <meta name="keywords" content="OnlineXam, onlinexam, Online Examination System, ប្រព័ន្ធប្រឡងអនឡាញ">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://onlinexam.site/login">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://onlinexam.site/login">
+    <meta property="og:title" content="OnlineXam - Online Examination System">
+    <meta property="og:description" content="OnlineXam - ប្រព័ន្ធគ្រប់គ្រងការប្រឡងអនឡាញ រៀបចំការប្រឡង វាយតម្លៃលទ្ធផលសិស្ស និងគ្រប់គ្រងទិន្នន័យប្រឡងដោយសុវត្ថិភាព។">
+    <meta property="og:image" content="https://onlinexam.site/pwa-512.png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:site_name" content="OnlineXam">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://onlinexam.site/login">
+    <meta property="twitter:title" content="OnlineXam - Online Examination System">
+    <meta property="twitter:description" content="OnlineXam - ប្រព័ន្ធគ្រប់គ្រងការប្រឡងអនឡាញ រៀបចំការប្រឡង វាយតម្លៃលទ្ធផលសិស្ស និងគ្រប់គ្រងទិន្នន័យប្រឡងដោយសុវត្ថិភាព។">
+    <meta property="twitter:image" content="https://onlinexam.site/pwa-512.png">
 
     <!-- Google Fonts: Manrope + Inter + Material Symbols -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,8 +46,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="OnlineExam">
-    <meta name="application-name" content="OnlineExam">
+    <meta name="apple-mobile-web-app-title" content="OnlineXam">
+    <meta name="application-name" content="OnlineXam">
 
     <!-- Instant Standalone State & PWA Event Detection -->
     <script>
@@ -166,7 +191,7 @@
             <div class="splash-logo-box">
                 <img src="{{ asset('pwa-192.png') }}?v=4" alt="Logo" />
             </div>
-            <h1 class="splash-title">{{ \App\Http\Controllers\AdminController::getSystemSettings()['institutionName'] ?? 'Online Exam System' }}</h1>
+            <h1 class="splash-title">{{ \App\Http\Controllers\AdminController::getSystemSettings()['institutionName'] ?? 'OnlineXam' }}</h1>
             <p class="splash-subtitle">Assessment Portal</p>
             <div class="splash-loader"></div>
         </div>

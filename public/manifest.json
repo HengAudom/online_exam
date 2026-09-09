@@ -1,6 +1,6 @@
 {
-  "name": "Online Exam System",
-  "short_name": "OnlineExam",
+  "name": "OnlineXam - Online Examination System",
+  "short_name": "OnlineXam",
   "id": "/?source=pwa",
   "start_url": "/?source=pwa",
   "scope": "/",
@@ -13,7 +13,7 @@
   "background_color": "#00288e",
   "theme_color": "#00288e",
   "orientation": "any",
-  "description": "Online Exam & Student Management Portal",
+  "description": "OnlineXam - ប្រព័ន្ធគ្រប់គ្រងការប្រឡងអនឡាញ រៀបចំការប្រឡង វាយតម្លៃលទ្ធផលសិស្ស និងគ្រប់គ្រងទិន្នន័យប្រឡងដោយសុវត្ថិភាព។",
   "categories": [
     "education",
     "productivity"

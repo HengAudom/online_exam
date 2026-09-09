@@ -13,22 +13,36 @@ const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: Login
+    component: Login,
+    meta: {
+      title: 'OnlineXam - Online Examination System',
+      description: 'OnlineXam - ប្រព័ន្ធគ្រប់គ្រងការប្រឡងអនឡាញ រៀបចំការប្រឡង វាយតម្លៃលទ្ធផលសិស្ស និងគ្រប់គ្រងទិន្នន័យប្រឡងដោយសុវត្ថិភាព។'
+    }
   },
   {
     path: '/register',
     name: 'Register',
-    component: Register
+    component: Register,
+    meta: {
+      title: 'Register - OnlineXam',
+      description: 'OnlineXam - ចុះឈ្មោះបង្កើតគណនីប្រឡងថ្មី'
+    }
   },
   {
     path: '/forgot-password',
     name: 'ForgotPassword',
-    component: ForgotPassword
+    component: ForgotPassword,
+    meta: {
+      title: 'Forgot Password - OnlineXam'
+    }
   },
   {
     path: '/reset-password',
     name: 'ResetPassword',
-    component: ResetPassword
+    component: ResetPassword,
+    meta: {
+      title: 'Reset Password - OnlineXam'
+    }
   },
 
   // ── Admin & Super Admin ───────────────────────────────────────────
@@ -163,6 +177,22 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   next()
+})
+
+// ══ Dynamic Page Title & Meta Synchronizer ══════════════════════════
+router.afterEach((to) => {
+  if (to.meta?.title) {
+    document.title = to.meta.title
+  } else {
+    document.title = 'OnlineXam - Online Examination System'
+  }
+
+  if (to.meta?.description) {
+    const metaDesc = document.querySelector('meta[name="description"]')
+    if (metaDesc) {
+      metaDesc.setAttribute('content', to.meta.description)
+    }
+  }
 })
 
 // ══ Global Axios Interceptor ═════════════════════════════════════════

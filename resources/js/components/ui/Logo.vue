@@ -116,8 +116,8 @@ const brandTitle = computed(() => {
     case 'admin': return 'ExamAdmin'
     case 'student': return 'StudentPortal'
     case 'dark':
-    case 'public': return settings.institutionName || 'OnlineExam'
-    default: return settings.institutionName || 'OnlineExam'
+    case 'public': return settings.institutionName || 'OnlineXam'
+    default: return settings.institutionName || 'OnlineXam'
   }
 })
 

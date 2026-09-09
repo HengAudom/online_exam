@@ -529,7 +529,7 @@ class AdminController extends Controller
     public static function getSystemSettings(): array
     {
         $defaults = [
-            'institutionName' => 'Online Examination System',
+            'institutionName' => 'OnlineXam',
             'academicYear' => '2026-2027',
             'timezone' => 'Asia/Phnom_Penh',
             'defaultLanguage' => 'kh',

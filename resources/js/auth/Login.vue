@@ -187,6 +187,7 @@ const onUsernameInput = () => {
 }
 
 onMounted(() => {
+  document.title = 'OnlineXam - Online Examination System'
   fetchSettings()
   const saved = localStorage.getItem('saved_login_username')
   if (saved) {

@@ -54,7 +54,7 @@
 
       <!-- Footer Info -->
       <div class="relative z-10 flex items-center justify-between text-xs text-slate-500">
-        <p>© 2026 Online Exam System</p>
+        <p>© 2026 OnlineXam</p>
         <div class="flex items-center gap-1">
           <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
           <span>System Operational</span>
