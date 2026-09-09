@@ -56,9 +56,9 @@
       <div class="relative z-10 flex items-center justify-between text-xs text-slate-500">
         <p>© 2026 OnlineXam</p>
         <!-- Developer Info Section (2 Rows) -->
-        <div class="flex flex-col items-end justify-center text-right">
+        <div class="flex flex-col items-center justify-center text-center">
           <!-- Row 1: Social Contact Icons -->
-          <div class="flex items-center gap-3 mb-1">
+          <div class="flex items-center justify-center gap-3 mb-1">
             <!-- Facebook Link -->
             <a 
               href="https://www.facebook.com/may.dom.bon.1502" 
