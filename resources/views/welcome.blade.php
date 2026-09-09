@@ -17,22 +17,22 @@
 
     <!-- JSON-LD Structured Data for Google Indexing -->
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "OnlineXam",
-      "url": "https://onlinexam.site",
-      "applicationCategory": "EducationalApplication",
-      "author": {
-        "@type": "Person",
-        "name": "Heng Audom",
-        "alternateName": "ហេង ឧត្តម",
-        "sameAs": [
-          "https://www.facebook.com/may.dom.bon.1502",
-          "https://t.me/DomAi1"
+    {!! json_encode([
+        '@context' => 'https://schema.org',
+        '@type' => 'WebApplication',
+        'name' => 'OnlineXam',
+        'url' => 'https://onlinexam.site',
+        'applicationCategory' => 'EducationalApplication',
+        'author' => [
+            '@type' => 'Person',
+            'name' => 'Heng Audom',
+            'alternateName' => 'ហេង ឧត្តម',
+            'sameAs' => [
+                'https://www.facebook.com/may.dom.bon.1502',
+                'https://t.me/DomAi1'
+            ]
         ]
-      }
-    }
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
     </script>
 
     <!-- Open Graph / Facebook -->
