@@ -162,6 +162,10 @@ class TelegramBotController extends Controller
      */
     public function getStudentResultsApi(Request $request)
     {
+        if ($request->filled('submissionId')) {
+            return $this->getSubmissionQuestionsApi($request);
+        }
+
         $code = trim((string)$request->input('code', $request->query('code', '')));
         $fromId = trim((string)$request->input('fromId', $request->input('chatId', $request->query('fromId', $request->query('chatId', '')))));
 
@@ -221,6 +225,122 @@ class TelegramBotController extends Controller
                 'telegramUsername' => $student->TelegramUsername,
             ],
             'submissions' => $results,
+        ]);
+    }
+
+    /**
+     * API endpoint to query question-by-question review of a student's submission.
+     * Used by Telegram Bot / Google Apps Script to display questions one by one with navigation.
+     */
+    public function getSubmissionQuestionsApi(Request $request)
+    {
+        $submissionId = $request->input('submissionId', $request->query('submissionId'));
+        if (empty($submissionId)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Missing submissionId',
+            ], 400);
+        }
+
+        $submission = StudentSubmission::with([
+            'student',
+            'test.questions.answers',
+            'details.question',
+            'details.selectedAnswer',
+        ])->find($submissionId);
+
+        if (!$submission) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Submission not found',
+            ], 404);
+        }
+
+        $test = $submission->test;
+        $student = $submission->student;
+        $allQuestions = $test ? $test->questions : collect();
+        $details = $submission->details;
+
+        $studentName = $student ? trim(($student->FirstName ?? '') . ' ' . ($student->LastName ?? '')) : 'សិស្ស';
+        $studentCode = $student ? ($student->StudentCode ?: ('RTC-' . $student->StudentId)) : 'N/A';
+
+        $score = (float)($submission->Score ?? $submission->TotalScore ?? 0);
+        $maxScore = (float)($test->MaxScore ?? 100);
+        $passScore = (float)($test->PassingScore ?? ($maxScore / 2));
+        $isPassed = $score >= $passScore;
+
+        $alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+        $questionsData = [];
+        foreach ($allQuestions as $idx => $q) {
+            $detail = $details->firstWhere('QuestionId', $q->QuestionId);
+            $selectedAnswerId = $detail?->SelectedAnswerId;
+            $isCorrect = (bool)($detail?->IsCorrect ?? false);
+            $isSkipped = ($detail === null || is_null($selectedAnswerId));
+
+            $options = [];
+            $selectedText = null;
+            $selectedLabel = null;
+            $correctText = null;
+            $correctLabel = null;
+
+            foreach ($q->answers as $aIdx => $ans) {
+                $label = $alphabet[$aIdx] ?? (string)($aIdx + 1);
+                $isThisCorrect = (bool)$ans->IsCorrect;
+                $isThisSelected = ($selectedAnswerId !== null && (int)$ans->AnswerId === (int)$selectedAnswerId);
+
+                if ($isThisCorrect) {
+                    $correctText = $ans->AnswerText;
+                    $correctLabel = $label;
+                }
+
+                if ($isThisSelected) {
+                    $selectedText = $ans->AnswerText;
+                    $selectedLabel = $label;
+                }
+
+                $options[] = [
+                    'label' => $label,
+                    'text' => strip_tags($ans->AnswerText ?? ''),
+                    'isCorrect' => $isThisCorrect,
+                    'isSelected' => $isThisSelected,
+                ];
+            }
+
+            $questionsData[] = [
+                'number' => $idx + 1,
+                'questionId' => $q->QuestionId,
+                'questionText' => strip_tags($q->QuestionText ?? ''),
+                'passage' => !empty($q->Passage) ? strip_tags($q->Passage) : null,
+                'points' => (float)($q->Points ?? 1),
+                'options' => $options,
+                'selectedLabel' => $selectedLabel,
+                'selectedText' => $selectedText ? strip_tags($selectedText) : null,
+                'correctLabel' => $correctLabel,
+                'correctText' => $correctText ? strip_tags($correctText) : null,
+                'isCorrect' => $isCorrect,
+                'isSkipped' => $isSkipped,
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'submission' => [
+                'submissionId' => $submission->SubmissionId,
+                'testName' => $test->TestName ?? 'វិញ្ញាសា',
+                'score' => number_format($score, 2),
+                'maxScore' => $maxScore,
+                'isPassed' => $isPassed,
+                'status' => $isPassed ? '✅ ជាប់' : '❌ ធ្លាក់',
+                'totalQuestions' => count($questionsData),
+                'totalCorrect' => (int)($submission->TotalCorrect ?? 0),
+                'date' => $submission->CompletedAt ? date('d/m/Y H:i', strtotime($submission->CompletedAt)) : 'N/A',
+                'student' => [
+                    'code' => $studentCode,
+                    'name' => $studentName,
+                ],
+            ],
+            'questions' => $questionsData,
         ]);
     }
 
