@@ -410,11 +410,11 @@
               <p class="text-sm font-black text-slate-900 flex items-center gap-2">
                 {{ t.allSystemsHealthy }}
                 <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  {{ dashboard.systemHealth?.platform?.status || 'Operational' }}
+                  {{ healthDetails.platform?.status || 'Operational' }}
                 </span>
               </p>
               <p class="text-xs text-slate-500 mt-0.5">
-                {{ t.lastCheckedAt }}: <span class="font-mono font-semibold text-slate-700">{{ dashboard.systemHealth?.timestamp || 'Just now' }}</span>
+                {{ t.lastCheckedAt }}: <span class="font-mono font-semibold text-slate-700">{{ healthDetails.timestamp || dashboard.systemHealth?.timestamp || 'Just now' }}</span>
               </p>
             </div>
           </div>
@@ -446,7 +446,7 @@
                 </div>
               </div>
               <span class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                {{ dashboard.systemHealth?.database?.status || 'Healthy' }}
+                {{ healthDetails.database?.status || 'Healthy' }}
               </span>
             </div>
 
@@ -454,17 +454,17 @@
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>{{ t.latency }}</span>
                 <span class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                  {{ dashboard.systemHealth?.database?.pingMs !== undefined ? dashboard.systemHealth.database.pingMs + ' ms' : '< 25 ms' }}
+                  {{ healthDetails.database?.pingMs !== undefined ? healthDetails.database.pingMs + ' ms' : '< 25 ms' }}
                 </span>
               </div>
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>{{ t.engineType }}</span>
-                <span class="font-semibold text-slate-800">{{ dashboard.systemHealth?.database?.engine || 'TiDB Cloud Serverless' }}</span>
+                <span class="font-semibold text-slate-800">{{ healthDetails.database?.engine || 'TiDB Cloud Serverless' }}</span>
               </div>
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>{{ t.versionLabel }}</span>
-                <span class="font-mono text-[11px] text-slate-500 truncate max-w-[180px]" :title="dashboard.systemHealth?.database?.version">
-                  {{ dashboard.systemHealth?.database?.version || 'v8.5.3-serverless' }}
+                <span class="font-mono text-[11px] text-slate-500 truncate max-w-[180px]" :title="healthDetails.database?.version">
+                  {{ healthDetails.database?.version || 'v8.5.3-serverless' }}
                 </span>
               </div>
               <div v-if="dashboard.databaseStorage" class="py-1.5 flex items-center justify-between text-slate-600">
@@ -487,7 +487,7 @@
                 </div>
               </div>
               <span class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                {{ dashboard.systemHealth?.api?.status || 'Healthy' }}
+                {{ healthDetails.api?.status || 'Healthy' }}
               </span>
             </div>
 
@@ -495,12 +495,12 @@
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>{{ t.latency }}</span>
                 <span class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                  {{ dashboard.systemHealth?.api?.latencyMs !== undefined ? dashboard.systemHealth.api.latencyMs + ' ms' : '< 1 ms' }}
+                  {{ healthDetails.api?.latencyMs !== undefined ? healthDetails.api.latencyMs + ' ms' : '< 1 ms' }}
                 </span>
               </div>
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>Framework / Gateway</span>
-                <span class="font-semibold text-slate-800">{{ dashboard.systemHealth?.api?.gateway || 'Laravel 11 REST' }}</span>
+                <span class="font-semibold text-slate-800">{{ healthDetails.api?.gateway || 'Laravel 11 REST' }}</span>
               </div>
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>HTTP Response</span>
@@ -526,7 +526,7 @@
                 </div>
               </div>
               <span class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                {{ dashboard.systemHealth?.auth?.status || 'Healthy' }}
+                {{ healthDetails.auth?.status || 'Healthy' }}
               </span>
             </div>
 
@@ -534,12 +534,12 @@
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>{{ t.activeSessionsCount }}</span>
                 <span class="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md">
-                  {{ dashboard.systemHealth?.auth?.activeSessions ?? 247 }} Sessions
+                  {{ healthDetails.auth?.activeSessions ?? 250 }} Sessions
                 </span>
               </div>
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>{{ t.securityGuard }}</span>
-                <span class="font-semibold text-slate-800">{{ dashboard.systemHealth?.auth?.protection || 'CSRF & Bcrypt Hash' }}</span>
+                <span class="font-semibold text-slate-800">{{ healthDetails.auth?.protection || 'CSRF & Bcrypt Hash' }}</span>
               </div>
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>Role Enforcement</span>
@@ -565,26 +565,26 @@
                 </div>
               </div>
               <span class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-purple-100 text-purple-800 border border-purple-200">
-                {{ dashboard.systemHealth?.platform?.status || 'Operational' }}
+                {{ healthDetails.platform?.status || 'Operational' }}
               </span>
             </div>
 
             <div class="divide-y divide-slate-100 text-xs pt-1">
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>{{ t.runtimeEnv }}</span>
-                <span class="font-semibold text-slate-800">{{ dashboard.systemHealth?.platform?.environment || 'Vercel Serverless' }}</span>
+                <span class="font-semibold text-slate-800">{{ healthDetails.platform?.environment || 'Vercel Serverless' }}</span>
               </div>
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>{{ t.cloudRegion }}</span>
-                <span class="font-mono text-emerald-700 font-semibold">{{ dashboard.systemHealth?.platform?.region || 'sin1 (Singapore)' }}</span>
+                <span class="font-mono text-emerald-700 font-semibold">{{ healthDetails.platform?.region || 'sin1 (Singapore)' }}</span>
               </div>
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>{{ t.phpVersionLabel }}</span>
-                <span class="font-semibold text-slate-800">{{ dashboard.systemHealth?.platform?.phpVersion || 'PHP 8.2+' }}</span>
+                <span class="font-semibold text-slate-800">{{ healthDetails.platform?.phpVersion || 'PHP 8.2+' }}</span>
               </div>
               <div class="py-1.5 flex items-center justify-between text-slate-600">
                 <span>{{ t.memoryUsageLabel }}</span>
-                <span class="font-mono font-bold text-slate-700">{{ dashboard.systemHealth?.platform?.memoryUsage || '22 MB' }}</span>
+                <span class="font-mono font-bold text-slate-700">{{ healthDetails.platform?.memoryUsage || '22 MB' }}</span>
               </div>
             </div>
           </div>
@@ -785,36 +785,41 @@ const runLiveDiagnostics = async () => {
   }
 }
 
+const healthDetails = computed(() => {
+  if (!dashboard.systemHealth) return {}
+  return dashboard.systemHealth.details || dashboard.systemHealth
+})
+
 const dbHealthLabel = computed(() => {
-  const h = dashboard.systemHealth?.database
-  if (!h) return 'Healthy'
-  if (typeof h === 'string') return h
-  if (h.pingMs) return `${h.status || 'Healthy'} · ${h.pingMs}ms`
-  return h.status || 'Healthy'
+  const d = healthDetails.value.database
+  if (!d) return 'Healthy'
+  if (typeof d === 'string') return d
+  if (d.pingMs) return `${d.status || 'Healthy'} · ${d.pingMs}ms`
+  return d.status || d.label || 'Healthy'
 })
 
 const apiHealthLabel = computed(() => {
-  const h = dashboard.systemHealth?.api
-  if (!h) return 'Healthy'
-  if (typeof h === 'string') return h
-  if (h.latencyMs !== undefined) return `${h.status || 'Healthy'} · ${h.latencyMs}ms`
-  return h.status || 'Healthy'
+  const a = healthDetails.value.api
+  if (!a) return 'Healthy'
+  if (typeof a === 'string') return a
+  if (a.latencyMs !== undefined) return `${a.status || 'Healthy'} · ${a.latencyMs}ms`
+  return a.status || a.label || 'Healthy'
 })
 
 const authHealthLabel = computed(() => {
-  const h = dashboard.systemHealth?.auth
-  if (!h) return 'Healthy'
-  if (typeof h === 'string') return h
-  if (h.activeSessions !== undefined) return `${h.status || 'Healthy'} · ${h.activeSessions} Sess`
-  return h.status || 'Healthy'
+  const au = healthDetails.value.auth
+  if (!au) return 'Healthy'
+  if (typeof au === 'string') return au
+  if (au.activeSessions !== undefined) return `${au.status || 'Healthy'} · ${au.activeSessions} Sess`
+  return au.status || au.label || 'Healthy'
 })
 
 const platformHealthLabel = computed(() => {
-  const h = dashboard.systemHealth?.platform
-  if (!h) return 'Operational'
-  if (typeof h === 'string') return h
-  if (h.region) return `${h.status || 'Operational'} · sin1`
-  return h.status || 'Operational'
+  const p = healthDetails.value.platform
+  if (!p) return 'Operational'
+  if (typeof p === 'string') return p
+  if (p.region) return `${p.status || 'Operational'} · ${p.region}`
+  return p.status || p.label || 'Operational'
 })
 
 const allActivities = computed(() => {
