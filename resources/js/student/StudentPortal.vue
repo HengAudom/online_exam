@@ -483,10 +483,11 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import { useLang } from '../utils/useLang'
 import { useToast } from '../composables/useToast'
 import { useSettings } from '../composables/useSettings'
+import { useRealtimeSync, notifyRealtimeChange } from '../composables/useRealtimeSync'
 
 const router = useRouter()
 const { lang } = useLang()
-const { success: toastSuccess, error: toastError } = useToast()
+const { success: toastSuccess, error: toastError, info: toastInfo } = useToast()
 const { settings, fetchSettings } = useSettings()
 
 const student = reactive({
@@ -734,6 +735,7 @@ const unlinkTelegram = async () => {
     student.telegramChatId = null
     student.telegramUsername = null
     toastSuccess(lang.value === 'kh' ? 'បានផ្តាច់ការភ្ជាប់គណនី Telegram រួចរាល់' : 'Telegram unlinked successfully')
+    notifyRealtimeChange('student_updated')
   } catch (e) {
     toastError(e.response?.data?.message || (lang.value === 'kh' ? 'មានបញ្ហាក្នុងការផ្តាច់' : 'Failed to unlink Telegram'))
   }
@@ -751,7 +753,8 @@ const linkTelegramManually = async () => {
     student.telegramChatId = res.data.telegramChatId || manualChatId.value.trim()
     toastSuccess(lang.value === 'kh' ? 'បានភ្ជាប់ Telegram ដោយជោគជ័យ!' : 'Telegram linked successfully!')
     manualChatId.value = ''
-    loadStudentData()
+    notifyRealtimeChange('student_updated')
+    loadStudentData(true)
   } catch (e) {
     toastError(e.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចភ្ជាប់ Telegram បានទេ' : 'Failed to link Telegram'))
   } finally {
@@ -774,7 +777,12 @@ const formatDate = (iso) => {
 }
 
 let pollingActive = false
+let isFetchingStudentData = false
+let initialLoadDone = false
+
 const loadStudentData = async (forcePollTelegram = false) => {
+  if (isFetchingStudentData) return
+  isFetchingStudentData = true
   try {
     // Non-blocking Telegram queue check in background
     if ((!student.telegramConnected || forcePollTelegram) && !pollingActive) {
@@ -813,9 +821,14 @@ const loadStudentData = async (forcePollTelegram = false) => {
     student.telegramConnected = Boolean(s.telegramConnected)
     student.telegramConnectUrl = s.telegramConnectUrl || ('https://t.me/onlinexam_bot?start=link_' + encodeURIComponent(student.studentCode || student.studentId))
 
-    if (!wasConnected && student.telegramConnected) {
-      toastSuccess(lang.value === 'kh' ? '🎉 ការភ្ជាប់ Telegram បានជោគជ័យ!' : '🎉 Telegram connected successfully!')
+    if (initialLoadDone) {
+      if (!wasConnected && student.telegramConnected) {
+        toastSuccess(lang.value === 'kh' ? '🎉 ការភ្ជាប់ Telegram បានជោគជ័យ!' : '🎉 Telegram connected successfully!')
+      } else if (wasConnected && !student.telegramConnected) {
+        toastInfo(lang.value === 'kh' ? '✂️ គណនី Telegram ត្រូវបានផ្តាច់ការភ្ជាប់រួចរាល់' : 'Telegram unlinked successfully')
+      }
     }
+    initialLoadDone = true
 
     if (!student.firstName && !student.lastName && student.name) {
       const parts = student.name.trim().split(' ')
@@ -833,58 +846,36 @@ const loadStudentData = async (forcePollTelegram = false) => {
     examResults.value = resultsRes.data.results || []
   } catch (e) {
     console.error('Failed to load student data', e)
+  } finally {
+    isFetchingStudentData = false
   }
-}
-
-let telegramAutoPollTimer = null
-
-const startTelegramPollIfNeeded = () => {
-  if (telegramAutoPollTimer) clearInterval(telegramAutoPollTimer)
-  // Poll every 5 seconds if not connected so Telegram linking reflects in real-time
-  telegramAutoPollTimer = setInterval(async () => {
-    if (student.telegramConnected) {
-      clearInterval(telegramAutoPollTimer)
-      telegramAutoPollTimer = null
-      return
-    }
-    if (document.visibilityState === 'visible') {
-      await loadStudentData(true)
-    }
-  }, 5000)
 }
 
 const onConnectTelegramClick = () => {
-  startTelegramPollIfNeeded()
+  loadStudentData(true)
 }
 
 const onFocusCheck = () => {
-  if (!student.telegramConnected) {
-    loadStudentData(true)
-  }
+  loadStudentData(true)
 }
 
-import { useRealtimeSync } from '../composables/useRealtimeSync'
-
-// Background sync (60s)
-useRealtimeSync(() => {
+// Real-time synchronization:
+// - Updates every 3 seconds while tab is active
+// - Updates immediately on window focus, tab visibility change, or cross-tab broadcast
+useRealtimeSync(async () => {
   if (document.visibilityState === 'visible') {
-    loadStudentData()
+    await loadStudentData(false)
   }
-}, 60000)
+}, 3000)
 
 onMounted(() => {
   fetchSettings()
-  loadStudentData(true).then(() => {
-    if (!student.telegramConnected) {
-      startTelegramPollIfNeeded()
-    }
-  })
+  loadStudentData(true)
   window.addEventListener('focus', onFocusCheck)
   document.addEventListener('visibilitychange', onFocusCheck)
 })
 
 onUnmounted(() => {
-  if (telegramAutoPollTimer) clearInterval(telegramAutoPollTimer)
   window.removeEventListener('focus', onFocusCheck)
   document.removeEventListener('visibilitychange', onFocusCheck)
 })

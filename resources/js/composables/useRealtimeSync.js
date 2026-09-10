@@ -23,9 +23,9 @@ export function notifyRealtimeChange(type = 'general', data = null) {
  * @param {Function} refreshCallback - Function to re-fetch data
  * @param {number} intervalMs - Polling interval in ms (default 3000ms = 3s)
  */
-export function useRealtimeSync(refreshCallback, intervalMs = 60000) {
-  // Enforce a minimum interval of 45s to strictly protect free hosting resources
-  const safeInterval = intervalMs > 0 ? Math.max(intervalMs, 45000) : 0
+export function useRealtimeSync(refreshCallback, intervalMs = 3000) {
+  // Allow responsive real-time sync (minimum 2500ms) while tab is visible
+  const safeInterval = intervalMs > 0 ? Math.max(intervalMs, 2500) : 0
   let timer = null
   let isFetching = false
   let lastFetchTime = 0
@@ -33,8 +33,8 @@ export function useRealtimeSync(refreshCallback, intervalMs = 60000) {
   const triggerRefresh = async (reason = 'sync') => {
     if (isFetching || !refreshCallback || typeof refreshCallback !== 'function') return
     const now = Date.now()
-    // Skip rapid refetches from window focus or tab visibility changes
-    if ((reason === 'focus' || reason === 'visibility') && (now - lastFetchTime < 25000)) {
+    // Debounce rapid repeated triggers to 1 second
+    if ((reason === 'focus' || reason === 'visibility') && (now - lastFetchTime < 1000)) {
       return
     }
 
