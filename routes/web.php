@@ -298,6 +298,19 @@ Route::get('/favicon.ico', function () {
     ]);
 });
 
+Route::get('/favicon.png', function () {
+    $path = public_path('favicon.png');
+
+    if (! file_exists($path)) {
+        abort(404);
+    }
+
+    return response()->file($path, [
+        'Content-Type' => 'image/png',
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+});
+
 Route::get('/sitemap.xml', function () {
     $path = public_path('sitemap.xml');
 

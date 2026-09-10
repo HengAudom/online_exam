@@ -58,11 +58,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
 
-    <!-- PWA Manifest & App Icons -->
+    <!-- Favicon & App Icons (Google Search & Multi-device compliant) -->
+    <link rel="icon" type="image/png" sizes="48x48" href="https://onlinexam.site/favicon.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="https://onlinexam.site/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="https://onlinexam.site/favicon-192x192.png">
+    <link rel="shortcut icon" href="https://onlinexam.site/favicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://onlinexam.site/favicon.png">
     <link rel="icon" href="{{ asset('ico.svg') }}">
     <link rel="manifest" href="/manifest.json">
     <link rel="alternate" type="application/manifest+json" href="/manifest.webmanifest">
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <meta name="theme-color" content="#00288e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">

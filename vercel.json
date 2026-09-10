@@ -50,7 +50,7 @@
       }
     },
     {
-      "src": "/(favicon\\.ico|ico\\.svg|apple-touch-icon\\.png|manifest\\.json|manifest\\.webmanifest|sw\\.js)",
+      "src": "/(favicon.*|ico\\.svg|apple-touch-icon\\.png|manifest\\.json|manifest\\.webmanifest|sw\\.js)",
       "dest": "/$1",
       "headers": {
         "cache-control": "public, max-age=86400"

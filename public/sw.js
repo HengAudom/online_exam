@@ -1,10 +1,11 @@
-const CACHE_VERSION = 'v14';
+const CACHE_VERSION = 'v15';
 const CACHE_NAME = `online-exam-pwa-${CACHE_VERSION}`;
 
 const PRECACHE_ASSETS = [
     '/',
     '/manifest.json',
     '/manifest.webmanifest',
+    '/favicon.png',
     '/pwa-192.png',
     '/pwa-512.png',
     '/pwa-maskable-192.png',
