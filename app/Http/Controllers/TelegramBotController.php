@@ -844,7 +844,7 @@ class TelegramBotController extends Controller
      */
     public function syncUnlinkDirect(Request $request)
     {
-        $chatId = trim($request->get('chatId', $request->input('chatId', $request->input('chat_id', ''))));
+        $chatId = trim((string)($request->input('chatId') ?? $request->query('chatId') ?? $request->json('chatId') ?? $request->input('chat_id') ?? ''));
         if (!empty($chatId)) {
             Student::where('TelegramChatId', $chatId)->update([
                 'TelegramChatId' => null,
