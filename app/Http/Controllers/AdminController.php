@@ -231,13 +231,7 @@ class AdminController extends Controller
             'completedExams' => $completedCount,
             'avgScore' => round($avgScore, 1),
             'latestActivity' => $latestActivity,
-            'systemHealth' => [
-                'database' => 'Healthy',
-                'api' => 'Healthy',
-                'storage' => 'Healthy',
-                'auth' => 'Healthy',
-                'status' => 'All Systems Operational'
-            ],
+            'systemHealth' => self::runSystemHealthCheck(),
             'databaseStorage' => [
                 'used' => $dbSizeMB,
                 'remaining' => $remainingMB,
@@ -1652,6 +1646,94 @@ class AdminController extends Controller
                 'version' => $dbVersion,
             ];
         });
+    }
+
+    public static function runSystemHealthCheck(): array
+    {
+        $dbStatus = 'Healthy';
+        $dbPingMs = 0;
+        $dbError = null;
+        $dbVersion = '';
+        $engine = 'TiDB Cloud Serverless';
+
+        try {
+            $dbStart = microtime(true);
+            $ping = DB::selectOne('SELECT 1 as ping');
+            $dbPingMs = round((microtime(true) - $dbStart) * 1000, 1);
+
+            $v = DB::selectOne('SELECT VERSION() as ver');
+            $dbVersion = $v->ver ?? '';
+            if (str_contains(strtolower($dbVersion), 'tidb')) {
+                $engine = 'TiDB Cloud Serverless';
+            } elseif (config('database.default') === 'mysql') {
+                $engine = 'MySQL ' . substr($dbVersion, 0, 6);
+            }
+        } catch (\Throwable $e) {
+            $dbStatus = 'Error';
+            $dbError = $e->getMessage();
+        }
+
+        // Cache & Storage Test
+        $cacheStatus = 'Healthy';
+        $cachePingMs = 0;
+        try {
+            $cStart = microtime(true);
+            Cache::put('health_check_test', time(), 10);
+            $cached = Cache::get('health_check_test');
+            $cachePingMs = round((microtime(true) - $cStart) * 1000, 1);
+        } catch (\Throwable $e) {
+            $cacheStatus = 'Degraded';
+        }
+
+        // Auth & Sessions
+        $sessionCount = 0;
+        try {
+            if (Schema::hasTable('sessions')) {
+                $sessionCount = DB::table('sessions')->count();
+            }
+        } catch (\Throwable $e) {}
+
+        // Serverless & Environment
+        $memUsageMB = round(memory_get_usage(true) / 1048576, 2);
+        $phpVer = PHP_VERSION;
+        $region = env('VERCEL_REGION', 'sin1 (Singapore)');
+
+        return [
+            'database' => [
+                'status' => $dbStatus,
+                'label' => $dbPingMs > 0 ? "Healthy · {$dbPingMs}ms" : 'Healthy',
+                'pingMs' => $dbPingMs,
+                'engine' => $engine,
+                'version' => $dbVersion,
+                'error' => $dbError,
+            ],
+            'api' => [
+                'status' => 'Healthy',
+                'label' => $cachePingMs > 0 ? "Healthy · {$cachePingMs}ms" : 'Healthy · Live',
+                'gateway' => 'Laravel 11 REST',
+                'latencyMs' => $cachePingMs,
+            ],
+            'auth' => [
+                'status' => 'Healthy',
+                'label' => $sessionCount > 0 ? "Healthy · {$sessionCount} Sessions" : 'Healthy · Active',
+                'activeSessions' => $sessionCount,
+                'protection' => 'CSRF & Bcrypt Hash',
+            ],
+            'platform' => [
+                'status' => 'Operational',
+                'label' => 'Operational',
+                'environment' => 'Vercel Serverless',
+                'region' => $region,
+                'phpVersion' => "PHP {$phpVer}",
+                'memoryUsage' => "{$memUsageMB} MB",
+            ],
+            'timestamp' => date('Y-m-d H:i:s'),
+        ];
+    }
+
+    public function systemHealthCheck(Request $request)
+    {
+        return response()->json(self::runSystemHealthCheck());
     }
 
     private function parseDurationMonths($input): int

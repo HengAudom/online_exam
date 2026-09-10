@@ -153,8 +153,8 @@ Route::match(['get', 'post'], '/api/profile/update', [AuthController::class, 'up
 Route::match(['get', 'post'], '/api/profile/upload-image', [AuthController::class, 'uploadProfileImage']);
 Route::match(['get', 'post'], '/api/profile/change-password', [AuthController::class, 'changePassword']);
 
-// ─── Admin & Super Admin ──────────────────────────────────────────────────────
 Route::get('/api/admin/dashboard', [AdminController::class, 'dashboard']);
+Route::get('/api/admin/system-health-check', [AdminController::class, 'systemHealthCheck']);
 Route::get('/api/admin/students', [AdminController::class, 'students']);
 Route::post('/api/admin/students', [AdminController::class, 'addStudent']);
 Route::put('/api/admin/students/{id}', [AdminController::class, 'updateStudent']);
