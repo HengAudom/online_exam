@@ -27,6 +27,8 @@ Route::match(['get', 'post'], '/api/telegram/student-results', [TelegramBotContr
 // ─── Auth & Public ─────────────────────────────────────────────────────────────
 Route::get('/api/public-settings', [AdminController::class, 'publicSettings']);
 Route::get('/api/skills-groups', [AdminController::class, 'skillsGroups']);
+Route::get('/api/student-photo/{id}', [AdminController::class, 'studentPhoto']);
+Route::get('/api/admin-photo/{id}', [AdminController::class, 'adminPhoto']);
 Route::get('/system-repair', function () {
     $results = [
         'timestamp' => date('Y-m-d H:i:s'),

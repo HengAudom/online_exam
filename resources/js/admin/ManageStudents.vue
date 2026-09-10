@@ -31,25 +31,25 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 flex-1 max-w-4xl">
           <CustomDropdown
             v-model="filterSkill"
-            :options="[{ SkillName: t.allSkills, SkillId: '' }, ...skillsList]"
-            labelKey="SkillName"
-            valueKey="SkillName"
+            :options="skillFilterOptions"
+            labelKey="label"
+            valueKey="value"
             :placeholder="t.allSkills"
           />
 
           <CustomDropdown
             v-model="filterGroup"
-            :options="[{ GroupName: t.allGroups, GroupId: '' }, ...groupsList]"
-            labelKey="GroupName"
-            valueKey="GroupName"
+            :options="groupFilterOptions"
+            labelKey="label"
+            valueKey="value"
             :placeholder="t.allGroups"
           />
 
           <CustomDropdown
             v-model="filterExam"
-            :options="[{ TestName: t.allExams, TestId: '' }, ...examsList]"
-            labelKey="TestName"
-            valueKey="TestName"
+            :options="examFilterOptions"
+            labelKey="label"
+            valueKey="value"
             :placeholder="t.allExams"
           />
 
@@ -131,7 +131,7 @@
               <td class="px-4 py-3">
                 <div class="flex items-center gap-3">
                   <div v-if="student.photo || student.profileImage" class="h-10 w-10 rounded-xl overflow-hidden shrink-0 border border-blue-100 shadow-sm">
-                    <img :src="student.photo || student.profileImage" class="w-full h-full object-cover" />
+                    <img :src="student.photo || student.profileImage" class="w-full h-full object-cover" @error="student.photo = null; student.profileImage = null" />
                   </div>
                   <div v-else class="h-10 w-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
                     {{ (student.name || 'S').charAt(0).toUpperCase() }}
@@ -237,7 +237,7 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <div v-if="student.photo || student.profileImage" class="h-10 w-10 rounded-xl overflow-hidden shrink-0 border border-blue-100 shadow-sm">
-                <img :src="student.photo || student.profileImage" class="w-full h-full object-cover" />
+                <img :src="student.photo || student.profileImage" class="w-full h-full object-cover" @error="student.photo = null; student.profileImage = null" />
               </div>
               <div v-else class="h-10 w-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-100">
                 {{ (student.name || 'S').charAt(0).toUpperCase() }}
@@ -725,6 +725,30 @@ const examStatusOptions = computed(() => [
   { label: lang.value === 'kh' ? 'ស្ថានភាពប្រឡងទាំងអស់' : 'All Exam Statuses', value: '' },
   { label: lang.value === 'kh' ? 'បានប្រឡងរួច' : 'Taken Exam', value: 'taken' },
   { label: lang.value === 'kh' ? 'មិនទាន់ប្រឡង' : 'Not Taken', value: 'not_taken' }
+])
+
+const skillFilterOptions = computed(() => [
+  { label: t.value.allSkills, value: '' },
+  ...(skillsList.value || []).map(s => {
+    const name = typeof s === 'string' ? s : (s.SkillName || s.name || '')
+    return { label: name, value: name }
+  }).filter(opt => opt.value)
+])
+
+const groupFilterOptions = computed(() => [
+  { label: t.value.allGroups, value: '' },
+  ...(groupsList.value || []).map(g => {
+    const name = typeof g === 'string' ? g : (g.GroupName || g.name || '')
+    return { label: name, value: name }
+  }).filter(opt => opt.value)
+])
+
+const examFilterOptions = computed(() => [
+  { label: t.value.allExams, value: '' },
+  ...(examsList.value || []).map(e => {
+    const name = typeof e === 'string' ? e : (e.TestName || e.name || '')
+    return { label: name, value: name }
+  }).filter(opt => opt.value)
 ])
 
 const t = computed(() => {

@@ -676,6 +676,15 @@ class AdminController extends Controller
                     $fullName = trim(($s->firstName ?? '') . ' ' . ($s->lastName ?? ''));
                     $displayCode = $s->studentCode ?: ('RTC-2026-' . str_pad((string)$s->id, 5, '0', STR_PAD_LEFT));
 
+                    $photoUrl = null;
+                    if (!empty($s->photo)) {
+                        if (str_starts_with($s->photo, '/uploads/') || str_starts_with($s->photo, 'http://') || str_starts_with($s->photo, 'https://')) {
+                            $photoUrl = $s->photo;
+                        } else {
+                            $photoUrl = '/api/student-photo/' . $s->id;
+                        }
+                    }
+
                     return [
                         'id' => $s->id,
                         'studentId' => $s->id,
@@ -688,8 +697,8 @@ class AdminController extends Controller
                         'email' => $displayCode,
                         'username' => $displayCode,
                         'phone' => $s->phone,
-                        'photo' => $s->photo,
-                        'profileImage' => $s->photo,
+                        'photo' => $photoUrl,
+                        'profileImage' => $photoUrl,
                         'role' => 'Student',
                         'status' => 'Active',
                         'gender' => $s->gender,
@@ -717,6 +726,15 @@ class AdminController extends Controller
                 ->get()
                 ->map(function ($a) use ($adminIdCol) {
                     $fullName = trim(($a->FirstName ?? '') . ' ' . ($a->LastName ?? ''));
+                    $photoUrl = null;
+                    if (!empty($a->ProfileImage)) {
+                        if (str_starts_with($a->ProfileImage, '/uploads/') || str_starts_with($a->ProfileImage, 'http://') || str_starts_with($a->ProfileImage, 'https://')) {
+                            $photoUrl = $a->ProfileImage;
+                        } else {
+                            $photoUrl = '/api/admin-photo/' . $a->{$adminIdCol};
+                        }
+                    }
+
                     return [
                         'id' => $a->{$adminIdCol},
                         'name' => $fullName ?: $a->Username,
@@ -729,8 +747,8 @@ class AdminController extends Controller
                         'phone' => $a->Phone,
                         'role' => $a->Role ?? 'Admin',
                         'status' => $a->Status ?? 'Active',
-                        'photo' => $a->ProfileImage ?? null,
-                        'profileImage' => $a->ProfileImage ?? null,
+                        'photo' => $photoUrl,
+                        'profileImage' => $photoUrl,
                     ];
                 })
                 ->values();
@@ -1427,33 +1445,149 @@ class AdminController extends Controller
         ]);
     }
 
+    public function studentPhoto($id)
+    {
+        try {
+            $student = DB::table('tblstudent')->where('StudentId', $id)->first(['Photo']);
+            if (!$student || empty($student->Photo)) {
+                return response('', 404);
+            }
+
+            $photo = $student->Photo;
+
+            if (str_starts_with($photo, 'http://') || str_starts_with($photo, 'https://')) {
+                return redirect($photo);
+            }
+            if (str_starts_with($photo, '/uploads/')) {
+                $filePath = public_path(ltrim($photo, '/'));
+                if (file_exists($filePath)) {
+                    return response()->file($filePath, [
+                        'Cache-Control' => 'public, max-age=604800, immutable',
+                    ]);
+                }
+            }
+
+            $mime = 'image/jpeg';
+            $binary = null;
+            if (str_starts_with($photo, 'data:image/')) {
+                $commaPos = strpos($photo, ',');
+                if ($commaPos !== false) {
+                    $header = substr($photo, 0, $commaPos);
+                    if (preg_match('/^data:(image\/[a-zA-Z0-9\+\-\.]+);base64/', $header, $m)) {
+                        $mime = $m[1];
+                    }
+                    $binary = base64_decode(substr($photo, $commaPos + 1));
+                }
+            } else {
+                $binary = base64_decode($photo, true);
+                if ($binary === false) {
+                    $binary = $photo;
+                }
+            }
+
+            if (empty($binary)) {
+                return response('', 404);
+            }
+
+            return response($binary, 200, [
+                'Content-Type' => $mime,
+                'Cache-Control' => 'public, max-age=604800, immutable',
+                'Content-Length' => strlen($binary),
+            ]);
+        } catch (\Throwable $e) {
+            return response('', 404);
+        }
+    }
+
+    public function adminPhoto($id)
+    {
+        try {
+            $adminTable = Schema::hasTable('tbladmin') ? 'tbladmin' : 'tbladminprofile';
+            $adminIdCol = Schema::hasColumn($adminTable, 'AdminId') ? 'AdminId' : 'AdminProfileId';
+
+            $admin = DB::table($adminTable)->where($adminIdCol, $id)->first(['ProfileImage']);
+            if (!$admin || empty($admin->ProfileImage)) {
+                return response('', 404);
+            }
+
+            $photo = $admin->ProfileImage;
+
+            if (str_starts_with($photo, 'http://') || str_starts_with($photo, 'https://')) {
+                return redirect($photo);
+            }
+            if (str_starts_with($photo, '/uploads/')) {
+                $filePath = public_path(ltrim($photo, '/'));
+                if (file_exists($filePath)) {
+                    return response()->file($filePath, [
+                        'Cache-Control' => 'public, max-age=604800, immutable',
+                    ]);
+                }
+            }
+
+            $mime = 'image/jpeg';
+            $binary = null;
+            if (str_starts_with($photo, 'data:image/')) {
+                $commaPos = strpos($photo, ',');
+                if ($commaPos !== false) {
+                    $header = substr($photo, 0, $commaPos);
+                    if (preg_match('/^data:(image\/[a-zA-Z0-9\+\-\.]+);base64/', $header, $m)) {
+                        $mime = $m[1];
+                    }
+                    $binary = base64_decode(substr($photo, $commaPos + 1));
+                }
+            } else {
+                $binary = base64_decode($photo, true);
+                if ($binary === false) {
+                    $binary = $photo;
+                }
+            }
+
+            if (empty($binary)) {
+                return response('', 404);
+            }
+
+            return response($binary, 200, [
+                'Content-Type' => $mime,
+                'Cache-Control' => 'public, max-age=604800, immutable',
+                'Content-Length' => strlen($binary),
+            ]);
+        } catch (\Throwable $e) {
+            return response('', 404);
+        }
+    }
+
     private function processUploadedPhoto($photoInput, $uploadedFile = null): ?string
     {
-        $uploadDir = public_path('uploads/profiles');
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
+        try {
+            $uploadDir = public_path('uploads/profiles');
+            if (!is_dir($uploadDir)) {
+                @mkdir($uploadDir, 0755, true);
+            }
 
-        if ($uploadedFile && $uploadedFile->isValid()) {
-            $filename = time() . '_' . uniqid() . '.' . $uploadedFile->getClientOriginalExtension();
-            $uploadedFile->move($uploadDir, $filename);
-            return '/uploads/profiles/' . $filename;
-        }
-
-        if (!empty($photoInput) && is_string($photoInput) && str_starts_with($photoInput, 'data:image/')) {
-            $parts = explode(',', $photoInput);
-            if (count($parts) === 2) {
-                $data = base64_decode($parts[1]);
-                $ext = 'jpg';
-                if (str_contains($parts[0], 'png')) $ext = 'png';
-                if (str_contains($parts[0], 'webp')) $ext = 'webp';
-                $filename = time() . '_' . uniqid() . '.' . $ext;
-                file_put_contents($uploadDir . '/' . $filename, $data);
+            if ($uploadedFile && $uploadedFile->isValid()) {
+                $filename = time() . '_' . uniqid() . '.' . $uploadedFile->getClientOriginalExtension();
+                $uploadedFile->move($uploadDir, $filename);
                 return '/uploads/profiles/' . $filename;
             }
+
+            if (!empty($photoInput) && is_string($photoInput) && str_starts_with($photoInput, 'data:image/')) {
+                $parts = explode(',', $photoInput);
+                if (count($parts) === 2) {
+                    $data = base64_decode($parts[1]);
+                    $ext = 'jpg';
+                    if (str_contains($parts[0], 'png')) $ext = 'png';
+                    if (str_contains($parts[0], 'webp')) $ext = 'webp';
+                    $filename = time() . '_' . uniqid() . '.' . $ext;
+                    if (@file_put_contents($uploadDir . '/' . $filename, $data) !== false) {
+                        return '/uploads/profiles/' . $filename;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('processUploadedPhoto disk write failed: ' . $e->getMessage());
         }
 
-        if (!empty($photoInput) && is_string($photoInput) && str_starts_with($photoInput, '/uploads/')) {
+        if (!empty($photoInput) && is_string($photoInput)) {
             return $photoInput;
         }
 
