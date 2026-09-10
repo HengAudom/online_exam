@@ -251,7 +251,15 @@
             <div class="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
               <div class="flex items-center justify-between text-slate-400">
                 <span>{{ t.allocatedTotal }}:</span>
-                <strong class="text-slate-700 font-bold">{{ dashboard.databaseStorage.total }} MB</strong>
+                <strong class="text-slate-700 font-bold">{{ dashboard.databaseStorage.total }} MB (5 GB)</strong>
+              </div>
+              <div v-if="dashboard.databaseStorage.driver" class="flex items-center justify-between text-slate-400">
+                <span>{{ t.engine }}:</span>
+                <span class="text-slate-700 font-bold">{{ dashboard.databaseStorage.driver }}</span>
+              </div>
+              <div v-if="dashboard.databaseStorage.tableCount" class="flex items-center justify-between text-slate-400">
+                <span>{{ t.totalTables }}:</span>
+                <span class="text-slate-700 font-bold">{{ dashboard.databaseStorage.tableCount }} {{ lang === 'kh' ? 'តារាង' : 'tables' }}</span>
               </div>
             </div>
           </div>
@@ -376,6 +384,8 @@ const t = computed(() => {
       allocatedTotal: 'ទំហំសរុប',
       used: 'បានប្រើប្រាស់',
       remaining: 'នៅសល់',
+      engine: 'ម៉ាស៊ីនទិន្នន័យ (Engine)',
+      totalTables: 'តារាងទិន្នន័យសរុប',
       platformActivity: 'សកម្មភាពប្រព័ន្ធទូទាំងស្ថាប័ន',
       activityByWeek: 'សកម្មភាពតាមសប្ដាហ៍',
       activitySub: 'សកម្មភាពថ្មីៗក្នុងប្រព័ន្ធ បែងចែកតាមសប្ដាហ៍',
@@ -408,6 +418,8 @@ const t = computed(() => {
     allocatedTotal: 'Total allocated',
     used: 'Used space',
     remaining: 'Remaining space',
+    engine: 'Database Engine',
+    totalTables: 'Total Tables',
     platformActivity: 'Platform-wide Activity',
     activityByWeek: 'Activity by Week',
     activitySub: 'Recent system events grouped by week',

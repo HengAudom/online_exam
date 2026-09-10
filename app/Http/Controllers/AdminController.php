@@ -210,50 +210,18 @@ class AdminController extends Controller
             ->take(30)
             ->values();
 
-        $connection = config('database.default');
-        $dbSizeMB = 0;
-        $tableCount = 0;
-        $dbVersion = '';
-        $dbName = config("database.connections.{$connection}.database", 'online_exam_db');
+        $dbStats = self::getRealDatabaseStorageStats();
+        $dbSizeMB = $dbStats['usedMB'];
+        $tableCount = $dbStats['tableCount'];
+        $driverLabel = $dbStats['driver'];
+        $dbName = $dbStats['dbName'];
 
-        try {
-            if ($connection === 'mysql' || $connection === 'mariadb') {
-                $result = DB::select("SELECT SUM(data_length + index_length) AS size, COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = ?", [$dbName]);
-                if (!empty($result) && $result[0]->size) {
-                    $dbSizeMB = round($result[0]->size / 1048576, 2);
-                    $tableCount = (int)($result[0]->table_count ?? 0);
-                } else {
-                    // Fallback for restricted shared hosting permissions
-                    $tables = DB::select("SHOW TABLE STATUS");
-                    $tableCount = count($tables);
-                    $totalBytes = 0;
-                    foreach ($tables as $t) {
-                        $totalBytes += ($t->Data_length ?? 0) + ($t->Index_length ?? 0);
-                    }
-                    $dbSizeMB = round($totalBytes / 1048576, 2);
-                }
-                $versionRow = DB::select("SELECT VERSION() as ver");
-                $dbVersion = !empty($versionRow) ? $versionRow[0]->ver : '';
-            } elseif ($connection === 'pgsql') {
-                $res = DB::select("SELECT pg_database_size(current_database()) as size");
-                $dbSizeMB = !empty($res) ? round($res[0]->size / 1048576, 2) : 0;
-            } else {
-                $dbPath = config('database.connections.sqlite.database', database_path('database.sqlite'));
-                $dbSizeMB = file_exists($dbPath) ? round(filesize($dbPath) / 1048576, 2) : 0;
-            }
-        } catch (\Throwable $e) {
-            $dbSizeMB = 0.69;
-        }
-
-        // Configurable Hosting / Database Quota (Default 5120 MB / 5 GB)
-        $envQuota = (int) env('DB_STORAGE_LIMIT_MB', env('HOSTING_STORAGE_LIMIT_MB', 5120));
+        // Configurable Hosting / Database Quota (Default 5120 MB / 5 GB TiDB Cloud Serverless Free Tier)
+        $settings = self::getSystemSettings();
+        $envQuota = (int) ($settings['dbStorageQuotaMB'] ?? env('DB_STORAGE_LIMIT_MB', env('HOSTING_STORAGE_LIMIT_MB', 5120)));
         $totalMB = $envQuota > 0 ? $envQuota : 5120;
         $remainingMB = max(0, round($totalMB - $dbSizeMB, 2));
         $percentage = $totalMB > 0 ? round(($dbSizeMB / $totalMB) * 100, 2) : 0;
-
-        $driverLabel = $connection === 'mysql'
-            ? 'MySQL ' . ($dbVersion ? substr($dbVersion, 0, 6) : 'Database') . ($tableCount ? " · {$tableCount} Tables" : '')
-            : ($connection === 'mariadb' ? 'MariaDB Hosting Database' : 'SQLite Local Engine');
 
         return [
             'totalUsers' => $totalUsers,
@@ -278,6 +246,7 @@ class AdminController extends Controller
                 'driver' => $driverLabel,
                 'databaseName' => $dbName,
                 'tableCount' => $tableCount,
+                'bytes' => $dbStats['bytes'] ?? 0,
             ]
         ];
     });
@@ -1592,6 +1561,97 @@ class AdminController extends Controller
         }
 
         return null;
+    }
+
+    public static function getRealDatabaseStorageStats(): array
+    {
+        return Cache::remember('real_database_storage_stats', 60, function () {
+            $connection = config('database.default');
+            $dbName = config("database.connections.{$connection}.database", 'online_exam_db');
+            $tableCount = 0;
+            $dbVersion = '';
+            $grandTotalBytes = 0;
+
+            try {
+                if ($connection === 'mysql' || $connection === 'mariadb') {
+                    $versionRow = DB::select("SELECT VERSION() as ver");
+                    $dbVersion = !empty($versionRow) ? $versionRow[0]->ver : '';
+
+                    // Fetch all tables & columns to calculate true octet row length
+                    $columns = DB::select("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = ? ORDER BY table_name", [$dbName]);
+
+                    $tablesMap = [];
+                    foreach ($columns as $c) {
+                        $tablesMap[$c->table_name][] = $c->column_name;
+                    }
+
+                    $tableCount = count($tablesMap);
+
+                    if (!empty($tablesMap)) {
+                        $subqueries = [];
+                        foreach ($tablesMap as $table => $cols) {
+                            $sums = array_map(fn($col) => "COALESCE(OCTET_LENGTH(`$col`), 0)", $cols);
+                            $subqueries[] = "(SELECT COALESCE(SUM(" . implode(' + ', $sums) . "), 0) FROM `{$table}`)";
+                        }
+
+                        $singleSql = "SELECT (" . implode(" + \n", $subqueries) . ") as total_data_bytes";
+                        $res = DB::selectOne($singleSql);
+                        $totalActualBytes = (int)($res->total_data_bytes ?? 0);
+
+                        $indexBytes = 0;
+                        try {
+                            $idxRes = DB::selectOne("SELECT SUM(index_length) as idx_size FROM information_schema.tables WHERE table_schema = ?", [$dbName]);
+                            $indexBytes = (int)($idxRes->idx_size ?? 0);
+                        } catch (\Throwable $e) {}
+
+                        $grandTotalBytes = $totalActualBytes + $indexBytes;
+                    }
+
+                    if ($grandTotalBytes === 0) {
+                        $fallbackRes = DB::selectOne("SELECT SUM(data_length + index_length) as size, COUNT(*) as cnt FROM information_schema.tables WHERE table_schema = ?", [$dbName]);
+                        $grandTotalBytes = (int)($fallbackRes->size ?? 0);
+                        if ($tableCount === 0) {
+                            $tableCount = (int)($fallbackRes->cnt ?? 0);
+                        }
+                    }
+                } elseif ($connection === 'pgsql') {
+                    $res = DB::selectOne("SELECT pg_database_size(current_database()) as size");
+                    $grandTotalBytes = (int)($res->size ?? 0);
+                    $tableCount = DB::table('information_schema.tables')->where('table_schema', 'public')->count();
+                } else {
+                    $dbPath = config('database.connections.sqlite.database', database_path('database.sqlite'));
+                    $grandTotalBytes = file_exists($dbPath) ? filesize($dbPath) : 0;
+                    $tableCount = DB::table('sqlite_master')->where('type', 'table')->count();
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('Error calculating real database size: ' . $e->getMessage());
+                try {
+                    $tables = DB::select("SHOW TABLE STATUS");
+                    $tableCount = count($tables);
+                    foreach ($tables as $t) {
+                        $tArray = (array)$t;
+                        $grandTotalBytes += ($tArray['Data_length'] ?? $tArray['data_length'] ?? 0) + ($tArray['Index_length'] ?? $tArray['index_length'] ?? 0);
+                    }
+                } catch (\Throwable $te) {}
+            }
+
+            $dbSizeMB = round($grandTotalBytes / 1048576, 2);
+            $isTiDB = str_contains(strtolower($dbVersion), 'tidb');
+            $driverLabel = $isTiDB
+                ? 'TiDB Cloud Serverless'
+                : ($connection === 'mysql'
+                    ? 'MySQL ' . ($dbVersion ? substr($dbVersion, 0, 6) : 'Database')
+                    : ($connection === 'mariadb' ? 'MariaDB Hosting' : 'SQLite Database'));
+
+            return [
+                'bytes' => $grandTotalBytes,
+                'usedMB' => $dbSizeMB,
+                'tableCount' => $tableCount,
+                'driver' => $driverLabel,
+                'dbName' => $dbName,
+                'version' => $dbVersion,
+            ];
+        });
     }
 
     private function parseDurationMonths($input): int
