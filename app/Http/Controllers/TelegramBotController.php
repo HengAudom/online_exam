@@ -387,7 +387,7 @@ class TelegramBotController extends Controller
             if (empty($linkTarget)) {
                 $linkHelp = "ℹ️ <b>របៀបភ្ជាប់គណនី Telegram:</b>\n━━━━━━━━━━━━━━━━━━━━\n"
                     . "👉 សូមវាយពាក្យបញ្ជា <code>/link [លេខកូដសិស្ស]</code>\n"
-                    . "<i>(ឧទាហរណ៍៖ <code>/link RTC-2026-0002</code>)</i>\n\n"
+                    . "<i>(ឧទាហរណ៍៖ <code>/link RTC-XXXX-XXXXX</code>)</i>\n\n"
                     . "💡 ឬចូលទៅកាន់គេហទំព័រប្រឡង (Student Portal) រួចចុចលើប៊ូតុង <b>Connect Telegram</b>។";
                 $this->telegram->sendMessage($chatId, $linkHelp);
                 return ['status' => 'ok', 'action' => 'link_help_sent'];
@@ -459,7 +459,7 @@ class TelegramBotController extends Controller
                 . "👉 <code>/myid</code> - មើលលេខ Student ID និង Telegram ID\n"
                 . "👉 <code>/help</code> - មើលការណែនាំជំនួយ\n"
                 . "━━━━━━━━━━━━━━━━━━━━\n"
-                . "💡 <b>របៀបភ្ជាប់គណនី:</b> វាយពាក្យ <code>/link [លេខកូដសិស្ស]</code> (ឧទាហរណ៍៖ <code>/link RTC-2026-0002</code>)។";
+                . "💡 <b>របៀបភ្ជាប់គណនី:</b> វាយពាក្យ <code>/link [លេខកូដសិស្ស]</code> (ឧទាហរណ៍៖ <code>/link RTC-XXXX-XXXXX</code>)។";
 
             $appUrl = config('app.url', url('/'));
             if (empty($appUrl) || str_contains($appUrl, 'localhost') || str_contains($appUrl, 'onlin-exam.vercel.app')) {
@@ -495,7 +495,7 @@ class TelegramBotController extends Controller
                 $studentName = trim(($student->FirstName ?? '') . ' ' . ($student->LastName ?? ''));
                 $this->telegram->sendMessage($chatId, "👤 <b>ព័ត៌មានគណនីរបស់ {$mentionName}:</b>\n━━━━━━━━━━━━━━━━━━━━\n👤 <b>ឈ្មោះ:</b> <b>{$studentName}</b>\n🆔 <b>លេខកូដសិស្ស:</b> <code>{$studentCode}</code>\n📱 <b>User Telegram ID:</b> <code>{$fromId}</code>{$groupInfo}\n━━━━━━━━━━━━━━━━━━━━\n✅ គណនីរបស់អ្នកបានភ្ជាប់ជាមួយប្រព័ន្ធរួចរាល់។");
             } else {
-                $this->telegram->sendMessage($chatId, "⚠️ <b>{$mentionName} គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយសិស្សណាម្នាក់ឡើយ!</b>\n\n👉 សូមវាយពាក្យបញ្ជា <code>/link [លេខកូដសិស្ស]</code> (ឧទាហរណ៍៖ <code>/link RTC-2026-0002</code>) ដើម្បីភ្ជាប់គណនីរបស់អ្នក\n📱 <b>User ID របស់អ្នកគឺ:</b> <code>{$fromId}</code>{$groupInfo}");
+                $this->telegram->sendMessage($chatId, "⚠️ <b>{$mentionName} គណនី Telegram របស់អ្នកមិនទាន់បានភ្ជាប់ជាមួយសិស្សណាម្នាក់ឡើយ!</b>\n\n👉 សូមវាយពាក្យបញ្ជា <code>/link [លេខកូដសិស្ស]</code> (ឧទាហរណ៍៖ <code>/link RTC-XXXX-XXXXX</code>) ដើម្បីភ្ជាប់គណនីរបស់អ្នក\n📱 <b>User ID របស់អ្នកគឺ:</b> <code>{$fromId}</code>{$groupInfo}");
             }
             return ['status' => 'ok', 'action' => 'myid_sent'];
         }
@@ -524,10 +524,10 @@ class TelegramBotController extends Controller
                     . "ដើម្បីអាចពិនិត្យមើលពិន្ទុ និងលទ្ធផលប្រឡងបាន សូមជ្រើសរើស៖\n\n"
                     . "1️⃣ <b>ភ្ជាប់គណនី (ដើម្បីចុច /myresult មើលពិន្ទុភ្លាមៗ):</b>\n"
                     . "👉 វាយពាក្យ <code>/link [លេខកូដសិស្ស]</code>\n"
-                    . "<i>(ឧទាហរណ៍៖ <code>/link RTC-2026-0002</code>)</i>\n\n"
+                    . "<i>(ឧទាហរណ៍៖ <code>/link RTC-XXXX-XXXXX</code>)</i>\n\n"
                     . "2️⃣ <b>ឬឆែកមើលពិន្ទុដោយវាយលេខកូដផ្ទាល់:</b>\n"
                     . "👉 វាយ <code>/myresult [លេខកូដសិស្ស]</code>\n"
-                    . "<i>(ឧទាហរណ៍៖ <code>/myresult RTC-2026-0002</code>)</i>\n"
+                    . "<i>(ឧទាហរណ៍៖ <code>/myresult RTC-XXXX-XXXXX</code>)</i>\n"
                     . "━━━━━━━━━━━━━━━━━━━━\n"
                     . "💡 <i>បើអ្នកមិនចាំលេខកូដសិស្ស សូមពិនិត្យមើលក្នុង Student Portal ឬទាក់ទង Admin។</i>";
 
