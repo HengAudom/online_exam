@@ -312,6 +312,33 @@ Route::get('/favicon.png', function () {
     ]);
 });
 
+Route::get('/favicon-{size}.png', function (string $size) {
+    $allowed = ['48x48', '96x96', '192x192'];
+    abort_unless(in_array($size, $allowed, true), 404);
+
+    $path = public_path("favicon-{$size}.png");
+    if (! file_exists($path)) {
+        abort(404);
+    }
+
+    return response()->file($path, [
+        'Content-Type' => 'image/png',
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+});
+
+Route::get('/ico.svg', function () {
+    $path = public_path('ico.svg');
+    if (! file_exists($path)) {
+        abort(404);
+    }
+
+    return response()->file($path, [
+        'Content-Type' => 'image/svg+xml',
+        'Cache-Control' => 'public, max-age=86400',
+    ]);
+});
+
 Route::get('/sitemap.xml', function () {
     $path = public_path('sitemap.xml');
 

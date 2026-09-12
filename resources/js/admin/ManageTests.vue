@@ -283,7 +283,7 @@
         <!-- Pagination -->
         <div v-if="filteredTests.length > pageSize" class="p-3 border-t border-slate-100">
           <Pagination
-            v-model="currentPage"
+            v-model:currentPage="currentPage"
             :total-items="filteredTests.length"
             :page-size="pageSize"
           />
@@ -1319,6 +1319,10 @@ watch(activeQuestionIdx, () => {
   editingOptionIdx.value = null
 })
 
+watch([searchQuery, filterSkill, filterGroup, statusFilter], () => {
+  currentPage.value = 1
+})
+
 const saving = ref(false)
 const exportingWordId = ref(null)
 const exportingTxtId = ref(null)
@@ -1533,6 +1537,7 @@ const resetFilters = () => {
   filterGroup.value = ''
   statusFilter.value = 'all'
   searchQuery.value = ''
+  currentPage.value = 1
 }
 
 const formatDateTime = (dtStr) => {

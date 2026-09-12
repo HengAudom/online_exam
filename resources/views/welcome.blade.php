@@ -13,26 +13,35 @@
     <meta name="keywords" content="OnlineXam, onlinexam, Online Examination System, ប្រព័ន្ធប្រឡងអនឡាញ">
     <meta name="author" content="Heng Audom (ហេង ឧត្តម)">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://onlinexam.site/login">
+    @php
+        $currentPath = request()->path();
+        $canonicalUrl = ($currentPath === '/' || $currentPath === '') 
+            ? 'https://onlinexam.site/' 
+            : ($currentPath === 'login' ? 'https://onlinexam.site/login' : url()->current());
+        $jsonLd = [
+            '@context' => 'https://schema.org',
+            '@type' => 'WebApplication',
+            'name' => 'OnlineXam',
+            'url' => 'https://onlinexam.site',
+            'applicationCategory' => 'EducationalApplication',
+            'image' => 'https://onlinexam.site/pwa-512.png',
+            'logo' => 'https://onlinexam.site/pwa-512.png',
+            'author' => [
+                '@type' => 'Person',
+                'name' => 'Heng Audom',
+                'alternateName' => 'ហេង ឧត្តម',
+                'sameAs' => [
+                    'https://www.facebook.com/may.dom.bon.1502',
+                    'https://t.me/DomAi1'
+                ]
+            ]
+        ];
+    @endphp
+    <link rel="canonical" href="{{ $canonicalUrl }}">
 
     <!-- JSON-LD Structured Data for Google Indexing -->
     <script type="application/ld+json">
-    {!! json_encode([
-        '@context' => 'https://schema.org',
-        '@type' => 'WebApplication',
-        'name' => 'OnlineXam',
-        'url' => 'https://onlinexam.site',
-        'applicationCategory' => 'EducationalApplication',
-        'author' => [
-            '@type' => 'Person',
-            'name' => 'Heng Audom',
-            'alternateName' => 'ហេង ឧត្តម',
-            'sameAs' => [
-                'https://www.facebook.com/may.dom.bon.1502',
-                'https://t.me/DomAi1'
-            ]
-        ]
-    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
+    {!! json_encode($jsonLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
     </script>
 
     <!-- Open Graph / Facebook -->
@@ -59,12 +68,13 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
 
     <!-- Favicon & App Icons (Google Search & Multi-device compliant) -->
-    <link rel="icon" type="image/png" sizes="48x48" href="https://onlinexam.site/favicon.png">
+    <link rel="icon" type="image/x-icon" href="https://onlinexam.site/favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="https://onlinexam.site/favicon.ico">
+    <link rel="icon" type="image/png" sizes="48x48" href="https://onlinexam.site/favicon-48x48.png">
     <link rel="icon" type="image/png" sizes="96x96" href="https://onlinexam.site/favicon-96x96.png">
     <link rel="icon" type="image/png" sizes="192x192" href="https://onlinexam.site/favicon-192x192.png">
-    <link rel="shortcut icon" href="https://onlinexam.site/favicon.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="https://onlinexam.site/favicon.png">
-    <link rel="icon" href="{{ asset('ico.svg') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://onlinexam.site/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="https://onlinexam.site/ico.svg">
     <link rel="manifest" href="/manifest.json">
     <link rel="alternate" type="application/manifest+json" href="/manifest.webmanifest">
     <meta name="theme-color" content="#00288e">
