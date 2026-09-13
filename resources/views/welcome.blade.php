@@ -68,13 +68,13 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
 
     <!-- Favicon & App Icons (Google Search & Multi-device compliant) -->
-    <link rel="icon" type="image/x-icon" href="https://onlinexam.site/favicon.ico">
-    <link rel="shortcut icon" type="image/x-icon" href="https://onlinexam.site/favicon.ico">
-    <link rel="icon" type="image/png" sizes="48x48" href="https://onlinexam.site/favicon-48x48.png">
-    <link rel="icon" type="image/png" sizes="96x96" href="https://onlinexam.site/favicon-96x96.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="https://onlinexam.site/favicon-192x192.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="https://onlinexam.site/apple-touch-icon.png">
-    <link rel="icon" type="image/svg+xml" href="https://onlinexam.site/ico.svg">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/svg+xml" href="/ico.svg">
     <link rel="manifest" href="/manifest.json">
     <link rel="alternate" type="application/manifest+json" href="/manifest.webmanifest">
     <meta name="theme-color" content="#00288e">

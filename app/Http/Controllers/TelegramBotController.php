@@ -441,6 +441,36 @@ class TelegramBotController extends Controller
                 $s->TelegramChatId = null;
                 $s->TelegramUsername = null;
                 $s->save();
+
+                \DB::table('tblstudent')->where('StudentId', $s->StudentId)->update([
+                    'TelegramChatId' => null,
+                    'TelegramUsername' => null,
+                ]);
+            }
+
+            if (!empty($fromId)) {
+                \DB::table('tblstudent')->where('TelegramChatId', $fromId)->update([
+                    'TelegramChatId' => null,
+                    'TelegramUsername' => null,
+                ]);
+            }
+            if (!empty($chatId)) {
+                \DB::table('tblstudent')->where('TelegramChatId', $chatId)->update([
+                    'TelegramChatId' => null,
+                    'TelegramUsername' => null,
+                ]);
+            }
+
+            // Sync unlink to Google Apps Script
+            $gasUrl = config('services.telegram.google_script_url', env('TELEGRAM_GOOGLE_SCRIPT_URL'));
+            if (!empty($gasUrl)) {
+                try {
+                    \Illuminate\Support\Facades\Http::timeout(5)->post($gasUrl, [
+                        'action' => 'unlink_student',
+                        'chatId' => $chatId,
+                        'fromId' => $fromId,
+                    ]);
+                } catch (\Throwable $gasErr) {}
             }
 
             $this->telegram->sendMessage($chatId, "✂️ <b>គណនី Telegram របស់ {$mentionName} ត្រូវបានផ្តាច់ការភ្ជាប់ (Unlinked) ពីប្រព័ន្ធប្រឡងរួចរាល់ហើយ។</b>\n\nដើម្បីភ្ជាប់ឡើងវិញ សូមវាយ: <code>/link [អត្តលេខសិស្ស]</code>");
@@ -659,32 +689,72 @@ class TelegramBotController extends Controller
     public function unlinkStudent(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
+        $studentId = $request->input('studentId');
+        $studentCode = $request->input('studentCode');
+        $chatIdInput = $request->input('chatId');
 
-        $student = ($user instanceof Student) 
-            ? $user 
-            : (Student::find($user->StudentId ?? $user->id) ?? Student::where('UserId', $user->id)->first());
+        $student = null;
+        if (!empty($studentId)) {
+            $student = Student::find($studentId) ?? Student::where('StudentCode', $studentId)->first();
+        }
+        if (!$student && !empty($studentCode)) {
+            $student = Student::where('StudentCode', $studentCode)->first();
+        }
+        if (!$student && $user) {
+            $student = ($user instanceof Student) 
+                ? $user 
+                : (Student::find($user->StudentId ?? $user->id) ?? Student::where('UserId', $user->id)->first());
+        }
 
         if (!$student) {
             return response()->json(['message' => 'Student not found.'], 404);
         }
 
-        $chatId = $student->TelegramChatId;
+        $chatId = $student->TelegramChatId ?: $chatIdInput;
+
+        // 1. Eloquent save
         $student->TelegramChatId = null;
         $student->TelegramUsername = null;
         $student->save();
 
-        // Sync unlink to Google Apps Script (24/7 Bot Cloud Bridge)
-        $gasUrl = env('TELEGRAM_GOOGLE_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbydj3645-4Rojs9THlBGD8jSAbpMcu5eUdLEaBCIDUXlNRR6gtVKhWrciD44SxLH565qg/exec');
-        if (!empty($gasUrl) && !empty($chatId)) {
+        // 2. Direct database updates to guarantee persistence in MySQL / TiDB
+        \DB::table('tblstudent')->where('StudentId', $student->StudentId)->update([
+            'TelegramChatId' => null,
+            'TelegramUsername' => null,
+        ]);
+        if (!empty($chatId)) {
+            \DB::table('tblstudent')->where('TelegramChatId', $chatId)->update([
+                'TelegramChatId' => null,
+                'TelegramUsername' => null,
+            ]);
+        }
+
+        // 3. Sync unlink to Google Apps Script (24/7 Bot Cloud Bridge)
+        $gasUrl = config('services.telegram.google_script_url', env('TELEGRAM_GOOGLE_SCRIPT_URL'));
+        if (!empty($gasUrl)) {
             try {
                 \Illuminate\Support\Facades\Http::timeout(5)->post($gasUrl, [
                     'action' => 'unlink_student',
-                    'chatId' => $chatId,
+                    'chatId' => $chatId ?? '',
+                    'studentCode' => $student->StudentCode ?? '',
+                    'code' => $student->StudentCode ?? '',
+                    'studentId' => $student->StudentId ?? '',
                 ]);
-            } catch (\Throwable $gasErr) {}
+            } catch (\Throwable $gasErr) {
+                Log::warning('Google Apps Script unlink sync failed: ' . $gasErr->getMessage());
+            }
+        }
+
+        // 4. Send Telegram message alert to student chat if chatId was connected
+        if (!empty($chatId) && is_numeric($chatId)) {
+            try {
+                $studentName = trim(($student->FirstName ?? '') . ' ' . ($student->LastName ?? '')) ?: ($student->StudentCode ?? 'Student');
+                $code = $student->StudentCode ?: $student->StudentId;
+                $this->telegram->sendMessage(
+                    $chatId,
+                    "✂️ <b>ការផ្តាច់ការភ្ជាប់ Telegram ទទួលបានជោគជ័យ!</b>\n━━━━━━━━━━━━━━━━━━━━\n👤 <b>សិស្ស:</b> {$studentName}\n🆔 <b>អត្តលេខ:</b> <code>{$code}</code>\n━━━━━━━━━━━━━━━━━━━━\nគណនី Telegram របស់អ្នកត្រូវបានផ្តាច់ចេញពីប្រព័ន្ធ OnlinExam រួចរាល់ហើយ។ អ្នកនឹងលែងទទួលបានសារដំណឹងពិន្ទុតាម Telegram ទៀតឡើយ។\n\n👉 ប្រសិនបើចង់ភ្ជាប់ឡើងវិញ សូមចូលទៅកាន់គេហទំព័រ ឬវាយ <code>/link {$code}</code>"
+                );
+            } catch (\Throwable $tErr) {}
         }
 
         return response()->json([
@@ -844,14 +914,40 @@ class TelegramBotController extends Controller
      */
     public function syncUnlinkDirect(Request $request)
     {
-        $chatId = trim((string)($request->input('chatId') ?? $request->query('chatId') ?? $request->json('chatId') ?? $request->input('chat_id') ?? ''));
+        $chatId = trim((string)($request->input('chatId') ?? $request->query('chatId') ?? $request->json('chatId') ?? $request->input('chat_id') ?? $request->input('fromId') ?? $request->input('from_id') ?? ''));
+        $code = trim((string)($request->input('studentCode') ?? $request->query('studentCode') ?? $request->json('studentCode') ?? $request->input('code') ?? $request->query('code') ?? ''));
+
+        $count = 0;
         if (!empty($chatId)) {
-            Student::where('TelegramChatId', $chatId)->update([
+            $count += Student::where('TelegramChatId', $chatId)->update([
+                'TelegramChatId' => null,
+                'TelegramUsername' => null,
+            ]);
+            \DB::table('tblstudent')->where('TelegramChatId', $chatId)->update([
                 'TelegramChatId' => null,
                 'TelegramUsername' => null,
             ]);
         }
-        return response()->json(['success' => true, 'message' => 'Student unlinked successfully from database']);
+
+        if (!empty($code)) {
+            $student = $this->findStudentByQuery($code);
+            if ($student) {
+                $student->TelegramChatId = null;
+                $student->TelegramUsername = null;
+                $student->save();
+                \DB::table('tblstudent')->where('StudentId', $student->StudentId)->update([
+                    'TelegramChatId' => null,
+                    'TelegramUsername' => null,
+                ]);
+                $count++;
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Student unlinked successfully from database',
+            'affected' => $count
+        ]);
     }
 }
 

@@ -730,12 +730,17 @@ const saveProfile = async () => {
 const unlinkTelegram = async () => {
   if (!confirm(lang.value === 'kh' ? 'តើអ្នកពិតជាចង់ផ្តាច់ការភ្ជាប់ Telegram មែនទេ?' : 'Are you sure you want to unlink Telegram?')) return
   try {
-    await axios.post('/api/student/telegram/unlink')
+    await axios.post('/api/student/telegram/unlink', {
+      studentId: student.studentId,
+      studentCode: student.studentCode,
+      chatId: student.telegramChatId
+    })
     student.telegramConnected = false
     student.telegramChatId = null
     student.telegramUsername = null
     toastSuccess(lang.value === 'kh' ? 'បានផ្តាច់ការភ្ជាប់គណនី Telegram រួចរាល់' : 'Telegram unlinked successfully')
     notifyRealtimeChange('student_updated')
+    await loadStudentData(false)
   } catch (e) {
     toastError(e.response?.data?.message || (lang.value === 'kh' ? 'មានបញ្ហាក្នុងការផ្តាច់' : 'Failed to unlink Telegram'))
   }
@@ -784,8 +789,8 @@ const loadStudentData = async (forcePollTelegram = false) => {
   if (isFetchingStudentData) return
   isFetchingStudentData = true
   try {
-    // Non-blocking Telegram queue check in background
-    if ((!student.telegramConnected || forcePollTelegram) && !pollingActive) {
+    // Non-blocking Telegram queue check ONLY when explicitly connecting
+    if (forcePollTelegram && !pollingActive) {
       pollingActive = true
       axios.get('/api/telegram/poll-once').catch(() => {}).finally(() => {
         pollingActive = false
