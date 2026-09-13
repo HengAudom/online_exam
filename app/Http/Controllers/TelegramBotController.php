@@ -914,8 +914,9 @@ class TelegramBotController extends Controller
      */
     public function syncUnlinkDirect(Request $request)
     {
-        $chatId = trim((string)($request->input('chatId') ?? $request->query('chatId') ?? $request->json('chatId') ?? $request->input('chat_id') ?? $request->input('fromId') ?? $request->input('from_id') ?? ''));
-        $code = trim((string)($request->input('studentCode') ?? $request->query('studentCode') ?? $request->json('studentCode') ?? $request->input('code') ?? $request->query('code') ?? ''));
+        $rawJson = @json_decode($request->getContent(), true) ?: [];
+        $chatId = trim((string)($request->input('chatId') ?? $rawJson['chatId'] ?? $rawJson['fromId'] ?? $request->query('chatId') ?? $request->json('chatId') ?? $request->input('chat_id') ?? $request->input('fromId') ?? $request->input('from_id') ?? ''));
+        $code = trim((string)($request->input('studentCode') ?? $rawJson['studentCode'] ?? $rawJson['code'] ?? $request->query('studentCode') ?? $request->json('studentCode') ?? $request->input('code') ?? $request->query('code') ?? ''));
 
         $count = 0;
         if (!empty($chatId)) {
