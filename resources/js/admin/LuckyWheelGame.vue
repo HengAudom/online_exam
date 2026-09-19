@@ -1148,9 +1148,16 @@ function triggerFullScreenCelebration() {
 /* ── Lucky Wheel Engine ── */
 let wheelAnimationId = null
 let wheelCurrentAngle = 0
-let wheelSpinVelocity = 0
-let wheelFriction = 0.985
 let lastTickSegment = -1
+let spinStartTime = 0
+let spinDuration = 5000
+let spinStartAngle = 0
+let spinTotalDelta = 0
+let spinTargetWinnerIndex = 0
+
+function easeOutQuart(x) {
+  return 1 - Math.pow(1 - x, 4)
+}
 
 function resizeAndDrawWheel() {
   const canvas = wheelCanvasRef.value
@@ -1244,21 +1251,68 @@ function getCurrentWinnerIndex() {
 }
 
 function triggerSpin() {
-  if (isSpinning.value || parsedStudents.value.length === 0) return
+  const total = parsedStudents.value.length
+  if (isSpinning.value || total === 0) return
+
+  if (wheelAnimationId) {
+    cancelAnimationFrame(wheelAnimationId)
+    wheelAnimationId = null
+  }
+
   isSpinning.value = true
+  currentExplainer.value = ''
   initAudio()
   syncRemoteState()
 
-  const randomSpins = 5 + Math.random() * 3
-  wheelSpinVelocity = randomSpins * 0.08 + Math.random() * 0.04
-  wheelFriction = 0.984 + Math.random() * 0.004
+  // Ensure needle starts straight
+  if (wheelPointerRef.value) {
+    wheelPointerRef.value.style.transform = 'translateX(-50%) rotate(0deg)'
+  }
 
-  animateSpinLoop()
+  // Pick target winner index (avoid immediate duplicate on re-spin if multiple students)
+  let targetIndex = Math.floor(Math.random() * total)
+  if (total > 1 && currentExplainer.value) {
+    const prevIdx = parsedStudents.value.findIndex(s => s === currentExplainer.value)
+    if (prevIdx !== -1 && targetIndex === prevIdx) {
+      targetIndex = (targetIndex + 1 + Math.floor(Math.random() * (total - 1))) % total
+    }
+  }
+  spinTargetWinnerIndex = targetIndex
+
+  const arc = (2 * Math.PI) / total
+  const pointerAngle = 1.5 * Math.PI
+  const twoPi = 2 * Math.PI
+
+  // Target safely inside the middle of the slice with mild jitter (+/- 25% of half-arc, NEVER near boundaries)
+  const sliceCenter = targetIndex * arc + arc / 2
+  const jitter = (Math.random() - 0.5) * 0.5 * (arc / 2)
+  const desiredModulo = (pointerAngle - (sliceCenter + jitter)) % twoPi
+  const normDesired = desiredModulo < 0 ? desiredModulo + twoPi : desiredModulo
+
+  const curModulo = wheelCurrentAngle % twoPi
+  const normCur = curModulo < 0 ? curModulo + twoPi : curModulo
+
+  let delta = normDesired - normCur
+  if (delta <= 0) {
+    delta += twoPi
+  }
+
+  const extraSpins = Math.floor(5 + Math.random() * 3) // 5 to 7 full revolutions
+  spinStartAngle = wheelCurrentAngle
+  spinTotalDelta = delta + extraSpins * twoPi
+  spinDuration = 4800 + Math.random() * 500 // 4.8s to 5.3s dramatic natural deceleration
+  spinStartTime = performance.now()
+  lastTickSegment = getCurrentWinnerIndex()
+
+  wheelAnimationId = requestAnimationFrame(animateSpinLoop)
 }
 
-function animateSpinLoop() {
-  wheelCurrentAngle += wheelSpinVelocity
-  wheelSpinVelocity *= wheelFriction
+function animateSpinLoop(now) {
+  const elapsed = (now || performance.now()) - spinStartTime
+  const progress = Math.min(elapsed / spinDuration, 1)
+  const eased = easeOutQuart(progress)
+
+  wheelCurrentAngle = spinStartAngle + spinTotalDelta * eased
 
   // Needle twitch & Audio tick
   const curIdx = getCurrentWinnerIndex()
@@ -1266,29 +1320,39 @@ function animateSpinLoop() {
     lastTickSegment = curIdx
     playTickSound()
     if (wheelPointerRef.value) {
-      wheelPointerRef.value.style.transform = 'translateX(-50%) rotate(-12deg)'
+      // Subtle 4-degree flick in direction of clockwise rotation
+      wheelPointerRef.value.style.transform = 'translateX(-50%) rotate(4deg)'
       setTimeout(() => {
-        if (wheelPointerRef.value) {
+        if (wheelPointerRef.value && isSpinning.value) {
           wheelPointerRef.value.style.transform = 'translateX(-50%) rotate(0deg)'
         }
-      }, 45)
+      }, 35)
     }
   }
 
   drawWheel()
 
-  if (wheelSpinVelocity < 0.002) {
-    wheelSpinVelocity = 0
+  if (progress < 1) {
+    wheelAnimationId = requestAnimationFrame(animateSpinLoop)
+  } else {
+    // Wheel completed spinning! Lock final angle and center needle:
+    wheelCurrentAngle = spinStartAngle + spinTotalDelta
+    wheelAnimationId = null
     isSpinning.value = false
-    onSpinComplete()
-    return
+    if (wheelPointerRef.value) {
+      wheelPointerRef.value.style.transform = 'translateX(-50%) rotate(0deg)'
+    }
+    drawWheel()
+    onSpinComplete(spinTargetWinnerIndex)
   }
-
-  wheelAnimationId = requestAnimationFrame(animateSpinLoop)
 }
 
-function onSpinComplete() {
-  const winnerIndex = getCurrentWinnerIndex()
+function onSpinComplete(forcedIndex) {
+  if (wheelPointerRef.value) {
+    wheelPointerRef.value.style.transform = 'translateX(-50%) rotate(0deg)'
+  }
+
+  const winnerIndex = typeof forcedIndex === 'number' ? forcedIndex : getCurrentWinnerIndex()
   const winnerName = parsedStudents.value[winnerIndex] || 'សិស្សគ្មានឈ្មោះ'
   currentExplainer.value = winnerName
 
