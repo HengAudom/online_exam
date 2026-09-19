@@ -359,6 +359,30 @@
             </div>
           </div>
 
+          <!-- Question Retained Notice (After Time's Up) -->
+          <div
+            v-if="currentWord"
+            class="w-full bg-gradient-to-r from-amber-950/70 via-slate-900/95 to-amber-950/70 border border-amber-500/40 rounded-2xl p-2 sm:p-2.5 px-3.5 flex items-center justify-between text-xs text-amber-200 shadow-md backdrop-blur-md"
+          >
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+                <span class="material-symbols-outlined text-sm">lock_clock</span>
+              </span>
+              <div class="truncate">
+                <span class="font-bold text-amber-300">រក្សាសំណួរមុនដដែល</span>
+                <span class="text-[11px] text-slate-400 ml-1.5 hidden sm:inline">(សិស្សថ្មីនឹងបន្តពន្យល់សំណួរនេះ)</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="text-[10px] sm:text-[11px] text-slate-400 hover:text-amber-300 underline cursor-pointer shrink-0 ml-2"
+              title="ប្ដូរពាក្យសម្ងាត់ថ្មីចៃដន្យផ្សេងទៀត"
+              @click="currentWord = ''"
+            >
+              ប្ដូរពាក្យថ្មី
+            </button>
+          </div>
+
           <!-- Explainer Card -->
           <div class="bg-gradient-to-br from-indigo-950/95 via-slate-900/98 to-slate-950 border-2 border-indigo-500/60 rounded-3xl p-5 sm:p-6 shadow-glow-indigo text-center transition-all duration-300 min-h-[190px] flex flex-col justify-center">
             
@@ -367,8 +391,12 @@
               <div class="w-14 h-14 mx-auto rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-2xl mb-2 animate-pulse">
                 <span class="material-symbols-outlined text-2xl">touch_app</span>
               </div>
-              <div class="text-base sm:text-lg font-black text-slate-200 mb-0.5">ចុច SPIN ដើម្បីបង្វិលកង</div>
-              <p class="text-xs text-slate-400">ប្រព័ន្ធនឹងចៃដន្យជ្រើសរើសសិស្សឡើងពន្យល់ពាក្យ</p>
+              <div class="text-base sm:text-lg font-black text-slate-200 mb-0.5">
+                {{ currentWord ? 'បង្វិលកងជ្រើសរើសសិស្សថ្មី' : 'ចុច SPIN ដើម្បីបង្វិលកង' }}
+              </div>
+              <p class="text-xs text-slate-400">
+                {{ currentWord ? 'ដើម្បីឡើងមកបន្តពន្យល់សំណួរមុន (រក្សាពាក្យដដែល)' : 'ប្រព័ន្ធនឹងចៃដន្យជ្រើសរើសសិស្សឡើងពន្យល់ពាក្យ' }}
+              </p>
             </div>
 
             <!-- Notice: Currently Spinning (Clean Gold Icon without rotating background box) -->
@@ -449,7 +477,18 @@
           <div class="flex flex-col items-center justify-center">
             <div class="flex items-center gap-1.5 text-slate-400 text-xs sm:text-sm font-bold uppercase tracking-wider mb-1">
               <span class="material-symbols-outlined text-amber-400 text-sm sm:text-base">schedule</span>
-              <span>ម៉ោង: <span :class="timerSeconds <= 10 ? 'text-rose-400 font-bold' : 'text-amber-300 font-bold'" class="font-mono text-xs sm:text-base">{{ timerSeconds }}s</span></span>
+              <span>ម៉ោង: 
+                <span
+                  :class="[
+                    timerSeconds <= 5
+                      ? 'text-rose-400 font-black scale-110 drop-shadow-[0_0_10px_rgba(244,63,94,0.9)] animate-pulse'
+                      : (timerSeconds <= 10 ? 'text-rose-400 font-bold' : 'text-amber-300 font-bold')
+                  ]"
+                  class="font-mono text-xs sm:text-base inline-block transition-transform"
+                >
+                  {{ timerSeconds }}s
+                </span>
+              </span>
               <button
                 type="button"
                 class="text-slate-400 hover:text-white ml-1 cursor-pointer"
@@ -462,7 +501,7 @@
             <div class="w-32 sm:w-64 md:w-80 h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
               <div
                 class="h-full transition-all duration-1000 ease-linear"
-                :class="timerSeconds <= 10 ? 'bg-rose-500 animate-pulse' : 'bg-gradient-to-r from-amber-500 to-rose-500'"
+                :class="timerSeconds <= 5 ? 'bg-rose-500 animate-pulse' : (timerSeconds <= 10 ? 'bg-rose-500' : 'bg-gradient-to-r from-amber-500 to-rose-500')"
                 :style="{ width: `${(timerSeconds / timerMaxSeconds) * 100}%` }"
               ></div>
             </div>
@@ -842,7 +881,7 @@
         <p class="text-xs text-rose-300 font-extrabold uppercase tracking-widest mt-1">TIME'S UP</p>
         <div class="mt-4 py-2 px-3.5 rounded-xl bg-slate-800/90 border border-slate-700 text-slate-300 text-xs flex items-center justify-center gap-2">
           <span class="material-symbols-outlined text-amber-400 text-base animate-spin">sync</span>
-          <span>ត្រឡប់ទៅបង្វិលកងជ្រើសរើសសិស្សថ្មី...</span>
+          <span>ត្រឡប់ទៅបង្វិលកង... (រក្សាសំណួរមុនដដែល)</span>
         </div>
       </div>
     </div>
@@ -1112,6 +1151,35 @@ function playWrongSound() {
     gain.connect(audioCtx.destination)
     osc.start()
     osc.stop(audioCtx.currentTime + 0.3)
+  } catch (e) {}
+}
+
+function playCountdownBeep(secondsLeft) {
+  if (isMuted.value) return
+  initAudio()
+  if (!audioCtx) return
+  try {
+    const osc = audioCtx.createOscillator()
+    const gain = audioCtx.createGain()
+
+    // Gradual pitch elevation for urgency:
+    // 5s: 650Hz, 4s: 720Hz, 3s: 800Hz, 2s: 890Hz, 1s: 990Hz
+    const pitchMap = { 5: 650, 4: 720, 3: 800, 2: 890, 1: 990 }
+    const freq = pitchMap[secondsLeft] || 800
+
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime)
+    osc.frequency.exponentialRampToValueAtTime(freq * 1.05, audioCtx.currentTime + 0.04)
+
+    // Snappy digital countdown pip
+    gain.gain.setValueAtTime(0.28, audioCtx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.12)
+
+    osc.connect(gain)
+    gain.connect(audioCtx.destination)
+
+    osc.start(audioCtx.currentTime)
+    osc.stop(audioCtx.currentTime + 0.12)
   } catch (e) {}
 }
 
@@ -1437,6 +1505,7 @@ function startSession() {
   currentScore.value = 0
   roundWordsHistory.value = []
   currentExplainer.value = ''
+  currentWord.value = ''
 
   switchView('WHEEL_VIEW')
 }
@@ -1444,10 +1513,12 @@ function startSession() {
 function startGuessingCurrentWord() {
   if (!currentExplainer.value) return
 
-  // Pick random word from bank
-  const pool = parsedWords.value
-  const randomWord = pool[Math.floor(Math.random() * pool.length)]
-  currentWord.value = randomWord
+  // Keep previous question/word if continuing from time-up or re-spin (រក្សាសំណួរមុនដដែល)
+  if (!currentWord.value) {
+    const pool = parsedWords.value
+    const randomWord = pool[Math.floor(Math.random() * pool.length)]
+    currentWord.value = randomWord
+  }
   isWordVisible.value = true
 
   switchView('GUESSING_VIEW')
@@ -1468,9 +1539,17 @@ function startTimer() {
   timerInterval = setInterval(() => {
     if (!isTimerPaused.value) {
       timerSeconds.value--
-      if (timerSeconds.value % 4 === 0) {
+
+      // Sound countdown alert when 5, 4, 3, 2, 1 seconds remain
+      if (timerSeconds.value <= 5 && timerSeconds.value > 0) {
+        playCountdownBeep(timerSeconds.value)
+      }
+
+      // Sync state: every second when <= 5, otherwise every 4 seconds
+      if (timerSeconds.value <= 5 || timerSeconds.value % 4 === 0) {
         syncRemoteState()
       }
+
       if (timerSeconds.value <= 0) {
         stopTimer()
         playTimeUpSound()
@@ -1479,9 +1558,10 @@ function startTimer() {
 
         timeUpTimeoutId = setTimeout(() => {
           isTimeUpBannerVisible.value = false
-          currentExplainer.value = ''
+          currentExplainer.value = '' // Clear explainer so teacher spins wheel for new student
+          // IMPORTANT: currentWord.value is PRESERVED so the new student gets the same question/word!
           switchView('WHEEL_VIEW')
-        }, 1700)
+        }, 1300)
       }
     }
   }, 1000)
@@ -1517,6 +1597,7 @@ function handleTeacherDecision(isCorrect) {
   }
 
   currentWordIndex.value++
+  currentWord.value = '' // Finished this word! Reset so next question picks a new word!
 
   if (currentWordIndex.value >= wordsPerRound.value) {
     setTimeout(() => {
@@ -1539,6 +1620,7 @@ function playNextRound() {
   currentScore.value = 0
   roundWordsHistory.value = []
   currentExplainer.value = ''
+  currentWord.value = ''
   switchView('WHEEL_VIEW')
 }
 

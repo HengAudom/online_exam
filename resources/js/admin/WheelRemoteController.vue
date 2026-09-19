@@ -197,8 +197,11 @@
                 <circle cx="8" cy="16" r="1.5" fill="currentColor"></circle>
               </svg>
             </div>
-            <div class="ready-text">ត្រៀមខ្លួនបង្វិលកង</div>
-            <p class="ready-sub">ចុចប៊ូតុងខាងក្រោមដើម្បីបង្វិលកងស្វែងរកសិស្ស</p>
+            <div class="ready-text">{{ gameState.currentWord ? 'បង្វិលជ្រើសរើសសិស្សថ្មី' : 'ត្រៀមខ្លួនបង្វិលកង' }}</div>
+            <p class="ready-sub">{{ gameState.currentWord ? 'ដើម្បីបន្តពន្យល់សំណួរមុន (រក្សាពាក្យដដែល)' : 'ចុចប៊ូតុងខាងក្រោមដើម្បីបង្វិលកងស្វែងរកសិស្ស' }}</p>
+            <div v-if="gameState.currentWord" class="mt-2 inline-flex items-center gap-1.5 text-[11px] text-amber-300 font-bold bg-amber-950/70 border border-amber-700/60 px-2.5 py-1 rounded-lg">
+              <span>🔒 រក្សាសំណួរមុនដដែល</span>
+            </div>
           </div>
 
         </div>
@@ -548,7 +551,17 @@ async function fetchState() {
   try {
     const res = await axios.get(`/api/lucky-wheel/remote/state?room=${roomPin.value}`)
     if (res.data.success && res.data.state) {
+      const prevSeconds = gameState.timerSeconds
       Object.assign(gameState, res.data.state)
+      if (
+        gameState.view === 'GUESSING_VIEW' &&
+        gameState.timerSeconds <= 5 &&
+        gameState.timerSeconds > 0 &&
+        !gameState.isTimerPaused &&
+        gameState.timerSeconds !== prevSeconds
+      ) {
+        triggerHaptic()
+      }
     }
   } catch (err) {
     if (err.response && err.response.status === 404) {
