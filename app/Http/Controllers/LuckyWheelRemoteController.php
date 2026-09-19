@@ -163,21 +163,12 @@ class LuckyWheelRemoteController extends Controller
             return response()->json(['success' => false, 'message' => 'Room code required'], 422);
         }
 
+        // Room MUST exist in the database (created by desktop host)
         if (!$this->dbHas("wheel_room_{$room}")) {
-            $defaultState = [
-                'view' => 'SETUP_VIEW',
-                'currentWord' => '',
-                'currentExplainer' => '',
-                'currentScore' => 0,
-                'wordsPerRound' => 5,
-                'currentWordIndex' => 0,
-                'timerSeconds' => 60,
-                'isTimerPaused' => false,
-                'isSpinning' => false,
-                'isWordVisible' => true,
-                'updatedAt' => now()->timestamp,
-            ];
-            $this->dbPut("wheel_room_{$room}", $defaultState, 43200);
+            return response()->json([
+                'success' => false,
+                'message' => "លេខកូដ Room PIN [{$room}] មិនត្រឹមត្រូវ ឬកុំព្យូទ័រមិនទាន់បានបើកបន្ទប់នេះឡើយ!",
+            ], 404);
         }
 
         $state = $this->dbGet("wheel_room_{$room}");
@@ -200,6 +191,13 @@ class LuckyWheelRemoteController extends Controller
 
         if (!$room || !$action) {
             return response()->json(['success' => false, 'message' => 'Room and action are required'], 422);
+        }
+
+        if (!$this->dbHas("wheel_room_{$room}")) {
+            return response()->json([
+                'success' => false,
+                'message' => "មិនមាន Room PIN [{$room}] នេះនៅលើប្រព័ន្ធឡើយ",
+            ], 404);
         }
 
         $cmd = [

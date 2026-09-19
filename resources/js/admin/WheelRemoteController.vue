@@ -478,7 +478,7 @@ async function connectToRoom(pin) {
 
   try {
     const res = await axios.get(`/api/lucky-wheel/remote/state?room=${pin}`)
-    if (res.data.success) {
+    if (res.data && res.data.success && res.data.state) {
       roomPin.value = pin
       isConnected.value = true
       Object.assign(gameState, res.data.state)
@@ -486,10 +486,12 @@ async function connectToRoom(pin) {
       startPolling()
       triggerHaptic()
     } else {
-      errorMessage.value = 'មិនមាន Room PIN នេះនៅលើប្រព័ន្ធឡើយ'
+      errorMessage.value = res.data?.message || 'លេខកូដ Room PIN មិនត្រឹមត្រូវ'
+      isConnected.value = false
     }
   } catch (err) {
-    errorMessage.value = 'មិនអាចភ្ជាប់បានទេ។ សូមពិនិត្យលេខកូដ Room PIN ឡើងវិញ។'
+    errorMessage.value = err.response?.data?.message || 'លេខកូដ Room PIN មិនត្រឹមត្រូវ ឬកុំព្យូទ័រមិនទាន់បានបើកឡើយ!'
+    isConnected.value = false
   } finally {
     isConnecting.value = false
   }
