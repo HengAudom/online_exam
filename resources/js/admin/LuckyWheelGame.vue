@@ -12,15 +12,15 @@
       <!-- Left: Back to Dashboard & App Title -->
       <div class="flex items-center gap-2 sm:gap-3">
         <!-- Back to Dashboard Option -->
-        <button
-          type="button"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-xs sm:text-sm font-bold border border-slate-700/80 transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+        <a
+          href="/admin/dashboard"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-xs sm:text-sm font-bold border border-slate-700/80 transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98] no-underline"
           title="ត្រឡប់ទៅផ្ទាំងគ្រប់គ្រង (Back to Dashboard)"
           @click="goBackToDashboard"
         >
           <span class="material-symbols-outlined text-base sm:text-lg text-blue-400">arrow_back</span>
           <span>ត្រឡប់ទៅផ្ទាំងគ្រប់គ្រង</span>
-        </button>
+        </a>
 
         <div class="h-5 w-px bg-slate-800 hidden sm:block"></div>
 
@@ -1704,16 +1704,45 @@ function loadDemoWords() {
   rawWordsText.value = DEFAULT_WORDS.join('\n')
 }
 
-function goBackToDashboard() {
+function goBackToDashboard(e) {
+  if (e) {
+    if (typeof e.preventDefault === 'function') e.preventDefault()
+    if (typeof e.stopPropagation === 'function') e.stopPropagation()
+  }
+
   stopTimer()
   if (wheelAnimationId) {
     cancelAnimationFrame(wheelAnimationId)
     wheelAnimationId = null
   }
-  if (document.fullscreenElement && document.exitFullscreen) {
-    document.exitFullscreen().catch(() => {})
+  if (remotePollInterval) {
+    clearInterval(remotePollInterval)
+    remotePollInterval = null
   }
-  router.push('/admin/dashboard').catch(() => {})
+
+  try {
+    if (document.fullscreenElement && typeof document.exitFullscreen === 'function') {
+      document.exitFullscreen().catch(() => {})
+    }
+  } catch (err) {}
+
+  try {
+    if (router && typeof router.push === 'function') {
+      router.push('/admin/dashboard').catch(() => {
+        window.location.href = '/admin/dashboard'
+      })
+    } else {
+      window.location.href = '/admin/dashboard'
+    }
+  } catch (err) {
+    window.location.href = '/admin/dashboard'
+  }
+
+  setTimeout(() => {
+    if (typeof window !== 'undefined' && window.location.pathname.includes('/lucky-wheel')) {
+      window.location.href = '/admin/dashboard'
+    }
+  }, 120)
 }
 
 function toggleSound() {
