@@ -299,10 +299,10 @@
               @click="handleWheelClick"
             ></canvas>
 
-            <!-- Top Needle Indicator -->
+            <!-- Top Needle Indicator (Rock-Solid Centered & Perpendicular) -->
             <div
               ref="wheelPointerRef"
-              class="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 z-20 needle-bounce drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] transition-transform duration-75"
+              class="absolute -top-3 sm:-top-4 left-1/2 -translate-x-1/2 z-20 drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] pointer-events-none"
             >
               <svg width="36" height="48" viewBox="0 0 40 52" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M20 52L2 14C-0.5 9 3 2 9 2H31C37 2 40.5 9 38 14L20 52Z" fill="url(#pointerGradOnline)" stroke="#ffffff" stroke-width="2" />
@@ -1212,6 +1212,16 @@ function resizeAndDrawWheel() {
   const dpr = window.devicePixelRatio || 1
   canvas.width = rect.width * dpr
   canvas.height = rect.height * dpr
+
+  // On initial load, align wheel so slice 0 is perfectly centered under the 12 o'clock pointer (never on a boundary line)
+  if (wheelCurrentAngle === 0) {
+    const total = parsedStudents.value.length
+    if (total > 0) {
+      const arc = (2 * Math.PI) / total
+      wheelCurrentAngle = 1.5 * Math.PI - arc / 2
+    }
+  }
+
   drawWheel()
 }
 
@@ -1310,11 +1320,6 @@ function triggerSpin() {
   initAudio()
   syncRemoteState()
 
-  // Ensure needle starts straight
-  if (wheelPointerRef.value) {
-    wheelPointerRef.value.style.transform = 'translateX(-50%) rotate(0deg)'
-  }
-
   // Pick target winner index (avoid immediate duplicate on re-spin if multiple students)
   let targetIndex = Math.floor(Math.random() * total)
   if (total > 1 && currentExplainer.value) {
@@ -1360,20 +1365,11 @@ function animateSpinLoop(now) {
 
   wheelCurrentAngle = spinStartAngle + spinTotalDelta * eased
 
-  // Needle twitch & Audio tick
+  // Audio tick per segment
   const curIdx = getCurrentWinnerIndex()
   if (curIdx !== lastTickSegment) {
     lastTickSegment = curIdx
     playTickSound()
-    if (wheelPointerRef.value) {
-      // Subtle 4-degree flick in direction of clockwise rotation
-      wheelPointerRef.value.style.transform = 'translateX(-50%) rotate(4deg)'
-      setTimeout(() => {
-        if (wheelPointerRef.value && isSpinning.value) {
-          wheelPointerRef.value.style.transform = 'translateX(-50%) rotate(0deg)'
-        }
-      }, 35)
-    }
   }
 
   drawWheel()
@@ -1381,23 +1377,16 @@ function animateSpinLoop(now) {
   if (progress < 1) {
     wheelAnimationId = requestAnimationFrame(animateSpinLoop)
   } else {
-    // Wheel completed spinning! Lock final angle and center needle:
+    // Wheel completed spinning! Lock final angle:
     wheelCurrentAngle = spinStartAngle + spinTotalDelta
     wheelAnimationId = null
     isSpinning.value = false
-    if (wheelPointerRef.value) {
-      wheelPointerRef.value.style.transform = 'translateX(-50%) rotate(0deg)'
-    }
     drawWheel()
     onSpinComplete(spinTargetWinnerIndex)
   }
 }
 
 function onSpinComplete(forcedIndex) {
-  if (wheelPointerRef.value) {
-    wheelPointerRef.value.style.transform = 'translateX(-50%) rotate(0deg)'
-  }
-
   const winnerIndex = typeof forcedIndex === 'number' ? forcedIndex : getCurrentWinnerIndex()
   const winnerName = parsedStudents.value[winnerIndex] || 'សិស្សគ្មានឈ្មោះ'
   currentExplainer.value = winnerName
