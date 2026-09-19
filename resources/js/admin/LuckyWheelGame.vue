@@ -127,23 +127,73 @@
               class="w-full h-22 sm:h-28 bg-slate-900 border border-slate-700/80 rounded-lg p-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono resize-none leading-relaxed transition"
               placeholder="ឈ្មោះសិស្ស ១ នាក់ក្នុង ១ ជួរ..."
             ></textarea>
-            <div class="mt-1.5 flex justify-between items-center text-[10px] sm:text-[11px] text-slate-400">
-              <button
-                type="button"
-                class="text-emerald-400 hover:text-emerald-300 font-bold underline flex items-center gap-1 cursor-pointer"
-                :disabled="isLoadingOnlineStudents"
-                @click="loadOnlineXamStudents"
-              >
-                <span class="material-symbols-outlined text-[12px] animate-spin" v-if="isLoadingOnlineStudents">sync</span>
-                <span>{{ isLoadingOnlineStudents ? 'កំពុងទាញ...' : 'ទាញយកសិស្សពី OnlineXam' }}</span>
-              </button>
-              <button
-                type="button"
-                class="text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
-                @click="loadDemoStudents"
-              >
-                ឈ្មោះគំរូ
-              </button>
+            <div class="mt-2 space-y-1.5">
+              <!-- Skill Selection Row -->
+              <div class="flex items-center gap-1.5 bg-slate-900 border border-indigo-900/40 rounded-lg p-1 shadow-inner">
+                <span class="material-symbols-outlined text-xs sm:text-sm text-indigo-400 pl-1 shrink-0" title="ជ្រើសរើសជំនាញ">school</span>
+                
+                <!-- Skill Dropdown -->
+                <select
+                  v-model="selectedSkill"
+                  class="flex-1 bg-transparent text-[11px] sm:text-xs text-indigo-200 focus:outline-none cursor-pointer py-0.5 font-medium truncate"
+                  :disabled="isLoadingOnlineStudents"
+                  @change="onSkillChange"
+                >
+                  <option value="" class="bg-slate-900 text-slate-400">-- ជ្រើសរើសតាមជំនាញ (Select Skill) --</option>
+                  <option
+                    v-for="sk in skillOptions"
+                    :key="sk.name"
+                    :value="sk.name"
+                    class="bg-slate-900 text-slate-200"
+                  >
+                    {{ sk.name }} ({{ sk.count }} នាក់)
+                  </option>
+                  <option value="__ALL__" class="bg-slate-900 text-slate-300">
+                    សិស្សទាំងអស់ ({{ rawOnlineStudents.length }} នាក់)
+                  </option>
+                </select>
+
+                <!-- Optional Group Dropdown if skill has multiple groups -->
+                <select
+                  v-if="groupOptions.length > 1"
+                  v-model="selectedGroup"
+                  class="bg-slate-800 text-[10px] sm:text-[11px] text-slate-200 border border-slate-700 rounded px-1.5 py-0.5 focus:outline-none cursor-pointer max-w-[85px] sm:max-w-[105px] truncate"
+                  @change="onSkillChange"
+                  title="ជ្រើសរើសក្រុម"
+                >
+                  <option value="">គ្រប់ក្រុម</option>
+                  <option v-for="grp in groupOptions" :key="grp" :value="grp">{{ grp }}</option>
+                </select>
+
+                <!-- Fetch / Apply Button -->
+                <button
+                  type="button"
+                  class="px-2 sm:px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-xs font-bold flex items-center gap-1 transition cursor-pointer shrink-0 disabled:opacity-50"
+                  :disabled="isLoadingOnlineStudents"
+                  @click="fetchAndApplySkill"
+                  title="ទាញយកសិស្សតាមជំនាញ"
+                >
+                  <span class="material-symbols-outlined text-xs animate-spin" v-if="isLoadingOnlineStudents">sync</span>
+                  <span class="material-symbols-outlined text-xs" v-else>cloud_download</span>
+                  <span class="hidden sm:inline">ទាញយក</span>
+                </button>
+              </div>
+
+              <!-- Status line & demo button -->
+              <div class="flex justify-between items-center text-[10px] sm:text-[11px] text-slate-400 px-0.5">
+                <span class="text-slate-400 truncate max-w-[200px] sm:max-w-[260px]" v-if="currentLoadedSkillLabel">
+                  បានទាញ: <span class="text-emerald-400 font-bold">{{ currentLoadedSkillLabel }}</span>
+                </span>
+                <span v-else class="text-slate-500 truncate">* ជ្រើសរើសជំនាញដើម្បីទាញឈ្មោះសិស្ស</span>
+
+                <button
+                  type="button"
+                  class="text-indigo-400 hover:text-indigo-300 underline cursor-pointer shrink-0 ml-auto"
+                  @click="loadDemoStudents"
+                >
+                  ឈ្មោះគំរូ
+                </button>
+              </div>
             </div>
           </div>
 
@@ -682,6 +732,34 @@ const isSpinning = ref(false)
 const isMuted = ref(false)
 const isFullscreen = ref(false)
 const isLoadingOnlineStudents = ref(false)
+const rawOnlineStudents = ref([])
+const selectedSkill = ref('')
+const selectedGroup = ref('')
+const currentLoadedSkillLabel = ref('')
+
+const skillOptions = computed(() => {
+  const map = {}
+  for (const s of rawOnlineStudents.value) {
+    const sk = s.skill ? s.skill.trim() : 'គ្មានជំនាញ (Unassigned)'
+    map[sk] = (map[sk] || 0) + 1
+  }
+  return Object.keys(map).map(name => ({
+    name,
+    count: map[name]
+  })).sort((a, b) => a.name.localeCompare(b.name))
+})
+
+const groupOptions = computed(() => {
+  if (!selectedSkill.value || selectedSkill.value === '__ALL__') return []
+  const groups = new Set()
+  for (const s of rawOnlineStudents.value) {
+    const sk = s.skill ? s.skill.trim() : 'គ្មានជំនាញ (Unassigned)'
+    if (sk === selectedSkill.value && s.group) {
+      groups.add(s.group.trim())
+    }
+  }
+  return Array.from(groups).sort()
+})
 
 /* Timer State */
 const timerMaxSeconds = 60
@@ -1137,30 +1215,75 @@ const scoreCommentClass = computed(() => {
   return 'text-slate-400'
 })
 
-/* ── OnlineXam Integrations ── */
-async function loadOnlineXamStudents() {
+/* ── OnlineXam Integrations (Filter by Skill & Group) ── */
+async function fetchOnlineStudentsSilently() {
+  if (rawOnlineStudents.value.length > 0) return
   isLoadingOnlineStudents.value = true
   try {
     const res = await axios.get('/api/admin/students')
-    const students = res.data.students || []
-    if (students.length > 0) {
-      const studentNames = students.map(s => {
-        return s.studentCode ? `${s.name} (${s.studentCode})` : s.name
-      })
-      rawStudentsText.value = studentNames.join('\n')
-    } else {
-      alert('មិនមានទិន្នន័យសិស្សនៅក្នុងប្រព័ន្ធ OnlineXam ទេ។')
-    }
+    rawOnlineStudents.value = res.data.students || []
   } catch (err) {
     console.error('Failed to load students from OnlineXam API:', err)
-    alert('មិនអាចទាញយកឈ្មោះសិស្សបានទេ។ សូមពិនិត្យការតភ្ជាប់ប្រព័ន្ធ។')
   } finally {
     isLoadingOnlineStudents.value = false
   }
 }
 
+async function fetchAndApplySkill() {
+  if (rawOnlineStudents.value.length === 0) {
+    await fetchOnlineStudentsSilently()
+  }
+
+  if (!selectedSkill.value && skillOptions.value.length > 0) {
+    selectedSkill.value = skillOptions.value[0].name
+  }
+
+  applySkillFilter()
+}
+
+function onSkillChange() {
+  applySkillFilter()
+}
+
+function applySkillFilter() {
+  if (!rawOnlineStudents.value.length) return
+
+  let filtered = rawOnlineStudents.value
+
+  if (selectedSkill.value && selectedSkill.value !== '__ALL__') {
+    filtered = filtered.filter(s => {
+      const sk = s.skill ? s.skill.trim() : 'គ្មានជំនាញ (Unassigned)'
+      return sk === selectedSkill.value
+    })
+  }
+
+  if (selectedGroup.value) {
+    filtered = filtered.filter(s => s.group && s.group.trim() === selectedGroup.value)
+  }
+
+  if (filtered.length === 0) {
+    alert('មិនមានសិស្សនៅក្នុងជំនាញ/ក្រុមដែលបានជ្រើសរើសទេ។')
+    return
+  }
+
+  const studentNames = filtered.map(s => {
+    return s.studentCode ? `${s.name} (${s.studentCode})` : s.name
+  })
+
+  rawStudentsText.value = studentNames.join('\n')
+
+  let label = selectedSkill.value === '__ALL__' ? 'សិស្សទាំងអស់' : selectedSkill.value
+  if (selectedGroup.value) {
+    label += ` - ${selectedGroup.value}`
+  }
+  currentLoadedSkillLabel.value = `${label} (${filtered.length} នាក់)`
+}
+
 function loadDemoStudents() {
   rawStudentsText.value = DEFAULT_STUDENTS.join('\n')
+  selectedSkill.value = ''
+  selectedGroup.value = ''
+  currentLoadedSkillLabel.value = 'ឈ្មោះគំរូ (Demo)'
 }
 
 function loadDemoWords() {
@@ -1229,6 +1352,7 @@ function onWindowResize() {
 }
 
 onMounted(() => {
+  fetchOnlineStudentsSilently()
   window.addEventListener('keydown', onGlobalKeyDown)
   window.addEventListener('resize', onWindowResize)
   document.addEventListener('fullscreenchange', () => {
