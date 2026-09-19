@@ -55,6 +55,15 @@ const routes = [
       title: 'ទាយពាក្យ - កងវិលសំណាង | OnlineXam'
     }
   },
+  {
+    path: '/wheel-remote',
+    name: 'WheelRemoteController',
+    component: () => import('../admin/WheelRemoteController.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'តេលេបញ្ជាកងវិល | OnlineXam'
+    }
+  },
 
   // ── Admin & Super Admin ───────────────────────────────────────────
   {

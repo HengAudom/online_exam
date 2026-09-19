@@ -63,6 +63,27 @@
           </span>
         </button>
 
+        <!-- Mobile Remote Control Button -->
+        <button
+          type="button"
+          class="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 rounded-lg border transition cursor-pointer"
+          :class="isRemoteConnected 
+            ? 'bg-emerald-950/80 hover:bg-emerald-900/90 border-emerald-500/60 text-emerald-300 shadow-sm shadow-emerald-500/20' 
+            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300 hover:text-white'"
+          title="តេលេបញ្ជាទូរស័ព្ទ (Mobile Remote Controller)"
+          @click="showRemoteModal = true"
+        >
+          <span class="material-symbols-outlined text-sm sm:text-base" :class="isRemoteConnected ? 'text-emerald-400' : 'text-indigo-400'">smartphone</span>
+          <span class="text-xs font-bold hidden md:inline">តេលេបញ្ជា</span>
+          <span v-if="isRemoteConnected" class="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-400 bg-emerald-500/20 px-1.5 py-0.2 rounded border border-emerald-500/40">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Online</span>
+          </span>
+          <span v-else-if="remotePin" class="text-[10px] font-mono text-indigo-300 bg-indigo-950/80 px-1.5 py-0.2 rounded border border-indigo-800/60">
+            {{ remotePin }}
+          </span>
+        </button>
+
         <!-- Setup Quick Button -->
         <button
           v-if="currentView !== 'SETUP_VIEW'"
@@ -659,6 +680,152 @@
       <span>ទាយពាក្យ - កងវិលសំណាង (Lucky Wheel Guessing Game for Classrooms) • OnlineXam System</span>
     </footer>
 
+    <!-- ── 4. MOBILE REMOTE CONTROLLER PAIRING MODAL ────────────────── -->
+    <div
+      v-if="showRemoteModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md transition-all"
+      @click.self="showRemoteModal = false"
+    >
+      <div class="w-full max-w-lg bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-2 border-indigo-500/50 rounded-3xl p-5 sm:p-6 shadow-2xl shadow-indigo-950/80 relative text-left">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-xl">
+              <span class="material-symbols-outlined">smartphone</span>
+            </div>
+            <div>
+              <h3 class="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                <span>តេលេបញ្ជាតាមទូរស័ព្ទ</span>
+                <span class="text-[10px] uppercase font-bold text-indigo-400 bg-indigo-950/80 px-1.5 py-0.5 rounded border border-indigo-800">Mobile Remote</span>
+              </h3>
+              <p class="text-[11px] sm:text-xs text-slate-400">ប្រើទូរស័ព្ទដៃដូចតេលេបញ្ជាដើម្បីបង្វិលកង និងដាក់ពិន្ទុ</p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer transition"
+            @click="showRemoteModal = false"
+          >
+            <span class="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+
+        <!-- Connection Status Banner -->
+        <div class="mt-4">
+          <div
+            v-if="isRemoteConnected"
+            class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-emerald-950/60 border border-emerald-500/50 text-emerald-300 shadow-sm"
+          >
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <span class="material-symbols-outlined text-lg text-emerald-400">check_circle</span>
+            <div class="text-xs font-bold">
+              ទូរស័ព្ទបានភ្ជាប់ជោគជ័យ! <span class="text-emerald-200 font-normal">អ្នកអាចចាប់ផ្តើមបញ្ជាបានហើយ។</span>
+            </div>
+          </div>
+
+          <div
+            v-else
+            class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl bg-indigo-950/60 border border-indigo-500/40 text-indigo-300 shadow-sm"
+          >
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+            <span class="material-symbols-outlined text-lg text-amber-400">phonelink_ring</span>
+            <div class="text-xs font-bold">
+              កំពុងរង់ចាំទូរស័ព្ទភ្ជាប់... <span class="text-slate-400 font-normal">សូមស្កេន QR Code ឬវាយលេខកូដខាងក្រោម</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pairing Card: PIN + QR -->
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-12 gap-3.5 items-center bg-slate-950/80 border border-slate-800 rounded-2xl p-4">
+          
+          <!-- Left: 4-digit PIN -->
+          <div class="sm:col-span-7 flex flex-col items-center text-center">
+            <span class="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 mb-1">លេខកូដភ្ជាប់ (ROOM PIN)</span>
+            
+            <div class="flex items-center gap-2 my-1">
+              <div
+                v-for="(digit, idx) in remotePinDigits"
+                :key="idx"
+                class="w-11 h-13 sm:w-12 sm:h-14 rounded-xl bg-slate-900 border-2 border-indigo-500/60 flex items-center justify-center text-2xl sm:text-3xl font-black font-mono text-amber-300 shadow-md shadow-indigo-950"
+              >
+                {{ digit }}
+              </div>
+            </div>
+
+            <p class="text-[10px] sm:text-[11px] text-slate-400 mt-1">វាយលេខ ៤ ខ្ទង់នេះនៅលើទូរស័ព្ទរបស់អ្នក</p>
+
+            <button
+              type="button"
+              class="mt-2.5 text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 cursor-pointer transition"
+              @click="initRemoteRoom"
+            >
+              <span class="material-symbols-outlined text-xs">refresh</span>
+              <span>បង្កើតលេខកូដថ្មី (New PIN)</span>
+            </button>
+          </div>
+
+          <!-- Right: QR Code -->
+          <div class="sm:col-span-5 flex flex-col items-center text-center border-t sm:border-t-0 sm:border-l border-slate-800 pt-3 sm:pt-0 sm:pl-3">
+            <div class="p-1.5 bg-white rounded-xl shadow-md">
+              <img
+                v-if="qrCodeUrl"
+                :src="qrCodeUrl"
+                alt="QR Code for Mobile Remote"
+                class="w-28 h-28 sm:w-32 sm:h-32 object-contain"
+                loading="lazy"
+              />
+              <div v-else class="w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center text-slate-400 text-xs">
+                QR Code
+              </div>
+            </div>
+            <span class="text-[10px] text-slate-400 font-bold mt-1.5">ស្កេនដើម្បីបើកភ្លាមៗ</span>
+          </div>
+
+        </div>
+
+        <!-- Direct Link & Copy -->
+        <div class="mt-3 flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5">
+          <span class="material-symbols-outlined text-xs sm:text-sm text-slate-500 shrink-0">link</span>
+          <span class="text-[11px] text-slate-300 font-mono truncate flex-1">{{ remoteFullUrl }}</span>
+          <button
+            type="button"
+            class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] sm:text-xs flex items-center gap-1 cursor-pointer transition shrink-0"
+            @click="copyRemoteLink"
+          >
+            <span class="material-symbols-outlined text-xs">{{ copiedLink ? 'check' : 'content_copy' }}</span>
+            <span>{{ copiedLink ? 'បានចម្លង!' : 'ចម្លង Link' }}</span>
+          </button>
+        </div>
+
+        <!-- 3 Simple Steps -->
+        <div class="mt-3 p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
+          <div class="flex items-center gap-1.5 text-slate-300 font-bold">
+            <span class="material-symbols-outlined text-xs text-emerald-400">tips_and_updates</span>
+            <span>របៀបប្រើប្រាស់តេលេបញ្ជា៖</span>
+          </div>
+          <div class="pl-4 space-y-0.5 text-[10px] sm:text-[11px]">
+            <div>• <strong>ជំហានទី ១:</strong> ស្កេន QR Code ឬបើក Link ខាងលើតាមទូរស័ព្ទ</div>
+            <div>• <strong>ជំហានទី ២:</strong> ប្រព័ន្ធនឹងភ្ជាប់ដោយស្វ័យប្រវត្តិតាមរយៈលេខកូដ PIN</div>
+            <div>• <strong>ជំហានទី ៣:</strong> គ្រូអាចដើរក្នុងថ្នាក់ និងចុចបង្វិលកង, បង្ហាញពាក្យ, និងកាត់សេចក្តី ត្រូវ/ខុស ដោយសេរី</div>
+          </div>
+        </div>
+
+        <!-- Footer Action -->
+        <div class="mt-4 flex justify-end">
+          <button
+            type="button"
+            class="w-full sm:w-auto px-6 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-emerald-500 hover:from-indigo-500 hover:to-emerald-400 text-white font-bold text-xs sm:text-sm shadow-md cursor-pointer transition"
+            @click="showRemoteModal = false"
+          >
+            យល់ព្រម & ចាប់ផ្តើម
+          </button>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -728,6 +895,32 @@ const isLoadingOnlineStudents = ref(false)
 const rawOnlineStudents = ref([])
 const selectedFilterId = ref('')
 const currentLoadedSkillLabel = ref('')
+
+/* ── Mobile Remote Controller State ── */
+const remoteRoom = ref('')
+const remotePin = ref('')
+const isRemoteConnected = ref(false)
+const showRemoteModal = ref(false)
+const copiedLink = ref(false)
+let remotePollInterval = null
+let lastProcessedCmdId = ''
+
+const remotePinDigits = computed(() => {
+  const p = remotePin.value || '----'
+  return p.split('')
+})
+
+const remoteFullUrl = computed(() => {
+  if (typeof window === 'undefined') return ''
+  const origin = window.location.origin
+  return `${origin}/wheel-remote?pin=${remotePin.value}`
+})
+
+const qrCodeUrl = computed(() => {
+  if (!remotePin.value) return ''
+  const target = remoteFullUrl.value
+  return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(target)}`
+})
 
 const filterOptions = computed(() => {
   const list = []
@@ -1053,6 +1246,7 @@ function triggerSpin() {
   if (isSpinning.value || parsedStudents.value.length === 0) return
   isSpinning.value = true
   initAudio()
+  syncRemoteState()
 
   const randomSpins = 5 + Math.random() * 3
   wheelSpinVelocity = randomSpins * 0.08 + Math.random() * 0.04
@@ -1099,6 +1293,7 @@ function onSpinComplete() {
 
   playWinnerFanfare()
   triggerFullScreenCelebration()
+  syncRemoteState()
 }
 
 function handleWheelClick() {
@@ -1119,6 +1314,7 @@ function switchView(viewName) {
   } else {
     stopTimer()
   }
+  syncRemoteState()
 }
 
 function startSession() {
@@ -1156,13 +1352,18 @@ function startTimer() {
   stopTimer()
   timerSeconds.value = timerMaxSeconds
   isTimerPaused.value = false
+  syncRemoteState()
 
   timerInterval = setInterval(() => {
     if (!isTimerPaused.value) {
       timerSeconds.value--
+      if (timerSeconds.value % 4 === 0) {
+        syncRemoteState()
+      }
       if (timerSeconds.value <= 0) {
         stopTimer()
         playWrongSound()
+        syncRemoteState()
       }
     }
   }, 1000)
@@ -1177,6 +1378,7 @@ function stopTimer() {
 
 function toggleTimerPause() {
   isTimerPaused.value = !isTimerPaused.value
+  syncRemoteState()
 }
 
 /* ── Teacher Actions ── */
@@ -1211,6 +1413,7 @@ function handleTeacherDecision(isCorrect) {
       switchView('WHEEL_VIEW')
     }, 300)
   }
+  syncRemoteState()
 }
 
 function playNextRound() {
@@ -1219,6 +1422,138 @@ function playNextRound() {
   roundWordsHistory.value = []
   currentExplainer.value = ''
   switchView('WHEEL_VIEW')
+}
+
+/* ── Mobile Remote Controller Remote Polling & Execution ── */
+async function initRemoteRoom() {
+  try {
+    const res = await axios.get('/api/lucky-wheel/remote/room')
+    if (res.data?.success) {
+      remoteRoom.value = res.data.room
+      remotePin.value = res.data.room
+      syncRemoteState()
+      startRemotePolling()
+    }
+  } catch (err) {
+    console.error('Failed to init remote room:', err)
+  }
+}
+
+function startRemotePolling() {
+  if (remotePollInterval) clearInterval(remotePollInterval)
+  remotePollInterval = setInterval(async () => {
+    if (!remotePin.value) return
+    try {
+      const res = await axios.get('/api/lucky-wheel/remote/poll', {
+        params: {
+          room: remotePin.value,
+          last_cmd_id: lastProcessedCmdId || undefined
+        }
+      })
+
+      if (res.data?.success) {
+        isRemoteConnected.value = !!res.data.phoneActive
+
+        if (res.data.hasNewCommand && res.data.command) {
+          const cmd = res.data.command
+          lastProcessedCmdId = cmd.id
+          handleIncomingRemoteCommand(cmd.action, cmd.payload)
+        }
+      }
+    } catch (e) {
+      // silent poll catch
+    }
+  }, 600)
+}
+
+function handleIncomingRemoteCommand(action, payload) {
+  switch (action) {
+    case 'SPIN':
+      if (currentView.value === 'WHEEL_VIEW') {
+        if (!isSpinning.value) triggerSpin()
+      } else if (currentView.value === 'SETUP_VIEW') {
+        startSession()
+        nextTick(() => {
+          if (!isSpinning.value) triggerSpin()
+        })
+      }
+      break
+
+    case 'START_GUESSING':
+      if (currentView.value === 'WHEEL_VIEW' && currentExplainer.value && !isSpinning.value) {
+        startGuessingCurrentWord()
+      }
+      break
+
+    case 'DECISION_CORRECT':
+      if (currentView.value === 'GUESSING_VIEW') {
+        handleTeacherDecision(true)
+      }
+      break
+
+    case 'DECISION_WRONG':
+      if (currentView.value === 'GUESSING_VIEW') {
+        handleTeacherDecision(false)
+      }
+      break
+
+    case 'TOGGLE_TIMER':
+      if (currentView.value === 'GUESSING_VIEW') {
+        toggleTimerPause()
+      }
+      break
+
+    case 'TOGGLE_WORD_VISIBILITY':
+      if (currentView.value === 'GUESSING_VIEW') {
+        isWordVisible.value = !isWordVisible.value
+        syncRemoteState()
+      }
+      break
+
+    case 'START_SESSION':
+      if (currentView.value === 'SETUP_VIEW') {
+        startSession()
+      }
+      break
+
+    case 'NEW_ROUND':
+      if (currentView.value === 'ROUND_SUMMARY_VIEW') {
+        playNextRound()
+      }
+      break
+  }
+}
+
+function syncRemoteState() {
+  if (!remotePin.value) return
+  const state = {
+    view: currentView.value,
+    currentWord: currentWord.value,
+    currentExplainer: currentExplainer.value,
+    currentScore: currentScore.value,
+    wordsPerRound: wordsPerRound.value,
+    currentWordIndex: currentWordIndex.value,
+    timerSeconds: timerSeconds.value,
+    timerMaxSeconds: timerMaxSeconds,
+    isTimerPaused: isTimerPaused.value,
+    isSpinning: isSpinning.value,
+    isWordVisible: isWordVisible.value,
+  }
+
+  axios.post('/api/lucky-wheel/remote/sync', {
+    room: remotePin.value,
+    state: state
+  }).catch(() => {})
+}
+
+function copyRemoteLink() {
+  if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(remoteFullUrl.value)
+    copiedLink.value = true
+    setTimeout(() => {
+      copiedLink.value = false
+    }, 2500)
+  }
 }
 
 /* ── Score Compliment ── */
@@ -1383,6 +1718,7 @@ function onWindowResize() {
 
 onMounted(() => {
   fetchOnlineStudentsSilently()
+  initRemoteRoom()
   window.addEventListener('keydown', onGlobalKeyDown)
   window.addEventListener('resize', onWindowResize)
   document.addEventListener('fullscreenchange', () => {
@@ -1396,6 +1732,7 @@ onMounted(() => {
 onUnmounted(() => {
   stopTimer()
   if (wheelAnimationId) cancelAnimationFrame(wheelAnimationId)
+  if (remotePollInterval) clearInterval(remotePollInterval)
   window.removeEventListener('keydown', onGlobalKeyDown)
   window.removeEventListener('resize', onWindowResize)
 })

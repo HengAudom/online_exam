@@ -6,7 +6,17 @@ use App\Http\Controllers\ExamController;
 use App\Http\Controllers\TestController;
 use App\Http\Controllers\ResultController;
 use App\Http\Controllers\TelegramBotController;
+use App\Http\Controllers\LuckyWheelRemoteController;
 use Illuminate\Support\Facades\Route;
+
+// ─── Lucky Wheel Remote Controller (Mobile Remote Clicker) ─────────────────
+Route::post('/api/lucky-wheel/remote/room', [LuckyWheelRemoteController::class, 'createOrGetRoom']);
+Route::post('/api/lucky-wheel/remote/sync', [LuckyWheelRemoteController::class, 'syncState']);
+Route::get('/api/lucky-wheel/remote/state', [LuckyWheelRemoteController::class, 'getState']);
+Route::post('/api/lucky-wheel/remote/command', [LuckyWheelRemoteController::class, 'sendCommand']);
+Route::get('/api/lucky-wheel/remote/poll', [LuckyWheelRemoteController::class, 'poll']);
+Route::post('/api/lucky-wheel/remote/ping', [LuckyWheelRemoteController::class, 'ping']);
+
 
 // ─── Telegram Bot Integration ────────────────────────────────────────────────
 Route::match(['get', 'post'], '/api/telegram/get-chat-id', [TelegramBotController::class, 'getChatId']);
