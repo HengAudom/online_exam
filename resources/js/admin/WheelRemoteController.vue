@@ -120,13 +120,17 @@
         <button
           type="button"
           class="btn-start-session"
+          :disabled="sendingAction === 'START_SESSION'"
           @click="sendCommand('START_SESSION')"
         >
-          <!-- Play SVG -->
-          <svg class="svg-icon-md" viewBox="0 0 24 24" fill="currentColor">
+          <!-- Play / Spin SVG -->
+          <svg v-if="sendingAction === 'START_SESSION'" class="svg-icon-md spin-animate" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+          </svg>
+          <svg v-else class="svg-icon-md" viewBox="0 0 24 24" fill="currentColor">
             <polygon points="5 3 19 12 5 21 5 3"></polygon>
           </svg>
-          <span>ចាប់ផ្តើមលេង (Start Session)</span>
+          <span>{{ sendingAction === 'START_SESSION' ? 'កំពុងចាប់ផ្តើម...' : 'ចាប់ផ្តើមលេង (Start Session)' }}</span>
         </button>
       </div>
 
@@ -497,6 +501,8 @@ function connectWithPin() {
   }
 }
 
+const sendingAction = ref('')
+
 function disconnectRoom() {
   stopPolling()
   isConnected.value = false
@@ -507,6 +513,7 @@ function disconnectRoom() {
 async function sendCommand(action, payload = {}) {
   if (!roomPin.value) return
   triggerHaptic()
+  sendingAction.value = action
 
   // Optimistic local feedback
   if (action === 'SPIN') {
@@ -519,8 +526,18 @@ async function sendCommand(action, payload = {}) {
       action,
       payload
     })
+    // Immediately fetch updated state from host
+    setTimeout(fetchState, 150)
+    setTimeout(fetchState, 500)
+    setTimeout(fetchState, 1200)
   } catch (err) {
     console.error('Failed to send remote command:', err)
+  } finally {
+    setTimeout(() => {
+      if (sendingAction.value === action) {
+        sendingAction.value = ''
+      }
+    }, 450)
   }
 }
 

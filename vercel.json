@@ -98,6 +98,9 @@
     "SESSION_LIFETIME": "1440",
     "SESSION_COOKIE": "online_exam_session",
     "SESSION_SECURE_COOKIE": "true",
+    "CACHE_STORE": "database",
+    "CACHE_DRIVER": "database",
+    "DB_CACHE_TABLE": "cache",
     "LOG_CHANNEL": "stderr"
   }
 }
