@@ -47,10 +47,12 @@
     <main v-if="!isConnected" class="remote-screen-center">
       <div class="remote-card">
         <div class="radar-badge">
-          <!-- Cast / Radio SVG -->
-          <svg class="svg-icon-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8A13 13 0 0 1 14 20"></path>
-            <line x1="2" y1="20" x2="2.01" y2="20"></line>
+          <!-- Cast / Radio Waves SVG (Centered & Enlarged) -->
+          <svg class="radar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 14a6 6 0 0 1 6 6" />
+            <path d="M4 9a11 11 0 0 1 11 11" />
+            <path d="M4 4a16 16 0 0 1 16 16" />
+            <circle cx="4" cy="20" r="1.5" fill="currentColor" stroke="none" />
           </svg>
         </div>
 
@@ -823,17 +825,23 @@ onUnmounted(() => {
 }
 
 .radar-badge {
-  width: 64px;
-  height: 64px;
+  width: 68px;
+  height: 68px;
   margin: 0 auto 16px auto;
-  border-radius: 20px;
-  background: rgba(99, 102, 241, 0.15);
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 22px;
+  background: rgba(99, 102, 241, 0.16);
+  border: 1px solid rgba(99, 102, 241, 0.35);
   color: #818cf8;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 25px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 28px rgba(99, 102, 241, 0.25);
+}
+
+.radar-icon {
+  width: 36px;
+  height: 36px;
+  display: block;
 }
 
 .card-title {
