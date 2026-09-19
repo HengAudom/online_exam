@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v18';
+const CACHE_VERSION = 'v19';
 const CACHE_NAME = `online-exam-pwa-${CACHE_VERSION}`;
 
 const PRECACHE_ASSETS = [

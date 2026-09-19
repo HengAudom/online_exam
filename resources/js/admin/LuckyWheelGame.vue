@@ -111,7 +111,10 @@
     </header>
 
     <!-- ── 2. MAIN WORKSPACE CONTAINER (Zero Scrollbar Guaranteed) ───── -->
-    <main class="flex-1 flex flex-col justify-center items-center px-2.5 sm:px-6 lg:px-8 py-1 sm:py-2 w-full max-w-[96vw] 2xl:max-w-[1680px] mx-auto relative min-h-0 overflow-hidden z-10">
+    <main
+      class="flex-1 flex flex-col items-center px-2.5 sm:px-6 lg:px-8 py-1 sm:py-2 w-full max-w-[96vw] 2xl:max-w-[1680px] mx-auto relative min-h-0 overflow-hidden z-10"
+      :class="currentView === 'GUESSING_VIEW' ? 'justify-start pt-1 sm:pt-2' : 'justify-center'"
+    >
       
       <!-- ═══════════════════════════════════════════════════════════════ -->
       <!-- VIEW 1: SETUP_VIEW (COMPACT & PRECISE)                          -->
@@ -427,10 +430,10 @@
       <!-- ═══════════════════════════════════════════════════════════════ -->
       <section
         v-if="currentView === 'GUESSING_VIEW'"
-        class="w-full max-w-6xl xl:max-w-7xl 2xl:max-w-[1550px] flex flex-col items-center justify-center my-auto px-2 sm:px-4 transition-all"
+        class="w-full max-w-6xl xl:max-w-7xl 2xl:max-w-[1550px] flex flex-col items-center justify-start mt-0 sm:mt-1 mb-auto px-2 sm:px-4 transition-all"
       >
         <!-- Top Meta Bar: Progress, Timer, Score -->
-        <div class="w-full flex items-center justify-between bg-slate-900/90 border-2 border-slate-800 rounded-2xl px-5 sm:px-8 py-2.5 sm:py-3 mb-3 sm:mb-4 backdrop-blur-md shadow-xl">
+        <div class="w-full flex items-center justify-between bg-slate-900/90 border-2 border-slate-800 rounded-2xl px-4 sm:px-6 md:px-8 py-2 sm:py-2.5 mb-2 sm:mb-3 backdrop-blur-md shadow-xl">
           <!-- Word Progress -->
           <div class="flex items-center gap-2 sm:gap-3">
             <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-sm sm:text-base font-bold">
@@ -478,7 +481,7 @@
         </div>
 
         <!-- Giant Projector Display Card -->
-        <div class="w-full bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950 border-2 border-indigo-500/40 rounded-3xl p-5 sm:p-7 md:p-9 lg:p-11 shadow-2xl shadow-indigo-950/60 text-center relative overflow-hidden backdrop-blur-xl flex flex-col justify-between min-h-[48vh] max-h-[76vh]">
+        <div class="w-full bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950 border-2 border-indigo-500/40 rounded-3xl p-3.5 sm:p-5 md:p-7 lg:p-8 shadow-2xl shadow-indigo-950/60 text-center relative overflow-hidden backdrop-blur-xl flex flex-col justify-between min-h-[46vh] max-h-[76vh]">
           
           <!-- Explainer Banner (Always 1 Single Line) -->
           <div class="max-w-3xl mx-auto mb-2 sm:mb-4 w-full">
@@ -499,7 +502,7 @@
           </div>
 
           <!-- Secret Word Display with Adaptive Typography -->
-          <div class="py-3 sm:py-6 md:py-8 my-0.5 sm:my-1 flex-1 flex flex-col justify-center">
+          <div class="py-1 sm:py-3 md:py-4 my-0.5 flex-1 flex flex-col justify-center">
             <div class="text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-extrabold mb-1.5 sm:mb-2.5 flex items-center justify-center gap-2">
               <span>ពាក្យសម្ងាត់ត្រូវទាយ (SECRET WORD)</span>
               <button
@@ -826,6 +829,24 @@
       </div>
     </div>
 
+    <!-- ── 5. TIME'S UP ALERT MODAL ───────────────────────────────────── -->
+    <div
+      v-if="isTimeUpBannerVisible"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm transition-all animate-fade-in"
+    >
+      <div class="w-full max-w-sm bg-gradient-to-b from-slate-900 via-slate-900 to-rose-950/80 border-2 border-rose-500/80 rounded-3xl p-6 sm:p-7 text-center shadow-2xl shadow-rose-950/80">
+        <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-rose-500/20 border-2 border-rose-500/40 text-rose-400 flex items-center justify-center shadow-lg shadow-rose-500/30">
+          <span class="material-symbols-outlined text-4xl sm:text-5xl animate-pulse">timer_off</span>
+        </div>
+        <h3 class="text-xl sm:text-2xl font-black text-white tracking-tight">អស់ពេលពន្យល់ហើយ!</h3>
+        <p class="text-xs text-rose-300 font-extrabold uppercase tracking-widest mt-1">TIME'S UP</p>
+        <div class="mt-4 py-2 px-3.5 rounded-xl bg-slate-800/90 border border-slate-700 text-slate-300 text-xs flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-amber-400 text-base animate-spin">sync</span>
+          <span>ត្រឡប់ទៅបង្វិលកងជ្រើសរើសសិស្សថ្មី...</span>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -982,7 +1003,9 @@ const filterOptions = computed(() => {
 const timerMaxSeconds = 60
 const timerSeconds = ref(60)
 const isTimerPaused = ref(false)
+const isTimeUpBannerVisible = ref(false)
 let timerInterval = null
+let timeUpTimeoutId = null
 
 /* ── Parsed Lists ── */
 const parsedStudents = computed(() => {
@@ -1089,6 +1112,29 @@ function playWrongSound() {
     gain.connect(audioCtx.destination)
     osc.start()
     osc.stop(audioCtx.currentTime + 0.3)
+  } catch (e) {}
+}
+
+function playTimeUpSound() {
+  if (isMuted.value) return
+  initAudio()
+  if (!audioCtx) return
+  try {
+    const playBuzz = (delay) => {
+      const osc = audioCtx.createOscillator()
+      const gain = audioCtx.createGain()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(160, audioCtx.currentTime + delay)
+      osc.frequency.setValueAtTime(130, audioCtx.currentTime + delay + 0.15)
+      gain.gain.setValueAtTime(0.25, audioCtx.currentTime + delay)
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.25)
+      osc.connect(gain)
+      gain.connect(audioCtx.destination)
+      osc.start(audioCtx.currentTime + delay)
+      osc.stop(audioCtx.currentTime + delay + 0.25)
+    }
+    playBuzz(0)
+    playBuzz(0.3)
   } catch (e) {}
 }
 
@@ -1369,6 +1415,12 @@ function handleWheelClick() {
 
 /* ── View Transitions ── */
 function switchView(viewName) {
+  if (timeUpTimeoutId) {
+    clearTimeout(timeUpTimeoutId)
+    timeUpTimeoutId = null
+  }
+  isTimeUpBannerVisible.value = false
+
   currentView.value = viewName
   if (viewName === 'WHEEL_VIEW') {
     nextTick(() => {
@@ -1415,6 +1467,11 @@ function startGuessingCurrentWord() {
 /* ── Timer Controls ── */
 function startTimer() {
   stopTimer()
+  if (timeUpTimeoutId) {
+    clearTimeout(timeUpTimeoutId)
+    timeUpTimeoutId = null
+  }
+  isTimeUpBannerVisible.value = false
   timerSeconds.value = timerMaxSeconds
   isTimerPaused.value = false
   syncRemoteState()
@@ -1427,8 +1484,15 @@ function startTimer() {
       }
       if (timerSeconds.value <= 0) {
         stopTimer()
-        playWrongSound()
+        playTimeUpSound()
+        isTimeUpBannerVisible.value = true
         syncRemoteState()
+
+        timeUpTimeoutId = setTimeout(() => {
+          isTimeUpBannerVisible.value = false
+          currentExplainer.value = ''
+          switchView('WHEEL_VIEW')
+        }, 1700)
       }
     }
   }, 1000)
@@ -1873,6 +1937,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopTimer()
+  if (timeUpTimeoutId) clearTimeout(timeUpTimeoutId)
   if (wheelAnimationId) cancelAnimationFrame(wheelAnimationId)
   if (remotePollInterval) clearInterval(remotePollInterval)
   window.removeEventListener('keydown', onGlobalKeyDown)
