@@ -12,11 +12,28 @@ class LuckyWheelRemoteController extends Controller
      */
     public function createOrGetRoom(Request $request)
     {
-        $requestedPin = $request->input('room');
+        $requestedPin = $request->input('room') ?: $request->query('room');
 
-        if ($requestedPin && Cache::has("wheel_room_{$requestedPin}")) {
-            $pin = $requestedPin;
-            $state = Cache::get("wheel_room_{$pin}");
+        if ($requestedPin && strlen((string)$requestedPin) === 4) {
+            $pin = (string) $requestedPin;
+            if (Cache::has("wheel_room_{$pin}")) {
+                $state = Cache::get("wheel_room_{$pin}");
+            } else {
+                $state = [
+                    'view' => 'SETUP_VIEW',
+                    'currentWord' => '',
+                    'currentExplainer' => '',
+                    'currentScore' => 0,
+                    'wordsPerRound' => 5,
+                    'currentWordIndex' => 0,
+                    'timerSeconds' => 60,
+                    'isTimerPaused' => false,
+                    'isSpinning' => false,
+                    'isWordVisible' => true,
+                    'updatedAt' => now()->timestamp,
+                ];
+                Cache::put("wheel_room_{$pin}", $state, now()->addHours(12));
+            }
         } else {
             // Generate unique 4-digit PIN between 1000 and 9999
             do {
@@ -40,6 +57,8 @@ class LuckyWheelRemoteController extends Controller
             Cache::put("wheel_room_{$pin}", $state, now()->addHours(12));
         }
 
+        Cache::put("wheel_host_active_{$pin}", true, now()->addSeconds(30));
+
         return response()->json([
             'success' => true,
             'room' => $pin,
@@ -52,7 +71,7 @@ class LuckyWheelRemoteController extends Controller
      */
     public function syncState(Request $request)
     {
-        $room = $request->input('room');
+        $room = $request->input('room') ?: $request->query('room');
         $state = $request->input('state');
 
         if (!$room || !is_array($state)) {
@@ -61,6 +80,7 @@ class LuckyWheelRemoteController extends Controller
 
         $state['updatedAt'] = now()->timestamp;
         Cache::put("wheel_room_{$room}", $state, now()->addHours(12));
+        Cache::put("wheel_host_active_{$room}", true, now()->addSeconds(30));
 
         return response()->json(['success' => true]);
     }
@@ -70,17 +90,34 @@ class LuckyWheelRemoteController extends Controller
      */
     public function getState(Request $request)
     {
-        $room = $request->query('room');
+        $room = $request->query('room') ?: $request->input('room');
 
-        if (!$room || !Cache::has("wheel_room_{$room}")) {
-            return response()->json(['success' => false, 'message' => 'Room not found or expired'], 404);
+        if (!$room) {
+            return response()->json(['success' => false, 'message' => 'Room code required'], 422);
+        }
+
+        if (!Cache::has("wheel_room_{$room}")) {
+            $defaultState = [
+                'view' => 'SETUP_VIEW',
+                'currentWord' => '',
+                'currentExplainer' => '',
+                'currentScore' => 0,
+                'wordsPerRound' => 5,
+                'currentWordIndex' => 0,
+                'timerSeconds' => 60,
+                'isTimerPaused' => false,
+                'isSpinning' => false,
+                'isWordVisible' => true,
+                'updatedAt' => now()->timestamp,
+            ];
+            Cache::put("wheel_room_{$room}", $defaultState, now()->addHours(12));
         }
 
         $state = Cache::get("wheel_room_{$room}");
 
         return response()->json([
             'success' => true,
-            'room' => $room,
+            'room' => (string) $room,
             'state' => $state,
         ]);
     }

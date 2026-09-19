@@ -71,7 +71,7 @@
             ? 'bg-emerald-950/80 hover:bg-emerald-900/90 border-emerald-500/60 text-emerald-300 shadow-sm shadow-emerald-500/20' 
             : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300 hover:text-white'"
           title="តេលេបញ្ជាទូរស័ព្ទ (Mobile Remote Controller)"
-          @click="showRemoteModal = true"
+          @click="openRemoteModal"
         >
           <span class="material-symbols-outlined text-sm sm:text-base" :class="isRemoteConnected ? 'text-emerald-400' : 'text-indigo-400'">smartphone</span>
           <span class="text-xs font-bold hidden md:inline">តេលេបញ្ជា</span>
@@ -759,7 +759,7 @@
             <button
               type="button"
               class="mt-2.5 text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 cursor-pointer transition"
-              @click="initRemoteRoom"
+              @click="generateNewPin"
             >
               <span class="material-symbols-outlined text-xs">refresh</span>
               <span>បង្កើតលេខកូដថ្មី (New PIN)</span>
@@ -768,16 +768,16 @@
 
           <!-- Right: QR Code -->
           <div class="sm:col-span-5 flex flex-col items-center text-center border-t sm:border-t-0 sm:border-l border-slate-800 pt-3 sm:pt-0 sm:pl-3">
-            <div class="p-1.5 bg-white rounded-xl shadow-md">
+            <div class="p-2 bg-white rounded-xl shadow-md">
               <img
-                v-if="qrCodeUrl"
-                :src="qrCodeUrl"
+                v-if="qrCodeDataUrl"
+                :src="qrCodeDataUrl"
                 alt="QR Code for Mobile Remote"
-                class="w-28 h-28 sm:w-32 sm:h-32 object-contain"
-                loading="lazy"
+                class="w-28 h-28 sm:w-32 sm:h-32 object-contain block"
               />
-              <div v-else class="w-28 h-28 sm:w-32 sm:h-32 flex items-center justify-center text-slate-400 text-xs">
-                QR Code
+              <div v-else class="w-28 h-28 sm:w-32 sm:h-32 flex flex-col items-center justify-center text-slate-800 text-xs font-bold gap-1">
+                <span class="material-symbols-outlined text-xl animate-spin text-indigo-600">sync</span>
+                <span class="text-[10px]">បង្កើត QR...</span>
               </div>
             </div>
             <span class="text-[10px] text-slate-400 font-bold mt-1.5">ស្កេនដើម្បីបើកភ្លាមៗ</span>
@@ -834,6 +834,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import confetti from 'canvas-confetti'
+import QRCode from 'qrcode'
 
 const router = useRouter()
 const gameRootRef = ref(null)
@@ -897,16 +898,22 @@ const selectedFilterId = ref('')
 const currentLoadedSkillLabel = ref('')
 
 /* ── Mobile Remote Controller State ── */
-const remoteRoom = ref('')
-const remotePin = ref('')
+function generateRandomPin() {
+  return String(Math.floor(1000 + Math.random() * 9000))
+}
+
+const initialPin = generateRandomPin()
+const remoteRoom = ref(initialPin)
+const remotePin = ref(initialPin)
 const isRemoteConnected = ref(false)
 const showRemoteModal = ref(false)
 const copiedLink = ref(false)
+const qrCodeDataUrl = ref('')
 let remotePollInterval = null
 let lastProcessedCmdId = ''
 
 const remotePinDigits = computed(() => {
-  const p = remotePin.value || '----'
+  const p = remotePin.value || initialPin
   return p.split('')
 })
 
@@ -914,12 +921,6 @@ const remoteFullUrl = computed(() => {
   if (typeof window === 'undefined') return ''
   const origin = window.location.origin
   return `${origin}/wheel-remote?pin=${remotePin.value}`
-})
-
-const qrCodeUrl = computed(() => {
-  if (!remotePin.value) return ''
-  const target = remoteFullUrl.value
-  return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(target)}`
 })
 
 const filterOptions = computed(() => {
@@ -1425,17 +1426,60 @@ function playNextRound() {
 }
 
 /* ── Mobile Remote Controller Remote Polling & Execution ── */
-async function initRemoteRoom() {
+async function refreshQrCode() {
+  if (!remoteFullUrl.value) return
   try {
-    const res = await axios.get('/api/lucky-wheel/remote/room')
-    if (res.data?.success) {
+    qrCodeDataUrl.value = await QRCode.toDataURL(remoteFullUrl.value, {
+      width: 240,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: {
+        dark: '#0f172a',
+        light: '#ffffff'
+      }
+    })
+  } catch (err) {
+    qrCodeDataUrl.value = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(remoteFullUrl.value)}`
+  }
+}
+
+function openRemoteModal() {
+  showRemoteModal.value = true
+  refreshQrCode()
+}
+
+async function generateNewPin() {
+  const freshPin = generateRandomPin()
+  remotePin.value = freshPin
+  remoteRoom.value = freshPin
+  await refreshQrCode()
+  await initRemoteRoom(true)
+}
+
+async function initRemoteRoom(forceWithCurrentPin = false) {
+  if (!remotePin.value) {
+    const freshPin = generateRandomPin()
+    remotePin.value = freshPin
+    remoteRoom.value = freshPin
+  }
+
+  await refreshQrCode()
+
+  try {
+    const res = await axios.post('/api/lucky-wheel/remote/room', {
+      room: remotePin.value
+    })
+    if (res.data?.success && res.data.room) {
       remoteRoom.value = res.data.room
       remotePin.value = res.data.room
-      syncRemoteState()
-      startRemotePolling()
+      await refreshQrCode()
     }
   } catch (err) {
-    console.error('Failed to init remote room:', err)
+    console.warn('initRemoteRoom notice (fallback to current PIN):', err)
+  } finally {
+    await refreshQrCode()
+    syncRemoteState()
+    startRemotePolling()
   }
 }
 

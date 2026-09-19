@@ -10,12 +10,12 @@ use App\Http\Controllers\LuckyWheelRemoteController;
 use Illuminate\Support\Facades\Route;
 
 // ─── Lucky Wheel Remote Controller (Mobile Remote Clicker) ─────────────────
-Route::post('/api/lucky-wheel/remote/room', [LuckyWheelRemoteController::class, 'createOrGetRoom']);
-Route::post('/api/lucky-wheel/remote/sync', [LuckyWheelRemoteController::class, 'syncState']);
-Route::get('/api/lucky-wheel/remote/state', [LuckyWheelRemoteController::class, 'getState']);
-Route::post('/api/lucky-wheel/remote/command', [LuckyWheelRemoteController::class, 'sendCommand']);
-Route::get('/api/lucky-wheel/remote/poll', [LuckyWheelRemoteController::class, 'poll']);
-Route::post('/api/lucky-wheel/remote/ping', [LuckyWheelRemoteController::class, 'ping']);
+Route::match(['get', 'post'], '/api/lucky-wheel/remote/room', [LuckyWheelRemoteController::class, 'createOrGetRoom']);
+Route::match(['get', 'post'], '/api/lucky-wheel/remote/sync', [LuckyWheelRemoteController::class, 'syncState']);
+Route::match(['get', 'post'], '/api/lucky-wheel/remote/state', [LuckyWheelRemoteController::class, 'getState']);
+Route::match(['get', 'post'], '/api/lucky-wheel/remote/command', [LuckyWheelRemoteController::class, 'sendCommand']);
+Route::match(['get', 'post'], '/api/lucky-wheel/remote/poll', [LuckyWheelRemoteController::class, 'poll']);
+Route::match(['get', 'post'], '/api/lucky-wheel/remote/ping', [LuckyWheelRemoteController::class, 'ping']);
 
 
 // ─── Telegram Bot Integration ────────────────────────────────────────────────
