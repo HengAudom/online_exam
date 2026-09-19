@@ -90,7 +90,7 @@
     </header>
 
     <!-- ── 2. MAIN WORKSPACE CONTAINER (Zero Scrollbar Guaranteed) ───── -->
-    <main class="flex-1 flex flex-col justify-center items-center px-2.5 sm:px-6 py-1 sm:py-2 max-w-7xl mx-auto w-full relative min-h-0 overflow-hidden z-10">
+    <main class="flex-1 flex flex-col justify-center items-center px-2.5 sm:px-6 lg:px-8 py-1 sm:py-2 w-full max-w-[96vw] 2xl:max-w-[1680px] mx-auto relative min-h-0 overflow-hidden z-10">
       
       <!-- ═══════════════════════════════════════════════════════════════ -->
       <!-- VIEW 1: SETUP_VIEW (COMPACT & PRECISE)                          -->
@@ -216,7 +216,7 @@
         </div>
 
         <!-- Round Settings (Words per round) -->
-        <div class="bg-gradient-to-r from-slate-950/90 via-indigo-950/40 to-slate-950/90 border border-indigo-900/50 rounded-xl p-2.5 sm:p-3 mb-3">
+        <div class="bg-gradient-to-r from-slate-950/90 via-indigo-950/40 to-slate-950 border border-indigo-900/50 rounded-xl p-2.5 sm:p-3 mb-3">
           <div class="flex flex-col sm:flex-row items-center justify-between gap-2.5">
             <div class="flex items-center gap-2 text-xs sm:text-sm font-bold text-indigo-300">
               <span class="material-symbols-outlined text-sm sm:text-base text-indigo-400">tune</span>
@@ -402,40 +402,40 @@
       </section>
 
       <!-- ═══════════════════════════════════════════════════════════════ -->
-      <!-- VIEW 3: GUESSING_VIEW (PROJECTOR CARD - ZERO-SCROLL GUARANTEE)  -->
+      <!-- VIEW 3: GUESSING_VIEW (PROJECTOR CARD - FULL COMMAND VIEW)      -->
       <!-- ═══════════════════════════════════════════════════════════════ -->
       <section
         v-if="currentView === 'GUESSING_VIEW'"
-        class="w-full max-w-5xl xl:max-w-6xl flex flex-col items-center justify-center my-auto px-2 transition-all"
+        class="w-full max-w-6xl xl:max-w-7xl 2xl:max-w-[1550px] flex flex-col items-center justify-center my-auto px-2 sm:px-4 transition-all"
       >
         <!-- Top Meta Bar: Progress, Timer, Score -->
-        <div class="w-full flex items-center justify-between bg-slate-900/90 border-2 border-slate-800 rounded-2xl px-4 sm:px-6 py-2 mb-2 sm:mb-2.5 backdrop-blur-md shadow-xl">
+        <div class="w-full flex items-center justify-between bg-slate-900/90 border-2 border-slate-800 rounded-2xl px-5 sm:px-8 py-2.5 sm:py-3 mb-3 sm:mb-4 backdrop-blur-md shadow-xl">
           <!-- Word Progress -->
-          <div class="flex items-center gap-2">
-            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-sm sm:text-base font-bold">
-              <span class="material-symbols-outlined text-base sm:text-lg">tag</span>
+          <div class="flex items-center gap-2 sm:gap-3">
+            <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center text-sm sm:text-base font-bold">
+              <span class="material-symbols-outlined text-base sm:text-xl">tag</span>
             </div>
             <div>
-              <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-bold leading-none">វឌ្ឍនភាពពាក្យ</div>
-              <div class="text-xs sm:text-base font-black text-indigo-300 leading-tight mt-0.5">Word {{ currentWordIndex + 1 }} of {{ wordsPerRound }}</div>
+              <div class="text-[10px] sm:text-xs uppercase tracking-wider text-slate-400 font-bold leading-none">វឌ្ឍនភាពពាក្យ</div>
+              <div class="text-xs sm:text-base md:text-lg font-black text-indigo-300 leading-tight mt-0.5">Word {{ currentWordIndex + 1 }} of {{ wordsPerRound }}</div>
             </div>
           </div>
 
           <!-- Timer Bar -->
           <div class="flex flex-col items-center justify-center">
-            <div class="flex items-center gap-1.5 text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">
-              <span class="material-symbols-outlined text-amber-400 text-sm">schedule</span>
-              <span>ម៉ោង: <span :class="timerSeconds <= 10 ? 'text-rose-400 font-bold' : 'text-amber-300 font-bold'" class="font-mono text-xs sm:text-sm">{{ timerSeconds }}s</span></span>
+            <div class="flex items-center gap-1.5 text-slate-400 text-xs sm:text-sm font-bold uppercase tracking-wider mb-1">
+              <span class="material-symbols-outlined text-amber-400 text-sm sm:text-base">schedule</span>
+              <span>ម៉ោង: <span :class="timerSeconds <= 10 ? 'text-rose-400 font-bold' : 'text-amber-300 font-bold'" class="font-mono text-xs sm:text-base">{{ timerSeconds }}s</span></span>
               <button
                 type="button"
                 class="text-slate-400 hover:text-white ml-1 cursor-pointer"
                 :title="isTimerPaused ? 'បន្តម៉ោង (Resume)' : 'ផ្អាកម៉ោង (Pause)'"
                 @click="toggleTimerPause"
               >
-                <span class="material-symbols-outlined text-xs">{{ isTimerPaused ? 'play_arrow' : 'pause' }}</span>
+                <span class="material-symbols-outlined text-sm">{{ isTimerPaused ? 'play_arrow' : 'pause' }}</span>
               </button>
             </div>
-            <div class="w-28 sm:w-56 md:w-64 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+            <div class="w-32 sm:w-64 md:w-80 h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
               <div
                 class="h-full transition-all duration-1000 ease-linear"
                 :class="timerSeconds <= 10 ? 'bg-rose-500 animate-pulse' : 'bg-gradient-to-r from-amber-500 to-rose-500'"
@@ -445,36 +445,41 @@
           </div>
 
           <!-- Live Score Badge -->
-          <div class="flex items-center gap-2 text-right">
+          <div class="flex items-center gap-2 sm:gap-3 text-right">
             <div>
-              <div class="text-[10px] sm:text-[11px] uppercase tracking-wider text-slate-400 font-bold leading-none">ពិន្ទុបច្ចុប្បន្ន</div>
-              <div class="text-xs sm:text-base font-black text-emerald-400 leading-tight mt-0.5">{{ currentScore }} ពិន្ទុ</div>
+              <div class="text-[10px] sm:text-xs uppercase tracking-wider text-slate-400 font-bold leading-none">ពិន្ទុបច្ចុប្បន្ន</div>
+              <div class="text-xs sm:text-base md:text-lg font-black text-emerald-400 leading-tight mt-0.5">{{ currentScore }} ពិន្ទុ</div>
             </div>
-            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-sm sm:text-base font-bold">
-              <span class="material-symbols-outlined text-base sm:text-lg text-emerald-400">star</span>
+            <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-sm sm:text-base font-bold">
+              <span class="material-symbols-outlined text-base sm:text-xl text-emerald-400">star</span>
             </div>
           </div>
         </div>
 
         <!-- Giant Projector Display Card -->
-        <div class="w-full bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950 border-2 border-indigo-500/40 rounded-3xl p-4 sm:p-5 md:p-6 shadow-2xl shadow-indigo-950/60 text-center relative overflow-hidden backdrop-blur-xl">
+        <div class="w-full bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-950 border-2 border-indigo-500/40 rounded-3xl p-5 sm:p-7 md:p-9 lg:p-11 shadow-2xl shadow-indigo-950/60 text-center relative overflow-hidden backdrop-blur-xl flex flex-col justify-between min-h-[48vh] max-h-[76vh]">
           
-          <!-- Explainer Banner -->
-          <div class="max-w-md mx-auto mb-2 sm:mb-3">
-            <div class="bg-indigo-950/90 border-2 border-indigo-500/50 rounded-xl py-1.5 px-3 sm:px-4 flex items-center justify-center gap-2.5 shadow-lg">
-              <span class="w-8 h-8 rounded-lg bg-indigo-500/30 text-indigo-300 flex items-center justify-center text-sm sm:text-base font-bold">
-                <span class="material-symbols-outlined text-base sm:text-lg">mic</span>
+          <!-- Explainer Banner (Always 1 Single Line) -->
+          <div class="max-w-3xl mx-auto mb-2 sm:mb-4 w-full">
+            <div class="inline-flex items-center gap-2.5 sm:gap-3 bg-indigo-950/90 border-2 border-indigo-500/50 rounded-2xl py-2 px-4 sm:px-6 shadow-lg shadow-indigo-950/50 max-w-full">
+              <span class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-500/30 text-indigo-300 flex items-center justify-center text-base sm:text-lg font-bold shrink-0">
+                <span class="material-symbols-outlined text-lg sm:text-xl text-indigo-300">mic</span>
               </span>
-              <div class="text-left">
-                <div class="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-indigo-400 leading-none">សិស្សឡើងពន្យល់ (EXPLAINER)</div>
-                <div class="text-base sm:text-xl font-black text-white leading-tight mt-0.5">{{ currentExplainer || '--' }}</div>
+              <div class="text-left min-w-0 flex-1">
+                <div class="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-indigo-400 leading-none">សិស្សឡើងពន្យល់ (EXPLAINER)</div>
+                <div
+                  class="font-black text-white leading-tight mt-0.5 whitespace-nowrap truncate text-sm sm:text-lg md:text-xl"
+                  :title="currentExplainer"
+                >
+                  {{ currentExplainer || '--' }}
+                </div>
               </div>
             </div>
           </div>
 
           <!-- Secret Word Display with Adaptive Typography -->
-          <div class="py-2 sm:py-3 my-0.5 sm:my-1">
-            <div class="text-[11px] sm:text-xs uppercase tracking-widest text-slate-400 font-extrabold mb-1 flex items-center justify-center gap-2">
+          <div class="py-3 sm:py-6 md:py-8 my-0.5 sm:my-1 flex-1 flex flex-col justify-center">
+            <div class="text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-extrabold mb-1.5 sm:mb-2.5 flex items-center justify-center gap-2">
               <span>ពាក្យសម្ងាត់ត្រូវទាយ (SECRET WORD)</span>
               <button
                 type="button"
@@ -482,7 +487,7 @@
                 :title="isWordVisible ? 'បិទបាំងពាក្យ (Hide Word) [H]' : 'បង្ហាញពាក្យ (Peek Word) [H]'"
                 @click="isWordVisible = !isWordVisible"
               >
-                <span class="material-symbols-outlined text-sm">{{ isWordVisible ? 'visibility_off' : 'visibility' }}</span>
+                <span class="material-symbols-outlined text-base">{{ isWordVisible ? 'visibility_off' : 'visibility' }}</span>
               </button>
             </div>
 
@@ -492,8 +497,8 @@
                 :class="[
                   isWordVisible ? '' : 'blur-xl select-none',
                   currentWord.length > 20
-                    ? 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl'
-                    : (currentWord.length > 12 ? 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl' : 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl')
+                    ? 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl'
+                    : (currentWord.length > 12 ? 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl' : 'text-5xl sm:text-7xl md:text-8xl lg:text-9xl xl:text-[9.5rem]')
                 ]"
               >
                 {{ currentWord || 'កុំព្យូទ័រ' }}
@@ -502,13 +507,13 @@
           </div>
 
           <!-- Teacher Action Buttons -->
-          <div class="max-w-xl mx-auto pt-3 border-t border-slate-800/80">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="max-w-2xl mx-auto pt-4 sm:pt-6 border-t border-slate-800/80 w-full">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               
               <!-- Correct Button -->
               <button
                 type="button"
-                class="px-5 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-base sm:text-lg shadow-xl shadow-emerald-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                class="px-6 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-base sm:text-xl md:text-2xl shadow-xl shadow-emerald-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer"
                 @click="handleTeacherDecision(true)"
               >
                 <span class="material-symbols-outlined text-xl sm:text-2xl">check_circle</span>
@@ -518,7 +523,7 @@
               <!-- Wrong Button -->
               <button
                 type="button"
-                class="px-5 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-r from-rose-600 via-rose-500 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-black text-base sm:text-lg shadow-xl shadow-rose-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                class="px-6 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-rose-600 via-rose-500 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-black text-base sm:text-xl md:text-2xl shadow-xl shadow-rose-600/35 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 cursor-pointer"
                 @click="handleTeacherDecision(false)"
               >
                 <span class="material-symbols-outlined text-xl sm:text-2xl">cancel</span>
@@ -527,12 +532,12 @@
             </div>
 
             <!-- Hotkeys Hint -->
-            <div class="mt-2 flex items-center justify-center gap-5 text-[11px] text-slate-400 font-semibold">
-              <span class="flex items-center gap-1">
-                <kbd class="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]">1</kbd> / <kbd class="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]">Enter</kbd> : <span class="text-emerald-400 font-bold">ត្រូវ</span>
+            <div class="mt-3 flex items-center justify-center gap-6 text-xs text-slate-400 font-semibold">
+              <span class="flex items-center gap-1.5">
+                <kbd class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-xs">1</kbd> / <kbd class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-xs">Enter</kbd> : <span class="text-emerald-400 font-bold">ត្រូវ</span>
               </span>
-              <span class="flex items-center gap-1">
-                <kbd class="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]">2</kbd> / <kbd class="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]">Space</kbd> : <span class="text-rose-400 font-bold">ខុស</span>
+              <span class="flex items-center gap-1.5">
+                <kbd class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-xs">2</kbd> / <kbd class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-xs">Space</kbd> : <span class="text-rose-400 font-bold">ខុស</span>
               </span>
             </div>
 
