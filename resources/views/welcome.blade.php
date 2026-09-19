@@ -125,7 +125,7 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-gray-100">
+<body class="{{ request()->is('wheel-remote*') ? 'bg-slate-950 text-slate-100' : 'bg-gray-100' }}" style="{{ request()->is('wheel-remote*') ? 'background-color: #070a13 !important; color: #f8fafc;' : '' }}">
     <!-- Initial Startup Splash Screen (ONLY shown in standalone installed App, hidden in Web Browsers) -->
     <style>
             #splash-screen {

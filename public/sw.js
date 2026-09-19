@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v15';
+const CACHE_VERSION = 'v16';
 const CACHE_NAME = `online-exam-pwa-${CACHE_VERSION}`;
 
 const PRECACHE_ASSETS = [
@@ -62,9 +62,10 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(request.url);
 
-    // Bypass API calls, auth checks, and dev server hot module reloads
+    // Bypass API calls, remote controller, auth checks, and dev server hot module reloads
     if (
         url.pathname.startsWith('/api/') ||
+        url.pathname.startsWith('/wheel-remote') ||
         url.pathname.startsWith('/@vite') ||
         url.pathname.startsWith('/@fs') ||
         url.port === '5173' ||
