@@ -264,6 +264,7 @@ const t = computed(() => {
       insights: 'ទិន្នន័យ និង លទ្ធផល',
       system: 'ប្រព័ន្ធ & ការកំណត់',
       dashboard: 'ផ្ទាំងគ្រប់គ្រង',
+      luckyWheel: 'ទាយពាក្យកងវិល',
       users: 'សិស្ស',
       allUsers: 'បញ្ជីសិស្ស',
       exams: 'ការប្រឡង និងការធ្វើតេស្ត',
@@ -292,6 +293,7 @@ const t = computed(() => {
     insights: 'Insights',
     system: 'System & Security',
     dashboard: 'Dashboard',
+    luckyWheel: 'Lucky Wheel Game',
     users: 'Students',
     allUsers: 'Students Directory',
     exams: 'Exams & Tests',
@@ -316,7 +318,8 @@ const navGroups = computed(() => {
       {
         label: t.value.overview,
         items: [
-          { label: t.value.dashboard, icon: 'dashboard', route: '/admin/dashboard' }
+          { label: t.value.dashboard, icon: 'dashboard', route: '/admin/dashboard' },
+          { label: t.value.luckyWheel, icon: 'casino', route: '/admin/lucky-wheel' }
         ]
       },
       {
@@ -367,7 +370,8 @@ const navGroups = computed(() => {
     {
       label: t.value.overview,
       items: [
-        { label: t.value.dashboard, icon: 'dashboard', route: '/admin/dashboard' }
+        { label: t.value.dashboard, icon: 'dashboard', route: '/admin/dashboard' },
+        { label: t.value.luckyWheel, icon: 'casino', route: '/admin/lucky-wheel' }
       ]
     }
   ]

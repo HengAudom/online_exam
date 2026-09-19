@@ -61,11 +61,12 @@
     <meta property="twitter:description" content="OnlineXam - ប្រព័ន្ធគ្រប់គ្រងការប្រឡងអនឡាញ រៀបចំការប្រឡង វាយតម្លៃលទ្ធផលសិស្ស និងគ្រប់គ្រងទិន្នន័យប្រឡងដោយសុវត្ថិភាព។">
     <meta property="twitter:image" content="https://onlinexam.site/pwa-512.png">
 
-    <!-- Google Fonts: Manrope + Inter + Material Symbols -->
+    <!-- Google Fonts: Manrope + Inter + Kantumruy Pro + Outfit + Material Symbols -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&family=Kantumruy+Pro:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
     <!-- Favicon & App Icons (Google Search & Multi-device compliant) -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">

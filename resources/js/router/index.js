@@ -53,6 +53,14 @@ const routes = [
     children: [
       { path: '',             redirect: 'dashboard' },
       { path: 'dashboard',    name: 'AdminDashboard',      component: () => import('../admin/AdminDashboard.vue') },
+      { 
+        path: 'lucky-wheel',    
+        name: 'LuckyWheelGame',      
+        component: () => import('../admin/LuckyWheelGame.vue'),
+        meta: {
+          title: 'ទាយពាក្យ - កងវិលសំណាង | OnlineXam'
+        }
+      },
       { path: 'students',     name: 'ManageStudents',       component: () => import('../admin/ManageStudents.vue') },
       { path: 'tests',        name: 'ManageTests',          component: () => import('../admin/ManageTests.vue') },
       { path: 'skills-groups', name: 'ManageSkillsGroups', component: () => import('../admin/ManageSkillsGroups.vue') },
