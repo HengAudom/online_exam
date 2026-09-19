@@ -1,8 +1,7 @@
 <template>
   <div
     ref="gameRootRef"
-    class="lucky-wheel-app w-full h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-4.2rem)] max-h-[100vh] bg-slate-950 text-slate-100 rounded-2xl border border-slate-800/90 shadow-2xl flex flex-col justify-between overflow-hidden relative select-none font-khmer"
-    :class="{ 'fixed inset-0 z-50 rounded-none h-screen max-h-screen border-none': isFullscreen }"
+    class="lucky-wheel-app fixed inset-0 w-screen h-screen min-h-screen max-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between overflow-hidden select-none font-khmer z-40"
   >
     <!-- Background Ambient Glow Mesh -->
     <div class="absolute inset-0 bg-mesh pointer-events-none -z-0"></div>
@@ -15,13 +14,12 @@
         <!-- Back to Dashboard Option -->
         <button
           type="button"
-          class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-xs sm:text-sm font-bold border border-slate-700/80 transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 hover:text-white text-xs sm:text-sm font-bold border border-slate-700/80 transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
           title="ត្រឡប់ទៅផ្ទាំងគ្រប់គ្រង (Back to Dashboard)"
           @click="goBackToDashboard"
         >
           <span class="material-symbols-outlined text-base sm:text-lg text-blue-400">arrow_back</span>
-          <span class="hidden sm:inline">ត្រឡប់ទៅផ្ទាំងគ្រប់គ្រង</span>
-          <span class="sm:hidden">ត្រឡប់</span>
+          <span>ត្រឡប់ទៅផ្ទាំងគ្រប់គ្រង</span>
         </button>
 
         <div class="h-5 w-px bg-slate-800 hidden sm:block"></div>
@@ -1171,7 +1169,14 @@ function loadDemoWords() {
 
 function goBackToDashboard() {
   stopTimer()
-  router.push('/admin/dashboard')
+  if (wheelAnimationId) {
+    cancelAnimationFrame(wheelAnimationId)
+    wheelAnimationId = null
+  }
+  if (document.fullscreenElement && document.exitFullscreen) {
+    document.exitFullscreen().catch(() => {})
+  }
+  router.push('/admin/dashboard').catch(() => {})
 }
 
 function toggleSound() {
