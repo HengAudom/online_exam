@@ -128,54 +128,42 @@
               placeholder="ឈ្មោះសិស្ស ១ នាក់ក្នុង ១ ជួរ..."
             ></textarea>
             <div class="mt-2 space-y-1.5">
-              <!-- Skill Selection Row -->
-              <div class="flex items-center gap-1.5 bg-slate-900 border border-indigo-900/40 rounded-lg p-1 shadow-inner">
+              <!-- Skill Selection Row (Single Clean Dropdown - Never Overflows) -->
+              <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-700/80 rounded-lg p-1 shadow-inner overflow-hidden w-full">
                 <span class="material-symbols-outlined text-xs sm:text-sm text-indigo-400 pl-1 shrink-0" title="ជ្រើសរើសជំនាញ">school</span>
                 
-                <!-- Skill Dropdown -->
+                <!-- Single Unified Dropdown -->
                 <select
-                  v-model="selectedSkill"
-                  class="flex-1 bg-transparent text-[11px] sm:text-xs text-indigo-200 focus:outline-none cursor-pointer py-0.5 font-medium truncate"
+                  v-model="selectedFilterId"
+                  class="flex-1 min-w-0 bg-transparent text-[11px] sm:text-xs text-indigo-200 focus:outline-none cursor-pointer py-0.5 font-medium truncate"
                   :disabled="isLoadingOnlineStudents"
-                  @change="onSkillChange"
+                  @change="onFilterChange"
                 >
                   <option value="" class="bg-slate-900 text-slate-400">-- ជ្រើសរើសតាមជំនាញ (Select Skill) --</option>
                   <option
-                    v-for="sk in skillOptions"
-                    :key="sk.name"
-                    :value="sk.name"
+                    v-for="opt in filterOptions"
+                    :key="opt.id"
+                    :value="opt.id"
                     class="bg-slate-900 text-slate-200"
                   >
-                    {{ sk.name }} ({{ sk.count }} នាក់)
+                    {{ opt.label }} ({{ opt.count }} នាក់)
                   </option>
                   <option value="__ALL__" class="bg-slate-900 text-slate-300">
                     សិស្សទាំងអស់ ({{ rawOnlineStudents.length }} នាក់)
                   </option>
                 </select>
 
-                <!-- Optional Group Dropdown if skill has multiple groups -->
-                <select
-                  v-if="groupOptions.length > 1"
-                  v-model="selectedGroup"
-                  class="bg-slate-800 text-[10px] sm:text-[11px] text-slate-200 border border-slate-700 rounded px-1.5 py-0.5 focus:outline-none cursor-pointer max-w-[85px] sm:max-w-[105px] truncate"
-                  @change="onSkillChange"
-                  title="ជ្រើសរើសក្រុម"
-                >
-                  <option value="">គ្រប់ក្រុម</option>
-                  <option v-for="grp in groupOptions" :key="grp" :value="grp">{{ grp }}</option>
-                </select>
-
                 <!-- Fetch / Apply Button -->
                 <button
                   type="button"
-                  class="px-2 sm:px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-xs font-bold flex items-center gap-1 transition cursor-pointer shrink-0 disabled:opacity-50"
+                  class="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] sm:text-xs font-bold flex items-center gap-1 transition cursor-pointer shrink-0 disabled:opacity-50"
                   :disabled="isLoadingOnlineStudents"
-                  @click="fetchAndApplySkill"
+                  @click="handleDownloadClick"
                   title="ទាញយកសិស្សតាមជំនាញ"
                 >
                   <span class="material-symbols-outlined text-xs animate-spin" v-if="isLoadingOnlineStudents">sync</span>
                   <span class="material-symbols-outlined text-xs" v-else>cloud_download</span>
-                  <span class="hidden sm:inline">ទាញយក</span>
+                  <span>ទាញយក</span>
                 </button>
               </div>
 
@@ -184,7 +172,7 @@
                 <span class="text-slate-400 truncate max-w-[200px] sm:max-w-[260px]" v-if="currentLoadedSkillLabel">
                   បានទាញ: <span class="text-emerald-400 font-bold">{{ currentLoadedSkillLabel }}</span>
                 </span>
-                <span v-else class="text-slate-500 truncate">* ជ្រើសរើសជំនាញដើម្បីទាញឈ្មោះសិស្ស</span>
+                <span v-else class="text-slate-500 truncate">* សូមជ្រើសរើសជំនាញដើម្បីទាញឈ្មោះសិស្ស</span>
 
                 <button
                   type="button"
@@ -733,32 +721,62 @@ const isMuted = ref(false)
 const isFullscreen = ref(false)
 const isLoadingOnlineStudents = ref(false)
 const rawOnlineStudents = ref([])
-const selectedSkill = ref('')
-const selectedGroup = ref('')
+const selectedFilterId = ref('')
 const currentLoadedSkillLabel = ref('')
 
-const skillOptions = computed(() => {
-  const map = {}
+const filterOptions = computed(() => {
+  const list = []
+  const skillMap = {}
   for (const s of rawOnlineStudents.value) {
     const sk = s.skill ? s.skill.trim() : 'គ្មានជំនាញ (Unassigned)'
-    map[sk] = (map[sk] || 0) + 1
-  }
-  return Object.keys(map).map(name => ({
-    name,
-    count: map[name]
-  })).sort((a, b) => a.name.localeCompare(b.name))
-})
-
-const groupOptions = computed(() => {
-  if (!selectedSkill.value || selectedSkill.value === '__ALL__') return []
-  const groups = new Set()
-  for (const s of rawOnlineStudents.value) {
-    const sk = s.skill ? s.skill.trim() : 'គ្មានជំនាញ (Unassigned)'
-    if (sk === selectedSkill.value && s.group) {
-      groups.add(s.group.trim())
+    if (!skillMap[sk]) {
+      skillMap[sk] = {
+        name: sk,
+        students: [],
+        groupMap: {}
+      }
+    }
+    skillMap[sk].students.push(s)
+    if (s.group && s.group.trim()) {
+      const grp = s.group.trim()
+      skillMap[sk].groupMap[grp] = (skillMap[sk].groupMap[grp] || 0) + 1
     }
   }
-  return Array.from(groups).sort()
+
+  const sortedSkills = Object.keys(skillMap).sort((a, b) => a.localeCompare(b))
+  for (const sk of sortedSkills) {
+    const data = skillMap[sk]
+    const groups = Object.keys(data.groupMap)
+
+    if (groups.length <= 1) {
+      list.push({
+        id: `skill:${sk}`,
+        label: sk,
+        skill: sk,
+        group: null,
+        count: data.students.length
+      })
+    } else {
+      list.push({
+        id: `skill:${sk}`,
+        label: `${sk} (ទាំងអស់)`,
+        skill: sk,
+        group: null,
+        count: data.students.length
+      })
+      for (const grp of groups.sort()) {
+        list.push({
+          id: `group:${sk}|${grp}`,
+          label: `↳ ${sk} - ${grp}`,
+          skill: sk,
+          group: grp,
+          count: data.groupMap[grp]
+        })
+      }
+    }
+  }
+
+  return list
 })
 
 /* Timer State */
@@ -1229,36 +1247,49 @@ async function fetchOnlineStudentsSilently() {
   }
 }
 
-async function fetchAndApplySkill() {
+async function handleDownloadClick() {
   if (rawOnlineStudents.value.length === 0) {
     await fetchOnlineStudentsSilently()
   }
 
-  if (!selectedSkill.value && skillOptions.value.length > 0) {
-    selectedSkill.value = skillOptions.value[0].name
+  if (!selectedFilterId.value) {
+    alert('សូមជ្រើសរើសជំនាញជាមុនសិន! (Please select a skill first)')
+    return
   }
 
-  applySkillFilter()
+  applySelectedFilter()
 }
 
-function onSkillChange() {
-  applySkillFilter()
+function onFilterChange() {
+  applySelectedFilter()
 }
 
-function applySkillFilter() {
+function applySelectedFilter() {
   if (!rawOnlineStudents.value.length) return
+  if (!selectedFilterId.value) return
 
   let filtered = rawOnlineStudents.value
+  let label = ''
 
-  if (selectedSkill.value && selectedSkill.value !== '__ALL__') {
+  if (selectedFilterId.value === '__ALL__') {
+    filtered = rawOnlineStudents.value
+    label = 'សិស្សទាំងអស់'
+  } else if (selectedFilterId.value.startsWith('group:')) {
+    const parts = selectedFilterId.value.replace('group:', '').split('|')
+    const skillName = parts[0]
+    const groupName = parts[1]
     filtered = filtered.filter(s => {
       const sk = s.skill ? s.skill.trim() : 'គ្មានជំនាញ (Unassigned)'
-      return sk === selectedSkill.value
+      return sk === skillName && s.group && s.group.trim() === groupName
     })
-  }
-
-  if (selectedGroup.value) {
-    filtered = filtered.filter(s => s.group && s.group.trim() === selectedGroup.value)
+    label = `${skillName} - ${groupName}`
+  } else if (selectedFilterId.value.startsWith('skill:')) {
+    const skillName = selectedFilterId.value.replace('skill:', '')
+    filtered = filtered.filter(s => {
+      const sk = s.skill ? s.skill.trim() : 'គ្មានជំនាញ (Unassigned)'
+      return sk === skillName
+    })
+    label = skillName
   }
 
   if (filtered.length === 0) {
@@ -1271,18 +1302,12 @@ function applySkillFilter() {
   })
 
   rawStudentsText.value = studentNames.join('\n')
-
-  let label = selectedSkill.value === '__ALL__' ? 'សិស្សទាំងអស់' : selectedSkill.value
-  if (selectedGroup.value) {
-    label += ` - ${selectedGroup.value}`
-  }
   currentLoadedSkillLabel.value = `${label} (${filtered.length} នាក់)`
 }
 
 function loadDemoStudents() {
   rawStudentsText.value = DEFAULT_STUDENTS.join('\n')
-  selectedSkill.value = ''
-  selectedGroup.value = ''
+  selectedFilterId.value = ''
   currentLoadedSkillLabel.value = 'ឈ្មោះគំរូ (Demo)'
 }
 
