@@ -1511,6 +1511,11 @@ function startRemotePolling() {
 }
 
 function handleIncomingRemoteCommand(action, payload) {
+  if (showRemoteModal.value) {
+    showRemoteModal.value = false
+  }
+  isRemoteConnected.value = true
+
   switch (action) {
     case 'SPIN':
       if (currentView.value === 'WHEEL_VIEW') {

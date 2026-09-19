@@ -3,19 +3,74 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 
 class LuckyWheelRemoteController extends Controller
 {
     /**
-     * Get persistent cache repository (database store across serverless lambdas).
+     * Store key-value in database cache table directly (guaranteed persistent across serverless lambdas).
      */
-    protected function getStore()
+    protected function dbPut(string $key, $value, int $ttlSeconds = 43200): void
     {
         try {
-            return Cache::store('database');
+            DB::table('cache')->updateOrInsert(
+                ['key' => $key],
+                [
+                    'value' => serialize($value),
+                    'expiration' => now()->timestamp + $ttlSeconds
+                ]
+            );
         } catch (\Throwable $e) {
-            return Cache::store();
+            try {
+                Cache::put($key, $value, $ttlSeconds);
+            } catch (\Throwable $ex) {}
+        }
+    }
+
+    /**
+     * Retrieve key-value from database cache table directly.
+     */
+    protected function dbGet(string $key, $default = null)
+    {
+        try {
+            $record = DB::table('cache')
+                ->where('key', $key)
+                ->where('expiration', '>', now()->timestamp)
+                ->first();
+
+            if ($record && isset($record->value)) {
+                $unserialized = @unserialize($record->value);
+                if ($unserialized !== false || $record->value === 'b:0;') {
+                    return $unserialized;
+                }
+                return $record->value;
+            }
+        } catch (\Throwable $e) {
+            try {
+                return Cache::get($key, $default);
+            } catch (\Throwable $ex) {}
+        }
+
+        return $default;
+    }
+
+    /**
+     * Check existence of valid non-expired key in database cache table.
+     */
+    protected function dbHas(string $key): bool
+    {
+        try {
+            return DB::table('cache')
+                ->where('key', $key)
+                ->where('expiration', '>', now()->timestamp)
+                ->exists();
+        } catch (\Throwable $e) {
+            try {
+                return Cache::has($key);
+            } catch (\Throwable $ex) {
+                return false;
+            }
         }
     }
 
@@ -25,12 +80,11 @@ class LuckyWheelRemoteController extends Controller
     public function createOrGetRoom(Request $request)
     {
         $requestedPin = $request->input('room') ?: $request->query('room');
-        $store = $this->getStore();
 
         if ($requestedPin && strlen((string)$requestedPin) === 4) {
             $pin = (string) $requestedPin;
-            if ($store->has("wheel_room_{$pin}")) {
-                $state = $store->get("wheel_room_{$pin}");
+            if ($this->dbHas("wheel_room_{$pin}")) {
+                $state = $this->dbGet("wheel_room_{$pin}");
             } else {
                 $state = [
                     'view' => 'SETUP_VIEW',
@@ -45,13 +99,13 @@ class LuckyWheelRemoteController extends Controller
                     'isWordVisible' => true,
                     'updatedAt' => now()->timestamp,
                 ];
-                $store->put("wheel_room_{$pin}", $state, now()->addHours(12));
+                $this->dbPut("wheel_room_{$pin}", $state, 43200);
             }
         } else {
             // Generate unique 4-digit PIN between 1000 and 9999
             do {
                 $pin = (string) random_int(1000, 9999);
-            } while ($store->has("wheel_room_{$pin}"));
+            } while ($this->dbHas("wheel_room_{$pin}"));
 
             $state = [
                 'view' => 'SETUP_VIEW',
@@ -67,10 +121,10 @@ class LuckyWheelRemoteController extends Controller
                 'updatedAt' => now()->timestamp,
             ];
 
-            $store->put("wheel_room_{$pin}", $state, now()->addHours(12));
+            $this->dbPut("wheel_room_{$pin}", $state, 43200);
         }
 
-        $store->put("wheel_host_active_{$pin}", true, now()->addSeconds(30));
+        $this->dbPut("wheel_host_active_{$pin}", true, 45);
 
         return response()->json([
             'success' => true,
@@ -86,15 +140,14 @@ class LuckyWheelRemoteController extends Controller
     {
         $room = $request->input('room') ?: $request->query('room');
         $state = $request->input('state');
-        $store = $this->getStore();
 
         if (!$room || !is_array($state)) {
             return response()->json(['success' => false, 'message' => 'Invalid parameters'], 422);
         }
 
         $state['updatedAt'] = now()->timestamp;
-        $store->put("wheel_room_{$room}", $state, now()->addHours(12));
-        $store->put("wheel_host_active_{$room}", true, now()->addSeconds(30));
+        $this->dbPut("wheel_room_{$room}", $state, 43200);
+        $this->dbPut("wheel_host_active_{$room}", true, 45);
 
         return response()->json(['success' => true]);
     }
@@ -105,13 +158,12 @@ class LuckyWheelRemoteController extends Controller
     public function getState(Request $request)
     {
         $room = $request->query('room') ?: $request->input('room');
-        $store = $this->getStore();
 
         if (!$room) {
             return response()->json(['success' => false, 'message' => 'Room code required'], 422);
         }
 
-        if (!$store->has("wheel_room_{$room}")) {
+        if (!$this->dbHas("wheel_room_{$room}")) {
             $defaultState = [
                 'view' => 'SETUP_VIEW',
                 'currentWord' => '',
@@ -125,10 +177,10 @@ class LuckyWheelRemoteController extends Controller
                 'isWordVisible' => true,
                 'updatedAt' => now()->timestamp,
             ];
-            $store->put("wheel_room_{$room}", $defaultState, now()->addHours(12));
+            $this->dbPut("wheel_room_{$room}", $defaultState, 43200);
         }
 
-        $state = $store->get("wheel_room_{$room}");
+        $state = $this->dbGet("wheel_room_{$room}");
 
         return response()->json([
             'success' => true,
@@ -145,7 +197,6 @@ class LuckyWheelRemoteController extends Controller
         $room = $request->input('room') ?: $request->query('room');
         $action = $request->input('action') ?: $request->query('action');
         $payload = $request->input('payload', []);
-        $store = $this->getStore();
 
         if (!$room || !$action) {
             return response()->json(['success' => false, 'message' => 'Room and action are required'], 422);
@@ -158,8 +209,9 @@ class LuckyWheelRemoteController extends Controller
             'time' => microtime(true),
         ];
 
-        $store->put("wheel_cmd_{$room}", $cmd, now()->addMinutes(5));
-        $store->put("wheel_phone_active_{$room}", true, now()->addSeconds(30));
+        // Store command with 300 second (5 min) expiration
+        $this->dbPut("wheel_cmd_{$room}", $cmd, 300);
+        $this->dbPut("wheel_phone_active_{$room}", true, 45);
 
         return response()->json([
             'success' => true,
@@ -174,14 +226,13 @@ class LuckyWheelRemoteController extends Controller
     {
         $room = $request->query('room') ?: $request->input('room');
         $lastCmdId = $request->query('last_cmd_id') ?: $request->input('last_cmd_id');
-        $store = $this->getStore();
 
         if (!$room) {
             return response()->json(['success' => false, 'message' => 'Room code required'], 422);
         }
 
-        $cmd = $store->get("wheel_cmd_{$room}");
-        $phoneActive = $store->has("wheel_phone_active_{$room}");
+        $cmd = $this->dbGet("wheel_cmd_{$room}");
+        $phoneActive = $this->dbHas("wheel_phone_active_{$room}");
 
         $hasNewCmd = false;
         if ($cmd && is_array($cmd)) {
@@ -206,18 +257,17 @@ class LuckyWheelRemoteController extends Controller
     {
         $room = $request->input('room') ?: $request->query('room');
         $role = $request->input('role', 'phone');
-        $store = $this->getStore();
 
         if ($room) {
             if ($role === 'phone') {
-                $store->put("wheel_phone_active_{$room}", true, now()->addSeconds(30));
+                $this->dbPut("wheel_phone_active_{$room}", true, 45);
             } elseif ($role === 'host') {
-                $store->put("wheel_host_active_{$room}", true, now()->addSeconds(30));
+                $this->dbPut("wheel_host_active_{$room}", true, 45);
             }
         }
 
-        $phoneActive = $store->has("wheel_phone_active_{$room}");
-        $hostActive = $store->has("wheel_host_active_{$room}");
+        $phoneActive = $this->dbHas("wheel_phone_active_{$room}");
+        $hostActive = $this->dbHas("wheel_host_active_{$room}");
 
         return response()->json([
             'success' => true,
