@@ -89,11 +89,9 @@ if (empty($_ENV['SESSION_COOKIE']) || trim($_ENV['SESSION_COOKIE']) === '') {
     $_SERVER['SESSION_COOKIE'] = 'online_exam_session';
 }
 
-if (empty($_ENV['CACHE_STORE']) || trim($_ENV['CACHE_STORE']) === '') {
-    putenv('CACHE_STORE=array');
-    $_ENV['CACHE_STORE'] = 'array';
-    $_SERVER['CACHE_STORE'] = 'array';
-}
+putenv('CACHE_STORE=database');
+$_ENV['CACHE_STORE'] = 'database';
+$_SERVER['CACHE_STORE'] = 'database';
 
 if (empty($_ENV['APP_MAINTENANCE_DRIVER']) || trim($_ENV['APP_MAINTENANCE_DRIVER']) === '') {
     putenv('APP_MAINTENANCE_DRIVER=file');
