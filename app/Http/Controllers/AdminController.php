@@ -1127,137 +1127,321 @@ class AdminController extends Controller
         return response()->json(['message' => 'Result deleted successfully']);
     }
 
+    public function admins(Request $request)
+    {
+        $adminTable = Schema::hasTable('tbladmin') ? 'tbladmin' : 'tbladminprofile';
+        $adminIdCol = Schema::hasColumn($adminTable, 'AdminId') ? 'AdminId' : 'AdminProfileId';
+
+        $admins = DB::table($adminTable)
+            ->orderBy($adminIdCol, 'desc')
+            ->get()
+            ->map(function ($a) use ($adminIdCol) {
+                $fullName = trim(($a->FirstName ?? '') . ' ' . ($a->LastName ?? ''));
+                $photoUrl = null;
+                if (!empty($a->ProfileImage)) {
+                    if (str_starts_with($a->ProfileImage, '/uploads/') || str_starts_with($a->ProfileImage, 'http://') || str_starts_with($a->ProfileImage, 'https://')) {
+                        $photoUrl = $a->ProfileImage;
+                    } else {
+                        $photoUrl = '/api/admin-photo/' . $a->{$adminIdCol};
+                    }
+                }
+
+                return [
+                    'id' => $a->{$adminIdCol},
+                    'name' => $fullName ?: $a->Username,
+                    'first_name' => $a->FirstName,
+                    'last_name' => $a->LastName,
+                    'firstName' => $a->FirstName,
+                    'lastName' => $a->LastName,
+                    'email' => $a->Username,
+                    'username' => $a->Username,
+                    'phone' => $a->Phone,
+                    'role' => $a->Role ?? 'Admin',
+                    'status' => $a->Status ?? 'Active',
+                    'photo' => $photoUrl,
+                    'profileImage' => $photoUrl,
+                ];
+            })
+            ->values();
+
+        return response()->json(['admins' => $admins]);
+    }
+
+    public function addAdmin(Request $request)
+    {
+        $currentUser = auth()->user() ?? $request->user();
+        $isCurrentSuperAdmin = $currentUser && in_array($currentUser->Role ?? $currentUser->role, ['Super Admin', 'SuperAdmin']);
+
+        if (!$isCurrentSuperAdmin && !self::checkAdminPermission($currentUser, 'Students', 'create')) {
+            return response()->json(['message' => 'Unauthorized. You do not have permission to add administrators.'], 403);
+        }
+
+        $role = $request->input('role', 'Admin');
+        $isSelectingSuperAdmin = in_array($role, ['Super Admin', 'SuperAdmin']);
+
+        if ($isSelectingSuperAdmin && !$isCurrentSuperAdmin) {
+            return response()->json(['message' => 'Unauthorized. Only Super Admins can create Super Admin accounts.'], 403);
+        }
+
+        $data = $request->validate([
+            'firstName' => ['required', 'string', 'max:255'],
+            'lastName'  => ['required', 'string', 'max:255'],
+            'phone'     => ['required', 'string', 'max:50'],
+            'role'      => ['required', 'string', 'in:Admin,Super Admin,SuperAdmin'],
+            'username'  => ['required', 'string', 'regex:/^\S+$/', 'max:255', 'unique:tbladmin,Username'],
+            'password'  => ['required', 'string', 'min:6'],
+        ], [
+            'username.regex' => 'Username មិនអាចមានដកឃ្លាទេ (Username cannot contain spaces).',
+            'username.unique' => 'Username នេះមានរួចហើយ សូមជ្រើសរើស Username ផ្សេង (Username is already taken).',
+            'firstName.required' => 'សូមបញ្ចូលនាមត្រកូល (First name is required).',
+            'lastName.required' => 'សូមបញ្ចូលនាមខ្លួន (Last name is required).',
+            'username.required' => 'សូមបញ្ចូល Username (Username is required).',
+            'password.required' => 'សូមបញ្ចូលពាក្យសម្ងាត់ (Password is required).',
+        ]);
+
+        $photoPath = $this->processUploadedPhoto($request->input('photo'), $request->file('photo'));
+
+        $newAdmin = Admin::create([
+            'Username' => trim($data['username']),
+            'Password' => Hash::make($data['password']),
+            'Role' => $data['role'],
+            'Status' => 'Active',
+            'FirstName' => trim($data['firstName']),
+            'LastName' => trim($data['lastName']),
+            'Phone' => trim($data['phone']),
+            'ProfileImage' => $photoPath,
+            'CreatedByUserId' => $currentUser->AdminId ?? $currentUser->id ?? null,
+        ]);
+
+        Cache::forget('admin_dashboard_payload');
+
+        return response()->json([
+            'message' => 'Administrator created successfully!',
+            'admin' => [
+                'id' => $newAdmin->AdminId,
+                'name' => $newAdmin->FirstName . ' ' . $newAdmin->LastName,
+                'username' => $newAdmin->Username,
+                'role' => $newAdmin->Role
+            ]
+        ]);
+    }
+
+    public function updateAdmin(Request $request, $id)
+    {
+        $currentUser = auth()->user() ?? $request->user();
+        $isCurrentSuperAdmin = $currentUser && in_array($currentUser->Role ?? $currentUser->role, ['Super Admin', 'SuperAdmin']);
+
+        if (!$isCurrentSuperAdmin && !self::checkAdminPermission($currentUser, 'Students', 'edit')) {
+            return response()->json(['message' => 'Unauthorized. You do not have permission to edit administrators.'], 403);
+        }
+
+        $admin = Admin::find($id);
+        if (!$admin) {
+            return response()->json(['message' => 'Administrator not found.'], 404);
+        }
+
+        $isTargetSuperAdmin = in_array($admin->Role, ['Super Admin', 'SuperAdmin']);
+        $isSelectingSuperAdmin = in_array($request->input('role'), ['Super Admin', 'SuperAdmin']);
+
+        if (($isTargetSuperAdmin || $isSelectingSuperAdmin) && !$isCurrentSuperAdmin) {
+            return response()->json(['message' => 'Unauthorized. Only Super Admins can modify Super Admin accounts.'], 403);
+        }
+
+        $data = $request->validate([
+            'firstName'   => ['required', 'string', 'max:255'],
+            'lastName'    => ['required', 'string', 'max:255'],
+            'username'    => ['required', 'string', 'regex:/^\S+$/', 'max:255'],
+            'phone'       => ['required', 'string', 'max:50'],
+            'role'        => ['nullable', 'string', 'in:Admin,Super Admin,SuperAdmin'],
+            'newPassword' => ['nullable', 'string', 'min:6'],
+        ], [
+            'username.regex' => 'Username មិនអាចមានដកឃ្លាទេ (Username cannot contain spaces).',
+            'firstName.required' => 'សូមបញ្ចូលនាមត្រកូល (First name is required).',
+            'lastName.required' => 'សូមបញ្ចូលនាមខ្លួន (Last name is required).',
+            'username.required' => 'សូមបញ្ចូល Username (Username is required).',
+            'phone.required' => 'សូមបញ្ចូលលេខទូរស័ព្ទ (Phone number is required).',
+        ]);
+
+        $newUsername = trim($data['username']);
+        $exists = Admin::whereRaw('LOWER(Username) = ?', [strtolower($newUsername)])
+            ->where('AdminId', '!=', $admin->AdminId)
+            ->exists();
+        if ($exists) {
+            return response()->json(['message' => 'Username នេះមានរួចហើយ សូមជ្រើសរើស Username ផ្សេង (Username is already taken).'], 422);
+        }
+
+        $photoPath = $this->processUploadedPhoto($request->input('photo'), $request->file('photo'));
+
+        $adminUpdate = [
+            'FirstName' => trim($data['firstName']),
+            'LastName'  => trim($data['lastName']),
+            'Phone'     => trim($data['phone']),
+            'Username'  => $newUsername,
+        ];
+
+        if (!empty($data['role']) && $isCurrentSuperAdmin) {
+            $adminUpdate['Role'] = $data['role'];
+        }
+
+        if (!empty($data['newPassword'])) {
+            $adminUpdate['Password'] = Hash::make($data['newPassword']);
+        }
+
+        if ($photoPath) {
+            $adminUpdate['ProfileImage'] = $photoPath;
+        }
+
+        $admin->update($adminUpdate);
+        Cache::forget('admin_dashboard_payload');
+
+        return response()->json([
+            'message' => 'Administrator updated successfully!',
+            'admin' => [
+                'id' => $admin->AdminId,
+                'name' => $admin->FirstName . ' ' . $admin->LastName,
+                'username' => $admin->Username,
+                'phone' => $admin->Phone,
+                'role' => $admin->Role,
+                'photo' => $admin->ProfileImage
+            ]
+        ]);
+    }
+
+    public function deleteAdmin(Request $request, $id)
+    {
+        $currentUser = auth()->user() ?? $request->user();
+        $isCurrentSuperAdmin = $currentUser && in_array($currentUser->Role ?? $currentUser->role, ['Super Admin', 'SuperAdmin']);
+
+        if (!$isCurrentSuperAdmin && !self::checkAdminPermission($currentUser, 'Students', 'delete')) {
+            return response()->json(['message' => 'Unauthorized. You do not have permission to delete administrators.'], 403);
+        }
+
+        $admin = Admin::find($id);
+        if (!$admin) {
+            return response()->json(['message' => 'Administrator not found.'], 404);
+        }
+
+        $currentAdminId = $currentUser->AdminId ?? $currentUser->id ?? null;
+        if ($admin->AdminId == $currentAdminId || strcasecmp($admin->Username, $currentUser->Username ?? $currentUser->username ?? '') === 0) {
+            return response()->json(['message' => 'អ្នកមិនអាចលុបគណនីផ្ទាល់ខ្លួនរបស់អ្នកបានទេ (You cannot delete your own account).'], 422);
+        }
+
+        $isTargetSuperAdmin = in_array($admin->Role, ['Super Admin', 'SuperAdmin']);
+        if ($isTargetSuperAdmin && !$isCurrentSuperAdmin) {
+            return response()->json(['message' => 'Unauthorized. Only Super Admins can delete Super Admin accounts.'], 403);
+        }
+
+        // Strictly delete ONLY from tbladmin! Never delete student!
+        $admin->delete();
+        Cache::forget('admin_dashboard_payload');
+
+        return response()->json(['message' => 'Administrator deleted successfully.']);
+    }
+
     public function updateStudent(Request $request, $id)
     {
+        // If this request is actually updating an Admin (e.g. from legacy caller or fallback)
+        $role = $request->input('role');
+        $isExplicitAdmin = in_array($role, ['Admin', 'Super Admin', 'SuperAdmin'])
+            || ($request->has('username') && !$request->has('studentCode') && !$request->has('shift') && !$request->has('skill') && !$request->has('group'));
+
+        if ($isExplicitAdmin) {
+            return $this->updateAdmin($request, $id);
+        }
+
         if (!self::checkAdminPermission($request->user(), 'Students', 'edit')) {
             return response()->json(['message' => 'Unauthorized. You do not have permission to edit students.'], 403);
         }
 
         $student = Student::find($id);
-        $admin = $student ? null : Admin::find($id);
-
-        if (!$student && !$admin) {
-            return response()->json(['message' => 'User not found.'], 404);
+        if (!$student) {
+            // Check if admin exists as fallback if someone sent an admin update
+            $admin = Admin::find($id);
+            if ($admin && ($request->has('username') || in_array($role, ['Admin', 'Super Admin', 'SuperAdmin']))) {
+                return $this->updateAdmin($request, $id);
+            }
+            return response()->json(['message' => 'Student not found.'], 404);
         }
-
-        $currentUser = auth()->user() ?? $request->user();
-        $isTargetSuperAdmin = $admin && in_array($admin->Role, ['Super Admin', 'SuperAdmin']);
-        $isSelectingSuperAdmin = in_array($request->role, ['Super Admin', 'SuperAdmin']);
-        $isCurrentSuperAdmin = $currentUser && in_array($currentUser->Role ?? $currentUser->role, ['Super Admin', 'SuperAdmin']);
-
-        $isStudent = ($student !== null);
 
         $rules = [
             'firstName' => ['required', 'string', 'max:255'],
             'lastName' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:50'],
-            'newPassword' => ['nullable', 'string', 'min:6'],
-            'role' => ['nullable', 'string', 'in:Student,Admin,Super Admin,SuperAdmin'],
+            'shift' => ['nullable', 'string', 'max:50'],
+            'skill' => ['nullable', 'string', 'max:255'],
+            'group' => ['nullable', 'string', 'max:255'],
+            'studentCode' => ['nullable', 'string', 'max:50'],
+            'durationMonths' => ['nullable'],
+            'enrolledMonth' => ['nullable', 'string'],
+            'enrolledYear' => ['nullable', 'string'],
         ];
-
-        if (!$isStudent) {
-            $rules['username'] = ['required', 'string', 'max:255'];
-        } else {
-            $rules['shift'] = ['nullable', 'string', 'max:50'];
-            $rules['skill'] = ['nullable', 'string', 'max:255'];
-            $rules['group'] = ['nullable', 'string', 'max:255'];
-            $rules['studentCode'] = ['nullable', 'string', 'max:50'];
-        }
 
         $data = $request->validate($rules);
         $photoPath = $this->processUploadedPhoto($request->input('photo'), $request->file('photo'));
 
-        if ($isStudent) {
-            $skillName = $data['skill'] ?? 'General';
-            $groupName = $data['group'] ?? 'Group A';
-            $skill = Skill::firstOrCreate(['SkillName' => $skillName], ['Description' => '']);
-            $group = Group::firstOrCreate(['GroupName' => $groupName]);
-            $studentUpdate = [
-                'FirstName' => $data['firstName'],
-                'LastName' => $data['lastName'],
-                'Phone' => $data['phone'],
-                'StudyShift' => $data['shift'] ?? 'Morning',
-                'SkillId' => $skill->SkillId,
-                'GroupId' => $group->GroupId,
-            ];
-            if (!empty($request->input('studentCode'))) {
-                $studentUpdate['StudentCode'] = $request->input('studentCode');
-            }
-            if ($photoPath) {
-                $studentUpdate['Photo'] = $photoPath;
-            }
-            if ($request->has('durationMonths')) {
-                $studentUpdate['DurationMonths'] = $this->parseDurationMonths($request->input('durationMonths'));
-            }
-            if (!empty($request->input('enrolledMonth'))) {
-                $studentUpdate['EnrolledMonth'] = $request->input('enrolledMonth');
-            }
-            if (!empty($request->input('enrolledYear'))) {
-                $studentUpdate['EnrolledYear'] = $request->input('enrolledYear');
-            }
-            $student->update($studentUpdate);
-
-            return response()->json([
-                'message' => 'Student updated.',
-                'student' => [
-                    'id' => $student->StudentId,
-                    'name' => $data['firstName'] . ' ' . $data['lastName'],
-                    'studentCode' => $student->StudentCode,
-                    'phone' => $data['phone'],
-                    'role' => 'Student',
-                    'photo' => $student->Photo,
-                    'skill' => $data['skill'] ?? '',
-                    'group' => $data['group'] ?? '',
-                    'shift' => $data['shift'] ?? '',
-                    'durationMonths' => $student->DurationMonths
-                ]
-            ]);
-        } else {
-            $adminUpdate = [
-                'FirstName' => $data['firstName'],
-                'LastName' => $data['lastName'],
-                'Phone' => $data['phone'],
-                'Username' => $data['username'],
-            ];
-            if (!empty($data['role']) && $isCurrentSuperAdmin) {
-                $adminUpdate['Role'] = $data['role'];
-            }
-            if (!empty($data['newPassword'])) {
-                $adminUpdate['Password'] = \Illuminate\Support\Facades\Hash::make($data['newPassword']);
-            }
-            if ($photoPath) {
-                $adminUpdate['ProfileImage'] = $photoPath;
-            }
-            $admin->update($adminUpdate);
-
-            return response()->json([
-                'message' => 'Admin updated.',
-                'student' => [
-                    'id' => $admin->AdminId,
-                    'name' => $data['firstName'] . ' ' . $data['lastName'],
-                    'username' => $admin->Username,
-                    'phone' => $data['phone'],
-                    'role' => $admin->Role,
-                    'photo' => $admin->ProfileImage
-                ]
-            ]);
+        $skillName = $data['skill'] ?? 'General';
+        $groupName = $data['group'] ?? 'Group A';
+        $skill = Skill::firstOrCreate(['SkillName' => $skillName], ['Description' => '']);
+        $group = Group::firstOrCreate(['GroupName' => $groupName]);
+        $studentUpdate = [
+            'FirstName' => $data['firstName'],
+            'LastName' => $data['lastName'],
+            'Phone' => $data['phone'],
+            'StudyShift' => $data['shift'] ?? 'Morning',
+            'SkillId' => $skill->SkillId,
+            'GroupId' => $group->GroupId,
+        ];
+        if (!empty($request->input('studentCode'))) {
+            $studentUpdate['StudentCode'] = $request->input('studentCode');
         }
+        if ($photoPath) {
+            $studentUpdate['Photo'] = $photoPath;
+        }
+        if ($request->has('durationMonths')) {
+            $studentUpdate['DurationMonths'] = $this->parseDurationMonths($request->input('durationMonths'));
+        }
+        if (!empty($request->input('enrolledMonth'))) {
+            $studentUpdate['EnrolledMonth'] = $request->input('enrolledMonth');
+        }
+        if (!empty($request->input('enrolledYear'))) {
+            $studentUpdate['EnrolledYear'] = $request->input('enrolledYear');
+        }
+        $student->update($studentUpdate);
+
+        return response()->json([
+            'message' => 'Student updated.',
+            'student' => [
+                'id' => $student->StudentId,
+                'name' => $data['firstName'] . ' ' . $data['lastName'],
+                'studentCode' => $student->StudentCode,
+                'phone' => $data['phone'],
+                'role' => 'Student',
+                'photo' => $student->Photo,
+                'skill' => $data['skill'] ?? '',
+                'group' => $data['group'] ?? '',
+                'shift' => $data['shift'] ?? '',
+                'durationMonths' => $student->DurationMonths
+            ]
+        ]);
     }
 
     public function deleteStudent(Request $request, $id)
     {
+        if ($request->input('type') === 'admin' || $request->header('X-Target-Type') === 'admin') {
+            return $this->deleteAdmin($request, $id);
+        }
+
         if (!self::checkAdminPermission($request->user(), 'Students', 'delete')) {
             return response()->json(['message' => 'Unauthorized. You do not have permission to delete.'], 403);
         }
 
-        $deletedStudent = Student::where('StudentId', $id)->delete();
-        $deletedAdmin = Admin::where('AdminId', $id)->delete();
-
-        if (!$deletedStudent && !$deletedAdmin) {
-            return response()->json(['message' => 'Record not found.'], 404);
+        // Strictly delete from tblstudent ONLY! Never delete from tbladmin!
+        $deleted = Student::where('StudentId', $id)->delete();
+        if (!$deleted) {
+            return response()->json(['message' => 'Student not found.'], 404);
         }
 
-        return response()->json(['message' => 'Deleted successfully']);
+        return response()->json(['message' => 'Student deleted successfully.']);
     }
 
     public function addStudent(Request $request)

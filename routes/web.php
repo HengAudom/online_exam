@@ -84,11 +84,17 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::get('/api/admin/dashboard', [AdminController::class, 'dashboard']);
     Route::get('/api/admin/system-health-check', [AdminController::class, 'systemHealthCheck']);
 
-    // Student & Admin Management
+    // Student Management
     Route::get('/api/admin/students', [AdminController::class, 'students']);
     Route::post('/api/admin/students', [AdminController::class, 'addStudent']);
     Route::put('/api/admin/students/{id}', [AdminController::class, 'updateStudent']);
     Route::delete('/api/admin/students/{id}', [AdminController::class, 'deleteStudent']);
+
+    // Admin Management (Dedicated endpoints preventing collision with students)
+    Route::get('/api/admin/admins', [AdminController::class, 'admins']);
+    Route::post('/api/admin/admins', [AdminController::class, 'addAdmin']);
+    Route::put('/api/admin/admins/{id}', [AdminController::class, 'updateAdmin']);
+    Route::delete('/api/admin/admins/{id}', [AdminController::class, 'deleteAdmin']);
 
     // Academic Settings (Skills, Groups, Durations)
     Route::get('/api/admin/skills-groups', [AdminController::class, 'skillsGroups']);

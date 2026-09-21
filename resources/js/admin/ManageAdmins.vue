@@ -573,7 +573,7 @@ const saveNewAdmin = async () => {
 
   savingAdd.value = true
   try {
-    const res = await axios.post('/api/admin/students', {
+    const res = await axios.post('/api/admin/admins', {
       role: addForm.role,
       firstName: addForm.firstName.trim(),
       lastName: addForm.lastName.trim(),
@@ -582,13 +582,13 @@ const saveNewAdmin = async () => {
       password: addForm.password
     })
 
-    toastSuccess(res.data.message || 'Administrator created successfully!')
+    toastSuccess(res.data.message || (lang.value === 'kh' ? 'បានបង្កើតអ្នកគ្រប់គ្រងថ្មីដោយជោគជ័យ!' : 'Administrator created successfully!'))
     logActivity(`New ${addForm.role} created: ${addForm.firstName} ${addForm.lastName}`, `Username: @${addForm.username}`)
     addingAdmin.value = false
     broadcastSync('students_updated')
     await loadData()
   } catch (err) {
-    toastError(err.response?.data?.message || 'Failed to add administrator.')
+    toastError(err.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចបង្កើតអ្នកគ្រប់គ្រងបានទេ' : 'Failed to add administrator.'))
   } finally {
     savingAdd.value = false
   }
@@ -628,14 +628,14 @@ const saveAdmin = async () => {
       newPassword: editForm.newPassword || undefined
     }
 
-    const res = await axios.put(`/api/admin/students/${editingAdminId.value}`, payload)
+    const res = await axios.put(`/api/admin/admins/${editingAdminId.value}`, payload)
 
-    toastSuccess(res.data.message || 'Administrator updated successfully!')
+    toastSuccess(res.data.message || (lang.value === 'kh' ? 'កែប្រែព័ត៌មានអ្នកគ្រប់គ្រងបានជោគជ័យ!' : 'Administrator updated successfully!'))
     editingAdminModal.value = false
     broadcastSync('students_updated')
     await loadData()
   } catch (err) {
-    toastError(err.response?.data?.message || 'Failed to update administrator.')
+    toastError(err.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចកែប្រែបានទេ' : 'Failed to update administrator.'))
   } finally {
     savingEdit.value = false
   }
@@ -654,13 +654,13 @@ const performDelete = async () => {
   if (!adminToDelete.value) return
   deleting.value = true
   try {
-    await axios.delete(`/api/admin/students/${adminToDelete.value.id}`)
-    toastSuccess('Administrator deleted successfully.')
+    await axios.delete(`/api/admin/admins/${adminToDelete.value.id}`)
+    toastSuccess(lang.value === 'kh' ? 'បានលុបអ្នកគ្រប់គ្រងដោយជោគជ័យ' : 'Administrator deleted successfully.')
     showDeleteDialog.value = false
     broadcastSync('students_updated')
     await loadData()
   } catch (err) {
-    toastError(err.response?.data?.message || 'Failed to delete administrator.')
+    toastError(err.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចលុបអ្នកគ្រប់គ្រងបានទេ' : 'Failed to delete administrator.'))
   } finally {
     deleting.value = false
   }
@@ -668,7 +668,7 @@ const performDelete = async () => {
 
 const loadData = async (isBackground = false) => {
   try {
-    const res = await axios.get('/api/admin/students')
+    const res = await axios.get('/api/admin/admins')
     adminsList.value = res.data.admins || []
   } catch (err) {
     if (!isBackground) {

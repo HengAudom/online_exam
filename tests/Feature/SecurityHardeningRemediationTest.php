@@ -71,6 +71,10 @@ class SecurityHardeningRemediationTest extends TestCase
             ['GET', '/api/student/results'],
             ['GET', '/api/admin/dashboard'],
             ['GET', '/api/admin/students'],
+            ['GET', '/api/admin/admins'],
+            ['POST', '/api/admin/admins'],
+            ['PUT', '/api/admin/admins/1'],
+            ['DELETE', '/api/admin/admins/1'],
             ['GET', '/api/admin/tests'],
             ['GET', '/api/admin/system-settings'],
             ['GET', '/api/unknown-endpoint-test'],
@@ -372,6 +376,107 @@ class SecurityHardeningRemediationTest extends TestCase
 
         // Both error messages must be strictly identical (Anti-Enumeration Finding #4)
         $this->assertEquals($resNonExistent->json('message'), $resWrongPhone->json('message'));
+    }
+
+    public function test_admin_and_student_with_same_id_update_independently(): void
+    {
+        // 1. Create a SuperAdmin to act as authenticated user
+        $superAdmin = Admin::create([
+            'Username' => 'superroot',
+            'Password' => Hash::make('SuperSecret123!'),
+            'FirstName' => 'Super',
+            'LastName' => 'Admin',
+            'Role' => 'SuperAdmin',
+            'Status' => 'Active',
+        ]);
+
+        // 2. Create Skill and Group for student
+        $skill = Skill::create(['SkillName' => 'Web Dev']);
+        $group = Group::create(['GroupName' => 'Class A']);
+
+        // 3. Create Student (will get StudentId = 1)
+        $student = Student::create([
+            'StudentCode' => 'RTC-2026-00001',
+            'FirstName' => 'Sok',
+            'LastName' => 'San',
+            'Gender' => 'M',
+            'StudyShift' => 'Morning',
+            'SkillId' => $skill->SkillId,
+            'GroupId' => $group->GroupId,
+            'Phone' => '011111111',
+        ]);
+
+        // 4. Create Standard Admin (will get AdminId = 2)
+        $targetAdmin = Admin::create([
+            'Username' => 'adminmanager',
+            'Password' => Hash::make('AdminPass123!'),
+            'FirstName' => 'Admin',
+            'LastName' => 'Manager',
+            'Role' => 'Admin',
+            'Status' => 'Active',
+            'Phone' => '022222222',
+        ]);
+
+        // 5. Create a 2nd Student (will get StudentId = 2)
+        $student2 = Student::create([
+            'StudentCode' => 'RTC-2026-00002',
+            'FirstName' => 'Dara',
+            'LastName' => 'StudentTwo',
+            'Gender' => 'F',
+            'StudyShift' => 'Afternoon',
+            'SkillId' => $skill->SkillId,
+            'GroupId' => $group->GroupId,
+            'Phone' => '033333333',
+        ]);
+
+        // Ensure both targetAdmin and student2 share ID = 2
+        $this->assertEquals($targetAdmin->AdminId, $student2->StudentId);
+
+        // 6. Act as SuperAdmin and update Admin #2
+        $this->actingAs($superAdmin);
+
+        $res = $this->putJson("/api/admin/admins/{$targetAdmin->AdminId}", [
+            'firstName' => 'AdminUpdated',
+            'lastName' => 'ManagerUpdated',
+            'username' => 'admindom',
+            'phone' => '061954512',
+            'role' => 'Admin',
+        ]);
+
+        $res->assertStatus(200);
+        $res->assertJson(['message' => 'Administrator updated successfully!']);
+
+        // Verify Admin record was updated
+        $targetAdmin->refresh();
+        $this->assertEquals('admindom', $targetAdmin->Username);
+        $this->assertEquals('AdminUpdated', $targetAdmin->FirstName);
+        $this->assertEquals('061954512', $targetAdmin->Phone);
+
+        // Verify Student with same ID was NOT touched
+        $student2->refresh();
+        $this->assertEquals('Dara', $student2->FirstName);
+        $this->assertEquals('StudentTwo', $student2->LastName);
+        $this->assertEquals('033333333', $student2->Phone);
+
+        // 7. Also test backward-compatibility via PUT /api/admin/students/{id} with admin payload
+        $resLegacy = $this->putJson("/api/admin/students/{$targetAdmin->AdminId}", [
+            'firstName' => 'AdminDomFinal',
+            'lastName' => 'ManagerFinal',
+            'username' => 'admindomfinal',
+            'phone' => '061954512',
+            'role' => 'Admin',
+        ]);
+
+        $resLegacy->assertStatus(200);
+        $resLegacy->assertJson(['message' => 'Administrator updated successfully!']);
+
+        $targetAdmin->refresh();
+        $this->assertEquals('admindomfinal', $targetAdmin->Username);
+        $this->assertEquals('AdminDomFinal', $targetAdmin->FirstName);
+
+        // Student #2 remains intact
+        $student2->refresh();
+        $this->assertEquals('Dara', $student2->FirstName);
     }
 }
 
