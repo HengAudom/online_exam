@@ -86,41 +86,12 @@
         </div>
       </form>
 
-      <!-- Step 2: Verify Telegram OTP -->
-      <form v-else-if="currentStep === 2" @submit.prevent="handleVerifyOtp" class="space-y-4">
-        <!-- Verified User Chip -->
-        <div class="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-semibold flex items-center justify-between gap-2 animate-fade-in">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-emerald-600 text-lg shrink-0">check_circle</span>
-            <span>{{ lang === 'kh' ? 'គណនីផ្ទៀងផ្ទាត់៖' : 'Account:' }} <strong class="text-emerald-950 font-extrabold">{{ verifiedDisplayName || form.username }}</strong></span>
-          </div>
-          <button
-            type="button"
-            @click="currentStep = 1; errorMessage = ''"
-            class="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 underline cursor-pointer"
-          >
-            {{ lang === 'kh' ? 'កែប្រែ' : 'Change' }}
-          </button>
-        </div>
-
-        <!-- Telegram Notification Banner -->
-        <div class="p-3.5 rounded-2xl bg-blue-50/80 border border-blue-200/80 text-blue-900 text-xs flex items-start gap-2.5 animate-fade-in">
-          <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">send</span>
-          <div class="space-y-0.5">
-            <p class="font-bold text-blue-950">{{ lang === 'kh' ? 'លេខកូដ OTP ៦ ខ្ទង់ត្រូវបានផ្ញើរួចរាល់' : '6-digit OTP Dispatched' }}</p>
-            <p class="text-[11px] text-blue-700">
-              {{ lang === 'kh' 
-                ? 'សូមពិនិត្យមើលសារក្នុង Telegram របស់អ្នក (@onlinexam_bot) ដើម្បីយកលេខកូដផ្ទៀងផ្ទាត់។' 
-                : 'Please check your Telegram messages (@onlinexam_bot) to get the verification code.' }}
-            </p>
-          </div>
-        </div>
-
-        <!-- OTP Input Field -->
-        <div class="space-y-1">
+      <!-- Step 2: Verify Telegram OTP (6-box style from Downloads/OTP) -->
+      <form v-else-if="currentStep === 2" @submit.prevent="handleVerifyOtp" class="space-y-6">
+        <div class="space-y-3">
           <div class="flex items-center justify-between">
             <label class="block text-xs font-bold text-slate-700">
-              {{ lang === 'kh' ? 'លេខកូដ OTP (៦ ខ្ទង់)' : 'OTP Code (6 digits)' }}
+              {{ lang === 'kh' ? 'លេខកូដ OTP (៦ ខ្ទង់)' : 'Verification Code (6 digits)' }}
               <span class="text-red-500">*</span>
             </label>
             <button
@@ -138,15 +109,29 @@
               </span>
             </button>
           </div>
-          <Input
-            v-model="form.otp"
-            type="text"
-            required
-            maxlength="6"
-            icon="pin"
-            :placeholder="lang === 'kh' ? 'បញ្ចូលលេខ ៦ ខ្ទង់ ឧ. 123456' : 'Enter 6-digit code e.g. 123456'"
-            @input="handleOtpInput"
-          />
+
+          <!-- 6-box OTP Container -->
+          <div class="otp-container" :class="{ 'is-complete': form.otp.length === 6 }">
+            <input
+              v-for="(digit, idx) in otpDigits"
+              :key="idx"
+              :ref="el => otpBoxes[idx] = el"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              maxlength="1"
+              :value="digit"
+              class="otp-box"
+              :class="{
+                'is-filled': digit !== '',
+                'is-complete': form.otp.length === 6
+              }"
+              @input="onOtpInput(idx, $event)"
+              @keydown="onOtpKeydown(idx, $event)"
+              @paste="onOtpPaste(idx, $event)"
+              @focus="$event.target.select()"
+            />
+          </div>
         </div>
 
         <div class="pt-2">
@@ -156,6 +141,7 @@
             full-width
             size="lg"
             :loading="loading"
+            :disabled="form.otp.length !== 6"
             icon="verified_user"
           >
             {{ loading ? (lang === 'kh' ? 'កំពុងផ្ទៀងផ្ទាត់...' : 'Verifying OTP...') : (lang === 'kh' ? 'ផ្ទៀងផ្ទាត់កូដ OTP' : 'Verify OTP Code') }}
@@ -246,7 +232,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, onBeforeUnmount } from 'vue'
+import { reactive, ref, onBeforeUnmount, nextTick } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import axios from 'axios'
 import PublicLayout from '../layouts/PublicLayout.vue'
@@ -269,6 +255,9 @@ const resendCountdown = ref(0)
 const resendLoading = ref(false)
 let timer = null
 
+const otpDigits = ref(['', '', '', '', '', ''])
+const otpBoxes = ref([])
+
 const form = reactive({
   username: '',
   phone: '',
@@ -276,6 +265,12 @@ const form = reactive({
   password: '',
   confirmPassword: ''
 })
+
+const focusFirstOtpBox = () => {
+  nextTick(() => {
+    otpBoxes.value[0]?.focus()
+  })
+}
 
 const startCountdown = () => {
   resendCountdown.value = 60
@@ -294,8 +289,56 @@ onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
 })
 
-const handleOtpInput = () => {
-  form.otp = form.otp.replace(/[^0-9]/g, '').slice(0, 6)
+const onOtpInput = (index, event) => {
+  const raw = event.target.value || ''
+  const digit = raw.replace(/[^0-9]/g, '').slice(-1)
+  otpDigits.value[index] = digit
+  event.target.value = digit
+  errorMessage.value = ''
+
+  form.otp = otpDigits.value.join('')
+
+  if (digit && index < 5) {
+    otpBoxes.value[index + 1]?.focus()
+  }
+}
+
+const onOtpKeydown = (index, event) => {
+  if (event.key === 'Backspace') {
+    if (!otpDigits.value[index] && index > 0) {
+      otpDigits.value[index - 1] = ''
+      if (otpBoxes.value[index - 1]) {
+        otpBoxes.value[index - 1].value = ''
+        otpBoxes.value[index - 1].focus()
+      }
+    } else {
+      otpDigits.value[index] = ''
+      event.target.value = ''
+    }
+    form.otp = otpDigits.value.join('')
+    errorMessage.value = ''
+  } else if (event.key === 'ArrowLeft' && index > 0) {
+    otpBoxes.value[index - 1]?.focus()
+  } else if (event.key === 'ArrowRight' && index < 5) {
+    otpBoxes.value[index + 1]?.focus()
+  }
+}
+
+const onOtpPaste = (index, event) => {
+  event.preventDefault()
+  const pasted = (event.clipboardData?.getData('text') || '').replace(/[^0-9]/g, '').trim()
+  if (!pasted) return
+
+  for (let j = 0; j < pasted.length && (index + j) < 6; j++) {
+    otpDigits.value[index + j] = pasted[j]
+    if (otpBoxes.value[index + j]) {
+      otpBoxes.value[index + j].value = pasted[j]
+    }
+  }
+
+  form.otp = otpDigits.value.join('')
+  const targetIndex = Math.min(index + pasted.length, 5)
+  otpBoxes.value[targetIndex]?.focus()
   errorMessage.value = ''
 }
 
@@ -327,8 +370,10 @@ const handleVerifyIdentity = async () => {
     }
     verifiedDisplayName.value = res.data.displayName || username
     form.otp = ''
+    otpDigits.value = ['', '', '', '', '', '']
     currentStep.value = 2
     startCountdown()
+    focusFirstOtpBox()
     toastSuccess(res.data.message || (lang.value === 'kh' ? 'លេខកូដ OTP ត្រូវបានផ្ញើទៅ Telegram រួចរាល់' : 'OTP dispatched to Telegram.'))
   } catch (error) {
     if (error.response?.status === 429) {
@@ -354,7 +399,10 @@ const handleResendOtp = async () => {
       phone: form.phone.trim()
     })
 
+    form.otp = ''
+    otpDigits.value = ['', '', '', '', '', '']
     startCountdown()
+    focusFirstOtpBox()
     toastSuccess(res.data.message || (lang.value === 'kh' ? 'លេខកូដ OTP ថ្មីត្រូវបានផ្ញើទៅកាន់ Telegram' : 'New OTP dispatched to Telegram.'))
   } catch (error) {
     if (error.response?.status === 429) {
@@ -437,3 +485,57 @@ const handleResetPassword = async () => {
   }
 }
 </script>
+
+<style scoped>
+.otp-container {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 14px 0 10px;
+}
+
+@media (min-width: 400px) {
+  .otp-container {
+    gap: 12px;
+  }
+}
+
+.otp-box {
+  width: 46px;
+  height: 58px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  color: #0f172a;
+  background: #f8fafc;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  outline: none;
+}
+
+@media (min-width: 400px) {
+  .otp-box {
+    width: 50px;
+    height: 60px;
+  }
+}
+
+.otp-box:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+  transform: translateY(-2px);
+}
+
+.otp-box.is-filled {
+  border-color: #3b82f6;
+  background: #ffffff;
+}
+
+.otp-container.is-complete .otp-box {
+  border-color: #10b981;
+  color: #059669;
+  background: #f0fdf4;
+}
+</style>
