@@ -208,7 +208,8 @@ class AdminController extends Controller
                 return $b['timestamp'] <=> $a['timestamp'];
             })
             ->take(30)
-            ->values();
+            ->values()
+            ->all();
 
         $dbStats = self::getRealDatabaseStorageStats();
         $dbSizeMB = $dbStats['usedMB'];

@@ -823,7 +823,14 @@ const platformHealthLabel = computed(() => {
 })
 
 const allActivities = computed(() => {
-  return (dashboard.latestActivity || []).map(a => {
+  let list = []
+  if (Array.isArray(dashboard.latestActivity)) {
+    list = dashboard.latestActivity
+  } else if (dashboard.latestActivity && typeof dashboard.latestActivity === 'object') {
+    list = Object.values(dashboard.latestActivity).filter(item => item && typeof item === 'object' && item.title)
+  }
+
+  return list.map(a => {
     let icon = 'history'
     let colorClass = 'bg-slate-100 text-slate-600'
 
@@ -854,14 +861,23 @@ const allActivities = computed(() => {
         break
     }
 
-    const timeLabel = a.timestamp
-      ? new Date(a.timestamp * 1000).toLocaleString('en-US', {
-          month: 'short',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      : ''
+    let timeLabel = ''
+    if (a.timestamp) {
+      try {
+        const ms = Number(a.timestamp) > 1e11 ? Number(a.timestamp) : Number(a.timestamp) * 1000
+        const d = new Date(ms)
+        if (!isNaN(d.getTime())) {
+          timeLabel = d.toLocaleString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        }
+      } catch (err) {
+        timeLabel = ''
+      }
+    }
 
     return { ...a, icon, colorClass, timeLabel }
   })
@@ -869,6 +885,7 @@ const allActivities = computed(() => {
 
 const getWeekStart = (date) => {
   const d = new Date(date)
+  if (isNaN(d.getTime())) return null
   const day = d.getDay()
   const diff = (day === 0 ? -6 : 1) - day
   d.setDate(d.getDate() + diff)
@@ -877,25 +894,36 @@ const getWeekStart = (date) => {
 }
 
 const weekLabel = (weekStart) => {
+  if (!weekStart || isNaN(weekStart.getTime())) return ''
   const now = new Date()
   const thisWeek = getWeekStart(now)
   const lastWeek = new Date(thisWeek)
   lastWeek.setDate(lastWeek.getDate() - 7)
 
-  if (weekStart.getTime() === thisWeek.getTime()) return t.value.thisWeek
-  if (weekStart.getTime() === lastWeek.getTime()) return t.value.lastWeek
+  if (thisWeek && weekStart.getTime() === thisWeek.getTime()) return t.value.thisWeek
+  if (lastWeek && weekStart.getTime() === lastWeek.getTime()) return t.value.lastWeek
 
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekEnd.getDate() + 6)
-  const fmt = (d) => d.toLocaleString('en-US', { month: 'short', day: 'numeric' })
+  const fmt = (d) => {
+    try {
+      return d.toLocaleString('en-US', { month: 'short', day: 'numeric' })
+    } catch {
+      return ''
+    }
+  }
   return `${fmt(weekStart)} – ${fmt(weekEnd)}, ${weekEnd.getFullYear()}`
 }
 
 const groupedByWeek = computed(() => {
   const map = new Map()
   for (const item of allActivities.value) {
-    if (!item.timestamp) continue
-    const ws = getWeekStart(new Date(item.timestamp * 1000))
+    if (!item || !item.timestamp) continue
+    const ms = Number(item.timestamp) > 1e11 ? Number(item.timestamp) : Number(item.timestamp) * 1000
+    const itemDate = new Date(ms)
+    if (isNaN(itemDate.getTime())) continue
+    const ws = getWeekStart(itemDate)
+    if (!ws || isNaN(ws.getTime())) continue
     const key = ws.getTime()
     if (!map.has(key)) map.set(key, { weekStart: ws, weekLabel: weekLabel(ws), items: [] })
     map.get(key).items.push(item)
@@ -908,7 +936,12 @@ let dashboardPollTimer = null
 const loadDashboard = async () => {
   try {
     const res = await axios.get('/api/admin/dashboard')
-    Object.assign(dashboard, res.data)
+    if (res.data) {
+      if (res.data.latestActivity && !Array.isArray(res.data.latestActivity) && typeof res.data.latestActivity === 'object') {
+        res.data.latestActivity = Object.values(res.data.latestActivity).filter(item => item && typeof item === 'object' && item.title)
+      }
+      Object.assign(dashboard, res.data)
+    }
   } catch (e) {
     console.error('Failed to load dashboard', e)
   } finally {
