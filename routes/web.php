@@ -9,10 +9,12 @@ use App\Http\Controllers\TelegramBotController;
 use App\Http\Controllers\LuckyWheelRemoteController;
 use Illuminate\Support\Facades\Route;
 
-// ─── Lucky Wheel Remote Controller (Mobile Remote Clicker - PIN-gated) ────────
-Route::match(['get', 'post'], '/api/lucky-wheel/remote/state', [LuckyWheelRemoteController::class, 'getState']);
-Route::match(['get', 'post'], '/api/lucky-wheel/remote/command', [LuckyWheelRemoteController::class, 'sendCommand']);
-Route::match(['get', 'post'], '/api/lucky-wheel/remote/ping', [LuckyWheelRemoteController::class, 'ping']);
+// ─── Lucky Wheel Remote Controller (Mobile Remote Clicker - PIN-gated + Throttled) ────────
+Route::middleware(['throttle:30,1'])->group(function () {
+    Route::match(['get', 'post'], '/api/lucky-wheel/remote/state', [LuckyWheelRemoteController::class, 'getState']);
+    Route::match(['get', 'post'], '/api/lucky-wheel/remote/command', [LuckyWheelRemoteController::class, 'sendCommand']);
+    Route::match(['get', 'post'], '/api/lucky-wheel/remote/ping', [LuckyWheelRemoteController::class, 'ping']);
+});
 
 // ─── Telegram Webhook & Cloud Sync ───────────────────────────────────────────
 Route::match(['get', 'post'], '/api/telegram/webhook', [TelegramBotController::class, 'webhook']);
@@ -34,10 +36,13 @@ Route::middleware(['throttle:30,1'])->group(function () {
 
 Route::middleware(['throttle:15,1'])->group(function () {
     Route::post('/api/login', [AuthController::class, 'login']);
+});
+
+Route::middleware(['throttle:5,1'])->group(function () {
     Route::post('/api/register', [AuthController::class, 'register']);
 });
 
-Route::middleware(['throttle:10,1'])->group(function () {
+Route::middleware(['throttle:5,1'])->group(function () {
     Route::post('/api/password/verify-identity', [AuthController::class, 'verifyIdentity']);
     Route::post('/api/password/forgot', [AuthController::class, 'forgotPassword']);
     Route::post('/api/password/reset', [AuthController::class, 'resetPassword']);

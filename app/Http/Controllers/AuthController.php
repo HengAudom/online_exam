@@ -46,8 +46,15 @@ class AuthController extends Controller
             'group.required' => 'សូមជ្រើសរើសក្រុម (Group is required).',
         ]);
 
+        $requestedCode = trim($request->input('studentCode', ''));
+        if (!empty($requestedCode) && Student::where('StudentCode', $requestedCode)->exists()) {
+            return response()->json([
+                'message' => 'គណនីនេះបានចុះឈ្មោះរួចហើយ។ សូមទាក់ទងអ្នកគ្រប់គ្រង។ (This Student ID is already registered. Please contact administrator.)',
+            ], 409);
+        }
+
         try {
-            return DB::transaction(function () use ($request, $data) {
+            return DB::transaction(function () use ($request, $data, $requestedCode) {
                 $skill = Skill::firstOrCreate(
                     ['SkillName' => $data['skill']],
                     ['Description' => '']
@@ -60,9 +67,8 @@ class AuthController extends Controller
                 // Process profile photo safely (never throws)
                 $photoPath = $this->processUploadedPhoto($request->input('photo'), $request->file('photo'));
 
-                // Use requested student code if provided and unique, otherwise generate unique student ID
-                $requestedCode = trim($request->input('studentCode', ''));
-                if (!empty($requestedCode) && !Student::where('StudentCode', $requestedCode)->exists()) {
+                // Use requested student code if provided, otherwise generate unique student ID
+                if (!empty($requestedCode)) {
                     $studentCode = $requestedCode;
                 } else {
                     $studentCode = $this->generateStudentCode($data['intakeYear'] ?? date('Y'));
@@ -134,27 +140,10 @@ class AuthController extends Controller
                 ], 201);
             });
         } catch (\Throwable $e) {
-            @file_put_contents(storage_path('app/reg_error.log'), date('Y-m-d H:i:s') . " - " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n\n", FILE_APPEND);
-            \Log::error('Registration exception: ' . $e->getMessage());
-
-            // If the student was already created in the DB (e.g. from duplicate submit or race condition)
-            $requestedCode = trim($request->input('studentCode', ''));
-            if (!empty($requestedCode)) {
-                try {
-                    $existing = Student::where('StudentCode', $requestedCode)->first();
-                    if ($existing) {
-                        return response()->json([
-                            'message' => 'Registration successful. Your Student ID is ' . $existing->StudentCode . '. Please sign in to take exams.',
-                            'studentCode' => $existing->StudentCode,
-                            'student' => $existing,
-                        ], 200);
-                    }
-                } catch (\Throwable $ex) {}
-            }
+            \Log::error('Registration exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
 
             return response()->json([
-                'message' => 'មានបញ្ហាពេលចុះឈ្មោះ (Registration error: ' . $e->getMessage() . ')',
-                'error' => $e->getMessage()
+                'message' => 'មានបញ្ហាក្នុងការចុះឈ្មោះ សូមព្យាយាមម្តងទៀត។ (An error occurred during registration. Please try again.)',
             ], 500);
         }
     }
@@ -576,35 +565,31 @@ class AuthController extends Controller
             return response()->json(['message' => 'សូមបញ្ចូលលេខទូរស័ព្ទឲ្យបានត្រឹមត្រូវ (Please enter a valid phone number).'], 422);
         }
 
-        // Find Admin or Student
         $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($username)])->first();
-        $student = $admin ? null : self::findStudentByIdentifier($username);
-
-        if (!$admin && !$student) {
-            return response()->json(['message' => 'រកមិនឃើញឈ្មោះគណនីនេះក្នុងប្រព័ន្ធឡើយ (Account not found).'], 404);
-        }
-
         $matched = false;
         $displayName = '';
-
-        if ($student) {
-            $studentPhone = preg_replace('/[^0-9]/', '', $student->Phone ?? '');
-            if ($studentPhone && (str_ends_with($studentPhone, $phoneInput) || str_ends_with($phoneInput, $studentPhone))) {
-                $matched = true;
-                $displayName = trim(($student->FirstName ?? '') . ' ' . ($student->LastName ?? '')) ?: $student->StudentCode;
-            }
-        }
 
         if ($admin) {
             $adminPhone = preg_replace('/[^0-9]/', '', $admin->Phone ?? '');
             if ($adminPhone && (str_ends_with($adminPhone, $phoneInput) || str_ends_with($phoneInput, $adminPhone))) {
                 $matched = true;
-                $displayName = trim(($admin->FirstName ?? '') . ' ' . ($admin->LastName ?? '')) ?: $admin->Username;
+                $fullName = trim(($admin->FirstName ?? '') . ' ' . ($admin->LastName ?? ''));
+                if ($fullName) {
+                    $parts = explode(' ', $fullName);
+                    $maskedParts = array_map(function($p) {
+                        return mb_substr($p, 0, 1) . '***';
+                    }, $parts);
+                    $displayName = implode(' ', $maskedParts);
+                } else {
+                    $displayName = $admin->Username;
+                }
             }
         }
 
         if (!$matched) {
-            return response()->json(['message' => 'លេខទូរស័ព្ទមិនត្រូវគ្នានឹងគណនីនេះឡើយ សូមពិនិត្យលេខទូរស័ព្ទដែលបានចុះឈ្មោះ (Phone number does not match registered profile).'], 422);
+            return response()->json([
+                'message' => 'ឈ្មោះគណនី ឬលេខទូរស័ព្ទមិនត្រឹមត្រូវឡើយ សូមពិនិត្យព័ត៌មានឡើងវិញ (Invalid username or registered phone number).'
+            ], 422);
         }
 
         return response()->json([

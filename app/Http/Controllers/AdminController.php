@@ -537,7 +537,17 @@ class AdminController extends Controller
     public function publicSettings()
     {
         $settings = self::getSystemSettings();
-        return response()->json(['settings' => $settings]);
+        return response()->json([
+            'settings' => [
+                'institutionName' => $settings['institutionName'] ?? 'OnlineXam',
+                'academicYear' => $settings['academicYear'] ?? '2026-2027',
+                'timezone' => $settings['timezone'] ?? 'Asia/Phnom_Penh',
+                'defaultLanguage' => $settings['defaultLanguage'] ?? 'kh',
+                'allowRegistration' => (bool) ($settings['allowRegistration'] ?? true),
+                'sessionTimeoutMinutes' => (int) ($settings['sessionTimeoutMinutes'] ?? 60),
+                'maxExamAttempts' => (int) ($settings['maxExamAttempts'] ?? 1),
+            ]
+        ]);
     }
 
     public function systemSettings(Request $request)

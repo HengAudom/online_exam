@@ -169,12 +169,28 @@ class LuckyWheelRemoteController extends Controller
             return response()->json(['success' => false, 'message' => 'Room code required'], 422);
         }
 
-        // Room MUST exist in the database (created by desktop host)
-        if (!$this->dbHas("wheel_room_{$room}")) {
+        // Lockout protection against brute-forcing room PINs
+        $ip = $request->ip();
+        $lockoutKey = "wheel_fail_{$ip}";
+        $failedAttempts = (int) $this->dbGet($lockoutKey, 0);
+        if ($failedAttempts >= 8) {
             return response()->json([
                 'success' => false,
-                'message' => "លេខកូដ Room PIN [{$room}] មិនត្រឹមត្រូវ ឬកុំព្យូទ័រមិនទាន់បានបើកបន្ទប់នេះឡើយ!",
+                'message' => 'ការព្យាយាមចូលបន្ទប់ខុសច្រើនដងពេក សូមរង់ចាំបន្តិចសិន (Too many failed attempts. Please wait 10 minutes).',
+            ], 429);
+        }
+
+        // Room MUST exist in the database (created by desktop host)
+        if (!$this->dbHas("wheel_room_{$room}")) {
+            $this->dbPut($lockoutKey, $failedAttempts + 1, 600);
+            return response()->json([
+                'success' => false,
+                'message' => 'បន្ទប់មិនត្រឹមត្រូវ ឬមិនទាន់បានបើកឡើយ (Room not found or inactive).',
             ], 404);
+        }
+
+        if ($failedAttempts > 0) {
+            $this->dbPut($lockoutKey, 0, 60);
         }
 
         $state = $this->dbGet("wheel_room_{$room}");
@@ -202,7 +218,7 @@ class LuckyWheelRemoteController extends Controller
         if (!$this->dbHas("wheel_room_{$room}")) {
             return response()->json([
                 'success' => false,
-                'message' => "មិនមាន Room PIN [{$room}] នេះនៅលើប្រព័ន្ធឡើយ",
+                'message' => 'បន្ទប់មិនត្រឹមត្រូវ ឬមិនទាន់បានបើកឡើយ (Room not found or inactive).',
             ], 404);
         }
 
