@@ -1,5 +1,8 @@
 <?php
 
+@header_remove('X-Powered-By');
+@ini_set('expose_php', 'off');
+
 // Ensure required serverless /tmp directories exist
 $dirs = [
     '/tmp/storage/framework/views',

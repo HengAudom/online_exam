@@ -758,9 +758,9 @@ class AdminController extends Controller
             $durations = Duration::orderBy('DurationMonths')->get(['DurationId', 'DurationName', 'DurationMonths']);
 
             return [
-                'skills' => $skills,
-                'groups' => $groups,
-                'durations' => $durations,
+                'skills' => $skills->toArray(),
+                'groups' => $groups->toArray(),
+                'durations' => $durations->toArray(),
             ];
         });
 

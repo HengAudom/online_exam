@@ -204,37 +204,23 @@ class AuthController extends Controller
     {
         $identifier = trim($request->input('identifier') ?? $request->input('username') ?? '');
         if ($identifier === '') {
-            return response()->json(['requiresPassword' => false, 'role' => null, 'exists' => false]);
+            return response()->json(['requiresPassword' => false]);
         }
 
-        // 1. Query Database for Admin / Super Admin (tbladmin)
+        // Query Database for Admin / Super Admin (tbladmin)
         $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($identifier)])
             ->select('AdminId', 'Username', 'Role')
             ->first();
 
         if ($admin) {
             return response()->json([
-                'requiresPassword' => true,
-                'role' => $admin->Role ?? 'Admin',
-                'exists' => true
+                'requiresPassword' => true
             ]);
         }
 
-        // 2. Query Database for Student (tblstudent)
-        $student = self::findStudentByIdentifier($identifier);
-
-        if ($student) {
-            return response()->json([
-                'requiresPassword' => false,
-                'role' => 'Student',
-                'exists' => true
-            ]);
-        }
-
+        // Student accounts sign in passwordless with Student ID
         return response()->json([
-            'requiresPassword' => false,
-            'role' => null,
-            'exists' => false
+            'requiresPassword' => false
         ]);
     }
 
@@ -316,6 +302,20 @@ class AuthController extends Controller
             $student = self::findStudentByIdentifier($identifier);
 
             if ($student) {
+                // Check if student has password in database
+                if (!empty($student->Password)) {
+                    if (empty($password) || !Hash::check($password, $student->Password)) {
+                        return response()->json([
+                            'message' => $lang === 'en' ? 'Invalid password.' : 'ពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
+                        ], 422);
+                    }
+                } elseif (!empty($password) && trim((string)$password) !== '') {
+                    // Reject unexpected passwords to prevent authentication bypass confusion
+                    return response()->json([
+                        'message' => $lang === 'en' ? 'This student account logs in with Student ID only (no password required).' : 'គណនីសិស្សនេះត្រូវចូលដោយប្រើតែ Student ID ប៉ុណ្ណោះ (មិនប្រើពាក្យសម្ងាត់ទេ)'
+                    ], 422);
+                }
+
                 Auth::login($student);
 
                 $displayName = trim(($student->FirstName ?? '') . ' ' . ($student->LastName ?? '')) ?: ($student->StudentCode ?? ('Student #' . $student->StudentId));
@@ -555,6 +555,11 @@ class AuthController extends Controller
                 ]
             ]);
         }
+    }
+
+    public function verifyIdentity(Request $request)
+    {
+        return $this->verifyPhone($request);
     }
 
     public function verifyPhone(Request $request)

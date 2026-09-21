@@ -14,10 +14,11 @@ class LuckyWheelRemoteController extends Controller
     protected function dbPut(string $key, $value, int $ttlSeconds = 43200): void
     {
         try {
+            $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             DB::table('cache')->updateOrInsert(
                 ['key' => $key],
                 [
-                    'value' => serialize($value),
+                    'value' => $encoded,
                     'expiration' => now()->timestamp + $ttlSeconds
                 ]
             );
@@ -40,6 +41,11 @@ class LuckyWheelRemoteController extends Controller
                 ->first();
 
             if ($record && isset($record->value)) {
+                $decoded = json_decode($record->value, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    return $decoded;
+                }
+                // Fallback for legacy serialized cache
                 $unserialized = @unserialize($record->value);
                 if ($unserialized !== false || $record->value === 'b:0;') {
                     return $unserialized;

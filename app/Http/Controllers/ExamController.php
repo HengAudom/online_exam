@@ -178,9 +178,23 @@ class ExamController extends Controller
      */
     public function checkStatus(Request $request, $submissionId)
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
         $submission = StudentSubmission::find($submissionId);
         if (!$submission) {
             return response()->json(['exists' => false], 404);
+        }
+
+        // Authorization: Students can only inspect their own submission; Admins can inspect any
+        $isStudent = ($user instanceof Student) || (($user->role ?? null) === 'Student');
+        if ($isStudent) {
+            $studentId = $user->StudentId ?? $user->id ?? 0;
+            if ((int)$submission->StudentId !== (int)$studentId) {
+                return response()->json(['message' => 'Forbidden. You do not have permission to view this submission.'], 403);
+            }
         }
 
         return response()->json([
@@ -195,6 +209,11 @@ class ExamController extends Controller
      */
     public function recordInterruption(Request $request)
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
         $data = $request->validate([
             'submissionId' => ['required', 'integer'],
             'interruptions' => ['nullable', 'integer'],
@@ -203,6 +222,14 @@ class ExamController extends Controller
         $submission = StudentSubmission::find($data['submissionId']);
         if (!$submission || $submission->CompletedAt) {
             return response()->json(['message' => 'Submission not found or already completed.'], 404);
+        }
+
+        $isStudent = ($user instanceof Student) || (($user->role ?? null) === 'Student');
+        if ($isStudent) {
+            $studentId = $user->StudentId ?? $user->id ?? 0;
+            if ((int)$submission->StudentId !== (int)$studentId) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
         }
 
         if (isset($data['interruptions']) && $data['interruptions'] !== null) {
@@ -229,6 +256,11 @@ class ExamController extends Controller
      */
     public function saveAnswer(Request $request)
     {
+        $user = $request->user();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
         $data = $request->validate([
             'submissionId' => ['required', 'integer'],
             'questionId' => ['required', 'integer'],
@@ -236,7 +268,19 @@ class ExamController extends Controller
         ]);
 
         $submission = StudentSubmission::find($data['submissionId']);
-        if ($submission && $submission->CompletedAt) {
+        if (!$submission) {
+            return response()->json(['message' => 'Submission not found.'], 404);
+        }
+
+        $isStudent = ($user instanceof Student) || (($user->role ?? null) === 'Student');
+        if ($isStudent) {
+            $studentId = $user->StudentId ?? $user->id ?? 0;
+            if ((int)$submission->StudentId !== (int)$studentId) {
+                return response()->json(['message' => 'Forbidden.'], 403);
+            }
+        }
+
+        if ($submission->CompletedAt) {
             return response()->json([
                 'message' => 'Submission already completed.',
                 'isCompleted' => true
