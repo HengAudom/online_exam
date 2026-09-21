@@ -793,7 +793,10 @@ class AdminController extends Controller
             return response()->json(['message' => 'Unauthorized. You do not have permission to delete in Skills & Groups.'], 403);
         }
 
-        Duration::findOrFail($id)->delete();
+        $duration = Duration::find($id);
+        if ($duration) {
+            $duration->delete();
+        }
         Cache::forget('admin_skills_groups');
         return response()->json(['message' => 'Duration deleted.']);
     }
@@ -808,7 +811,11 @@ class AdminController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'months' => ['nullable', 'integer', 'min:1'],
         ]);
-        $duration = Duration::findOrFail($id);
+        $duration = Duration::find($id);
+        if (!$duration) {
+            Cache::forget('admin_skills_groups');
+            return response()->json(['message' => 'Duration not found.'], 404);
+        }
         $months = $data['months'] ?? (preg_match('/(\d+)/', $data['name'], $m) ? (int)$m[1] : $duration->DurationMonths);
         $duration->update([
             'DurationName' => $data['name'],
@@ -827,6 +834,7 @@ class AdminController extends Controller
         $data = $request->validate(['name' => ['required', 'string', 'max:255']]);
         $skill = Skill::create(['SkillName' => $data['name'], 'Description' => '']);
         Cache::forget('admin_skills_groups');
+        Cache::forget('admin_dashboard_payload');
         return response()->json(['skill' => ['SkillId' => $skill->SkillId, 'SkillName' => $skill->SkillName]], 201);
     }
 
@@ -836,8 +844,12 @@ class AdminController extends Controller
             return response()->json(['message' => 'Unauthorized. You do not have permission to delete in Skills & Groups.'], 403);
         }
 
-        Skill::findOrFail($id)->delete();
+        $skill = Skill::find($id);
+        if ($skill) {
+            $skill->delete();
+        }
         Cache::forget('admin_skills_groups');
+        Cache::forget('admin_dashboard_payload');
         return response()->json(['message' => 'Skill deleted.']);
     }
 
@@ -848,8 +860,15 @@ class AdminController extends Controller
         }
 
         $data = $request->validate(['name' => ['required', 'string', 'max:255']]);
-        $skill = Skill::findOrFail($id);
+        $skill = Skill::find($id);
+        if (!$skill) {
+            Cache::forget('admin_skills_groups');
+            Cache::forget('admin_dashboard_payload');
+            return response()->json(['message' => 'Skill not found.'], 404);
+        }
         $skill->update(['SkillName' => $data['name']]);
+        Cache::forget('admin_skills_groups');
+        Cache::forget('admin_dashboard_payload');
         return response()->json(['skill' => ['SkillId' => $skill->SkillId, 'SkillName' => $skill->SkillName]]);
     }
 
@@ -865,6 +884,8 @@ class AdminController extends Controller
         $group = Group::create([
             'GroupName' => $data['name'],
         ]);
+        Cache::forget('admin_skills_groups');
+        Cache::forget('admin_dashboard_payload');
         return response()->json([
             'group' => [
                 'GroupId' => $group->GroupId,
@@ -879,7 +900,12 @@ class AdminController extends Controller
             return response()->json(['message' => 'Unauthorized. You do not have permission to delete in Skills & Groups.'], 403);
         }
 
-        Group::findOrFail($id)->delete();
+        $group = Group::find($id);
+        if ($group) {
+            $group->delete();
+        }
+        Cache::forget('admin_skills_groups');
+        Cache::forget('admin_dashboard_payload');
         return response()->json(['message' => 'Group deleted.']);
     }
 
@@ -892,10 +918,17 @@ class AdminController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
         ]);
-        $group = Group::findOrFail($id);
+        $group = Group::find($id);
+        if (!$group) {
+            Cache::forget('admin_skills_groups');
+            Cache::forget('admin_dashboard_payload');
+            return response()->json(['message' => 'Group not found.'], 404);
+        }
         $group->update([
             'GroupName' => $data['name'],
         ]);
+        Cache::forget('admin_skills_groups');
+        Cache::forget('admin_dashboard_payload');
         return response()->json([
             'group' => [
                 'GroupId' => $group->GroupId,
