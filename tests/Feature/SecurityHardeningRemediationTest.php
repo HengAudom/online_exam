@@ -177,7 +177,24 @@ class SecurityHardeningRemediationTest extends TestCase
 
         $correctOtp = (string)$cached['otp'];
 
-        // 3. Trying with incorrect OTP must fail
+        // 3. Trying verify-otp with incorrect OTP must fail
+        $resWrongVerifyOtp = $this->postJson('/api/password/verify-otp', [
+            'username' => 'otpadmin',
+            'phone' => '061954512',
+            'otp' => '000000',
+        ]);
+        $resWrongVerifyOtp->assertStatus(422);
+
+        // 4. Trying verify-otp with correct OTP succeeds
+        $resCorrectVerifyOtp = $this->postJson('/api/password/verify-otp', [
+            'username' => 'otpadmin',
+            'phone' => '061954512',
+            'otp' => $correctOtp,
+        ]);
+        $resCorrectVerifyOtp->assertStatus(200);
+        $resCorrectVerifyOtp->assertJson(['valid' => true]);
+
+        // 5. Trying with incorrect OTP on reset must fail
         $resWrongOtp = $this->postJson('/api/password/reset', [
             'username' => 'otpadmin',
             'phone' => '061954512',
@@ -186,7 +203,7 @@ class SecurityHardeningRemediationTest extends TestCase
         ]);
         $resWrongOtp->assertStatus(422);
 
-        // 4. Reset with correct OTP succeeds
+        // 6. Reset with correct OTP succeeds
         $resSuccess = $this->postJson('/api/password/reset', [
             'username' => 'otpadmin',
             'phone' => '061954512',

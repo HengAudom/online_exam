@@ -32,8 +32,9 @@ Route::middleware(['throttle:5,1'])->group(function () {
     Route::post('/api/register', [AuthController::class, 'register']);
 });
 
-Route::middleware(['throttle:5,1'])->group(function () {
+Route::middleware(['throttle:8,1'])->group(function () {
     Route::post('/api/password/verify-identity', [AuthController::class, 'verifyIdentity']);
+    Route::post('/api/password/verify-otp', [AuthController::class, 'verifyOtp']);
     Route::post('/api/password/forgot', [AuthController::class, 'forgotPassword']);
     Route::post('/api/password/reset', [AuthController::class, 'resetPassword']);
 });

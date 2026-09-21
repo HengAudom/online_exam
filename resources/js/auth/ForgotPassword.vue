@@ -4,20 +4,30 @@
       <div class="mb-6 space-y-1">
         <div class="flex items-center gap-2 mb-2">
           <span class="text-xs font-bold uppercase tracking-wider text-blue-600">
-            {{ lang === 'kh' ? `ជំហានទី ${currentStep} / ២` : `Step ${currentStep} of 2` }}
+            {{ lang === 'kh' ? `ជំហានទី ${currentStep} / ៣` : `Step ${currentStep} of 3` }}
           </span>
           <span class="h-1.5 w-1.5 rounded-full bg-slate-300"></span>
           <span class="text-xs font-medium text-slate-500">
-            {{ currentStep === 1 ? (lang === 'kh' ? 'ផ្ទៀងផ្ទាត់គណនី' : 'Account Verification') : (lang === 'kh' ? 'កំណត់ពាក្យសម្ងាត់ថ្មី' : 'Set New Password') }}
+            {{ currentStep === 1 
+                ? (lang === 'kh' ? 'ផ្ទៀងផ្ទាត់គណនី' : 'Account Verification') 
+                : (currentStep === 2 
+                    ? (lang === 'kh' ? 'ផ្ទៀងផ្ទាត់កូដ OTP' : 'Verify OTP Code') 
+                    : (lang === 'kh' ? 'កំណត់ពាក្យសម្ងាត់ថ្មី' : 'Set New Password')) }}
           </span>
         </div>
         <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">
-          {{ currentStep === 1 ? (lang === 'kh' ? 'ភ្លេចពាក្យសម្ងាត់?' : 'Forgot Password?') : (lang === 'kh' ? 'កំណត់ពាក្យសម្ងាត់ថ្មី' : 'Set New Password') }}
+          {{ currentStep === 1 
+              ? (lang === 'kh' ? 'ភ្លេចពាក្យសម្ងាត់?' : 'Forgot Password?') 
+              : (currentStep === 2 
+                  ? (lang === 'kh' ? 'ផ្ទៀងផ្ទាត់កូដ OTP' : 'Verify OTP Code') 
+                  : (lang === 'kh' ? 'កំណត់ពាក្យសម្ងាត់ថ្មី' : 'Set New Password')) }}
         </h2>
         <p class="text-xs sm:text-sm text-slate-500">
           {{ currentStep === 1 
             ? (lang === 'kh' ? 'បញ្ចូលឈ្មោះគណនី និងលេខទូរស័ព្ទដែលបានចុះឈ្មោះ ដើម្បីផ្ទៀងផ្ទាត់' : 'Enter your username and registered phone number to verify your account.') 
-            : (lang === 'kh' ? 'បញ្ចូលពាក្យសម្ងាត់ថ្មីសម្រាប់គណនីរបស់អ្នក' : 'Create a new secure password for your account.') }}
+            : (currentStep === 2
+                ? (lang === 'kh' ? 'បញ្ចូលលេខកូដ ៦ ខ្ទង់ដែលបានផ្ញើទៅកាន់ Telegram របស់អ្នក (@onlinexam_bot)' : 'Enter the 6-digit verification code sent to your Telegram (@onlinexam_bot).')
+                : (lang === 'kh' ? 'បញ្ចូលពាក្យសម្ងាត់ថ្មីសម្រាប់គណនីរបស់អ្នក' : 'Create a new secure password for your account.')) }}
         </p>
       </div>
 
@@ -76,13 +86,13 @@
         </div>
       </form>
 
-      <!-- Step 2: Set New Password with Telegram OTP -->
-      <form v-else @submit.prevent="handleResetPassword" class="space-y-4">
+      <!-- Step 2: Verify Telegram OTP -->
+      <form v-else-if="currentStep === 2" @submit.prevent="handleVerifyOtp" class="space-y-4">
         <!-- Verified User Chip -->
         <div class="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-semibold flex items-center justify-between gap-2 animate-fade-in">
           <div class="flex items-center gap-2">
             <span class="material-symbols-outlined text-emerald-600 text-lg shrink-0">check_circle</span>
-            <span>{{ lang === 'kh' ? 'ផ្ទៀងផ្ទាត់ជោគជ័យ៖' : 'Verified:' }} <strong class="text-emerald-950 font-extrabold">{{ verifiedDisplayName || form.username }}</strong></span>
+            <span>{{ lang === 'kh' ? 'គណនីផ្ទៀងផ្ទាត់៖' : 'Account:' }} <strong class="text-emerald-950 font-extrabold">{{ verifiedDisplayName || form.username }}</strong></span>
           </div>
           <button
             type="button"
@@ -139,6 +149,51 @@
           />
         </div>
 
+        <div class="pt-2">
+          <Button
+            type="submit"
+            variant="primary"
+            full-width
+            size="lg"
+            :loading="loading"
+            icon="verified_user"
+          >
+            {{ loading ? (lang === 'kh' ? 'កំពុងផ្ទៀងផ្ទាត់...' : 'Verifying OTP...') : (lang === 'kh' ? 'ផ្ទៀងផ្ទាត់កូដ OTP' : 'Verify OTP Code') }}
+          </Button>
+        </div>
+
+        <div class="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+          <button
+            type="button"
+            @click="currentStep = 1; errorMessage = ''"
+            class="font-bold text-slate-500 hover:text-slate-700 inline-flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <span class="material-symbols-outlined text-sm">arrow_back</span>
+            {{ lang === 'kh' ? 'ត្រឡប់ក្រោយ' : 'Back' }}
+          </button>
+
+          <RouterLink
+            to="/login"
+            class="font-bold text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-1"
+          >
+            {{ lang === 'kh' ? 'ត្រឡប់ទៅចូលប្រព័ន្ធ' : 'Back to Sign In' }}
+          </RouterLink>
+        </div>
+      </form>
+
+      <!-- Step 3: Set New Password -->
+      <form v-else-if="currentStep === 3" @submit.prevent="handleResetPassword" class="space-y-4">
+        <!-- Verified User & OTP Success Chip -->
+        <div class="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-semibold flex items-center justify-between gap-2 animate-fade-in">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-emerald-600 text-lg shrink-0">verified</span>
+            <span>{{ lang === 'kh' ? 'OTP ត្រឹមត្រូវ៖' : 'OTP Verified:' }} <strong class="text-emerald-950 font-extrabold">{{ verifiedDisplayName || form.username }}</strong></span>
+          </div>
+          <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+            {{ lang === 'kh' ? 'ជោគជ័យ' : 'Verified' }}
+          </span>
+        </div>
+
         <PasswordInput
           v-model="form.password"
           :label="lang === 'kh' ? 'ពាក្យសម្ងាត់ថ្មី' : 'New Password'"
@@ -171,7 +226,7 @@
         <div class="pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
           <button
             type="button"
-            @click="currentStep = 1; errorMessage = ''"
+            @click="currentStep = 2; errorMessage = ''"
             class="font-bold text-slate-500 hover:text-slate-700 inline-flex items-center gap-1 cursor-pointer transition-colors"
           >
             <span class="material-symbols-outlined text-sm">arrow_back</span>
@@ -314,12 +369,38 @@ const handleResendOtp = async () => {
   }
 }
 
-const handleResetPassword = async () => {
+const handleVerifyOtp = async () => {
   if (!form.otp || form.otp.trim().length !== 6) {
     errorMessage.value = lang.value === 'kh' ? 'សូមបញ្ចូលលេខកូដ OTP ៦ ខ្ទង់ដែលបានផ្ញើទៅ Telegram' : 'Please enter the 6-digit OTP code sent to Telegram.'
     return
   }
 
+  loading.value = true
+  errorMessage.value = ''
+
+  try {
+    const res = await axios.post('/api/password/verify-otp', {
+      username: form.username.trim(),
+      phone: form.phone.trim(),
+      otp: form.otp.trim()
+    })
+
+    currentStep.value = 3
+    toastSuccess(res.data.message || (lang.value === 'kh' ? 'លេខកូដ OTP ត្រឹមត្រូវ' : 'OTP verified successfully.'))
+  } catch (error) {
+    if (error.response?.status === 429) {
+      errorMessage.value = lang.value === 'kh'
+        ? 'អ្នកបានព្យាយាមច្រើនដងពេកហើយ! សូមរង់ចាំ ១ នាទី (Too Many Attempts).'
+        : 'Too many attempts. Please wait a minute.'
+    } else {
+      errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'លេខកូដ OTP មិនត្រឹមត្រូវឡើយ សូមពិនិត្យសារក្នុង Telegram ឡើងវិញ' : 'Incorrect OTP code. Please check Telegram.')
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleResetPassword = async () => {
   if (form.password.length < 6) {
     errorMessage.value = lang.value === 'kh' ? 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច ៦ ខ្ទង់' : 'Password must be at least 6 characters.'
     return
@@ -349,7 +430,7 @@ const handleResetPassword = async () => {
         ? 'អ្នកបានព្យាយាមច្រើនដងពេកហើយ! សូមរង់ចាំ ១ នាទី រួចសាកល្បងម្ដងទៀត (Too Many Attempts. Please wait a minute).'
         : 'Too many attempts. Please wait a minute and try again.'
     } else {
-      errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចផ្លាស់ប្តូរពាក្យសម្ងាត់បានទេ សូមពិនិត្យលេខកូដ OTP' : 'Failed to reset password. Please check your OTP.')
+      errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចផ្លាស់ប្តូរពាក្យសម្ងាត់បានទេ' : 'Failed to reset password.')
     }
   } finally {
     loading.value = false

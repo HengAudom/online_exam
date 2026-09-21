@@ -682,6 +682,80 @@ class AuthController extends Controller
         ]);
     }
 
+    public function verifyOtp(Request $request)
+    {
+        $data = $request->validate([
+            'username' => ['required', 'string'],
+            'phone'    => ['required', 'string'],
+            'otp'      => ['required', 'string', 'regex:/^[0-9]{6}$/'],
+        ]);
+
+        $username = trim($data['username']);
+        $otp = trim($data['otp']);
+        $normalizePhone = function (?string $raw): string {
+            $digits = preg_replace('/[^0-9]/', '', (string)$raw);
+            if (str_starts_with($digits, '855')) {
+                $digits = substr($digits, 3);
+            }
+            return ltrim($digits, '0');
+        };
+
+        $cleanInput = $normalizePhone($data['phone']);
+        $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($username)])->first();
+        if (!$admin) {
+            foreach (Admin::all() as $a) {
+                $f1 = strtolower(trim(($a->FirstName ?? '') . ' ' . ($a->LastName ?? '')));
+                $f2 = strtolower(trim(($a->LastName ?? '') . ' ' . ($a->FirstName ?? '')));
+                if ($f1 === strtolower($username) || $f2 === strtolower($username)) {
+                    $admin = $a;
+                    break;
+                }
+            }
+        }
+
+        if (!$admin) {
+            return response()->json(['message' => 'ការកំណត់ពាក្យសម្ងាត់ថ្មីអាចធ្វើបានសម្រាប់ Admin តែប៉ុណ្ណោះ (Password reset is for Admin only).'], 422);
+        }
+
+        $cleanAdminPhone = $normalizePhone($admin->Phone ?? '');
+        if (empty($cleanAdminPhone) || !hash_equals($cleanAdminPhone, $cleanInput)) {
+            return response()->json(['message' => 'លេខទូរស័ព្ទមិនត្រូវគ្នានឹងគណនីនេះឡើយ (Phone number does not match registered profile).'], 422);
+        }
+
+        $cacheKey = "admin_reset_otp_{$admin->AdminId}";
+        $cachedOtpData = Cache::get($cacheKey);
+
+        if (!$cachedOtpData || empty($cachedOtpData['otp'])) {
+            return response()->json([
+                'message' => 'លេខកូដ OTP បានផុតកំណត់ ឬមិនត្រឹមត្រូវ សូមស្នើសុំលេខកូដថ្មី (OTP has expired or is invalid. Please request a new OTP).'
+            ], 422);
+        }
+
+        if (($cachedOtpData['attempts'] ?? 0) >= 5) {
+            Cache::forget($cacheKey);
+            return response()->json([
+                'message' => 'អ្នកបានបញ្ចូលលេខកូដ OTP ខុសលើសពី ៥ ដង! សូមស្នើសុំលេខកូដ OTP ថ្មីឡើងវិញ (Too many incorrect OTP attempts. Please request a new OTP).'
+            ], 422);
+        }
+
+        if (!hash_equals((string)$cachedOtpData['otp'], $otp)) {
+            $cachedOtpData['attempts'] = ($cachedOtpData['attempts'] ?? 0) + 1;
+            Cache::put($cacheKey, $cachedOtpData, now()->addMinutes(5));
+            return response()->json([
+                'message' => 'លេខកូដ OTP មិនត្រឹមត្រូវឡើយ សូមពិនិត្យមើលសារក្នុង Telegram ឡើងវិញ (Incorrect OTP code. Please check Telegram).'
+            ], 422);
+        }
+
+        // Mark OTP as verified and extend TTL by 10 minutes so user has ample time to enter new password
+        $cachedOtpData['verified'] = true;
+        Cache::put($cacheKey, $cachedOtpData, now()->addMinutes(10));
+
+        return response()->json([
+            'message' => 'លេខកូដ OTP ត្រឹមត្រូវ! (OTP verified successfully).',
+            'valid' => true,
+        ]);
+    }
+
     public function resetPassword(Request $request)
     {
         $data = $request->validate([
