@@ -38,4 +38,14 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 401);
             }
         });
+
+        $exceptions->render(function (\Illuminate\Validation\ValidationException $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                $firstError = collect($e->errors())->flatten()->first() ?: 'ទិន្នន័យដែលបានបញ្ចូលមិនត្រឹមត្រូវ (Invalid input data).';
+                return response()->json([
+                    'message' => $firstError,
+                    'errors' => $e->errors(),
+                ], 422);
+            }
+        });
     })->create();

@@ -220,5 +220,97 @@ class SecurityHardeningRemediationTest extends TestCase
         $admin->refresh();
         $this->assertTrue(Hash::check('NewPassword123!', $admin->Password));
     }
+
+    public function test_check_identifier_does_not_leak_user_existence(): void
+    {
+        // 1. Existing user
+        $resExisting = $this->postJson('/api/check-identifier', [
+            'identifier' => 'admin'
+        ]);
+        $resExisting->assertStatus(200);
+
+        // 2. Non-existent user
+        $resNonExistent = $this->postJson('/api/check-identifier', [
+            'identifier' => 'definitely_does_not_exist_98765'
+        ]);
+        $resNonExistent->assertStatus(200);
+
+        // Uniform response preventing username enumeration (Finding #1)
+        $this->assertEquals($resExisting->json(), $resNonExistent->json());
+        $this->assertFalse($resExisting->json('requiresPassword'));
+        $this->assertEquals('ok', $resExisting->json('status'));
+    }
+
+    public function test_login_account_lockout_after_five_failed_attempts(): void
+    {
+        $admin = Admin::create([
+            'Username' => 'lockout_test_user',
+            'Password' => Hash::make('CorrectPassword123!'),
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+
+        \Illuminate\Support\Facades\Cache::flush();
+
+        // 4 failed attempts should return 422
+        for ($i = 1; $i <= 4; $i++) {
+            $res = $this->postJson('/api/login', [
+                'identifier' => 'lockout_test_user',
+                'password' => 'WrongPassword!',
+                'lang' => 'en'
+            ]);
+            $res->assertStatus(422);
+        }
+
+        // 5th failed attempt triggers lockout (429) (Finding #3)
+        $res5 = $this->postJson('/api/login', [
+            'identifier' => 'lockout_test_user',
+            'password' => 'WrongPassword!',
+            'lang' => 'en'
+        ]);
+        $res5->assertStatus(429);
+        $this->assertStringContainsString('locked', strtolower($res5->json('message')));
+
+        // 6th attempt while locked should still be 429 even with correct password
+        $res6 = $this->postJson('/api/login', [
+            'identifier' => 'lockout_test_user',
+            'password' => 'CorrectPassword123!',
+            'lang' => 'en'
+        ]);
+        $res6->assertStatus(429);
+    }
+
+    public function test_advanced_security_headers_and_hardened_csp_are_present(): void
+    {
+        $response = $this->get('/api/public-settings');
+
+        // Headers from Finding #4
+        $this->assertEquals('same-origin', $response->headers->get('Cross-Origin-Opener-Policy'));
+        $this->assertEquals('same-origin', $response->headers->get('Cross-Origin-Resource-Policy'));
+        $this->assertEquals('credentialless', $response->headers->get('Cross-Origin-Embedder-Policy'));
+        $this->assertEquals('none', $response->headers->get('X-Permitted-Cross-Domain-Policies'));
+
+        // CSP from Finding #2: Nonce-based, no unsafe-inline in script-src, no wildcard https:
+        $csp = $response->headers->get('Content-Security-Policy');
+        $this->assertNotEmpty($csp);
+        $this->assertMatchesRegularExpression("/script-src 'self' 'nonce-[a-zA-Z0-9+\/]+={0,2}'/", $csp);
+        $this->assertStringNotContainsString("script-src 'self' 'unsafe-inline'", $csp);
+    }
+
+    public function test_validation_errors_return_human_readable_messages(): void
+    {
+        $response = $this->postJson('/api/password/reset', [
+            'username' => '',
+            'phone' => '',
+            'otp' => '',
+            'password' => '',
+        ]);
+
+        $response->assertStatus(422);
+        $message = $response->json('message');
+        $this->assertNotEmpty($message);
+        // Ensure raw key like "validation.required" is not displayed (Finding #5)
+        $this->assertStringNotContainsString('validation.required', $message);
+    }
 }
 

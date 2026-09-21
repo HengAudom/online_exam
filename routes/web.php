@@ -19,12 +19,12 @@ Route::middleware(['throttle:5,1'])->group(function () {
     Route::get('/api/skills-groups', [AdminController::class, 'skillsGroups']);
 });
 
-// Rate-limited Auth Endpoints
-Route::middleware(['throttle:30,1'])->group(function () {
+// Rate-limited Auth Endpoints (Findings #1 & #3 in README (1).md)
+Route::middleware(['throttle:5,1'])->group(function () {
     Route::post('/api/check-identifier', [AuthController::class, 'checkIdentifier']);
 });
 
-Route::middleware(['throttle:15,1'])->group(function () {
+Route::middleware(['throttle:5,1'])->group(function () {
     Route::post('/api/login', [AuthController::class, 'login']);
 });
 

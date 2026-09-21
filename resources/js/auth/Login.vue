@@ -1,13 +1,44 @@
 <template>
   <PublicLayout>
     <Card padding="none" class="p-5 sm:p-8 shadow-soft-lg border border-slate-200/80 rounded-2xl sm:rounded-3xl">
+      <!-- Role Switcher Segmented Tabs (Eliminating Client-Side User Enumeration) -->
+      <div class="mb-5 p-1 bg-slate-100/90 rounded-2xl flex items-center gap-1 border border-slate-200/70">
+        <button
+          type="button"
+          @click="setLoginMode(false)"
+          :class="[
+            'flex-1 py-2 sm:py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer',
+            !isAdminMode
+              ? 'bg-white text-blue-700 shadow-sm border border-slate-200/60'
+              : 'text-slate-500 hover:text-slate-800'
+          ]"
+        >
+          <span class="material-symbols-outlined text-base sm:text-lg">school</span>
+          <span>{{ lang === 'kh' ? 'បេក្ខជនប្រឡង' : 'Candidate' }}</span>
+        </button>
+
+        <button
+          type="button"
+          @click="setLoginMode(true)"
+          :class="[
+            'flex-1 py-2 sm:py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer',
+            isAdminMode
+              ? 'bg-white text-blue-700 shadow-sm border border-slate-200/60'
+              : 'text-slate-500 hover:text-slate-800'
+          ]"
+        >
+          <span class="material-symbols-outlined text-base sm:text-lg">admin_panel_settings</span>
+          <span>{{ lang === 'kh' ? 'អ្នកគ្រប់គ្រង' : 'Administrator' }}</span>
+        </button>
+      </div>
+
       <!-- Form Header -->
       <div class="mb-5 sm:mb-6 space-y-1 sm:space-y-1.5">
         <h2 class="text-lg sm:text-2xl font-extrabold text-slate-900 tracking-tight">
           {{ isAdminMode ? (lang === 'kh' ? 'ចូលផ្ទាំងគ្រប់គ្រង' : 'Admin Sign In') : (lang === 'kh' ? 'ចូលប្រឡង' : 'Candidate Sign In') }}
         </h2>
         <p class="text-xs sm:text-sm text-slate-500 leading-relaxed">
-          {{ isAdminMode ? (lang === 'kh' ? 'សូមបញ្ចូលពាក្យសម្ងាត់របស់អ្នកគ្រប់គ្រងដើម្បីបន្ត' : 'Please enter admin password to continue') : (lang === 'kh' ? 'បញ្ចូលលេខសម្គាល់សិស្ស ដើម្បីចូលបន្ទប់ប្រឡង' : 'Enter your Student ID to access the examination portal') }}
+          {{ isAdminMode ? (lang === 'kh' ? 'សូមបញ្ចូលឈ្មោះគណនី និងពាក្យសម្ងាត់របស់អ្នកគ្រប់គ្រង' : 'Please enter admin username and password to continue') : (lang === 'kh' ? 'បញ្ចូលលេខសម្គាល់សិស្ស ដើម្បីចូលបន្ទប់ប្រឡង' : 'Enter your Student ID to access the examination portal') }}
         </p>
       </div>
 
@@ -30,38 +61,29 @@
           :icon="isAdminMode ? 'person' : 'badge'"
           required
           :placeholder="isAdminMode ? (lang === 'kh' ? 'បញ្ចូលឈ្មោះគណនី' : 'Enter admin username') : (lang === 'kh' ? 'ឧ. RTC-XXXX-XXXXX' : 'e.g. RTC-XXXX-XXXXX')"
-          @input="onUsernameInput"
+          @input="errorMessage = ''"
         />
 
-        <!-- Password (Auto-revealed smoothly when username matches Admin / Super Admin) -->
-        <Transition
-          enter-active-class="transition-all duration-200 ease-out"
-          enter-from-class="opacity-0 -translate-y-2 max-h-0 overflow-hidden"
-          enter-to-class="opacity-100 translate-y-0 max-h-40 overflow-visible"
-          leave-active-class="transition-all duration-150 ease-in"
-          leave-from-class="opacity-100 translate-y-0 max-h-40 overflow-visible"
-          leave-to-class="opacity-0 -translate-y-2 max-h-0 overflow-hidden"
-        >
-          <div v-if="isAdminMode" class="space-y-1.5">
-            <PasswordInput
-              ref="passwordInputRef"
-              v-model="form.password"
-              :label="lang === 'kh' ? 'ពាក្យសម្ងាត់' : 'Password'"
-              :placeholder="lang === 'kh' ? 'បញ្ចូលពាក្យសម្ងាត់' : 'Enter admin password'"
-              required
-              @input="errorMessage = ''"
-            >
-              <template #labelRight>
-                <RouterLink
-                  to="/forgot-password"
-                  class="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
-                >
-                  {{ t.forgotPassword }}
-                </RouterLink>
-              </template>
-            </PasswordInput>
-          </div>
-        </Transition>
+        <!-- Password (Visible in Admin Mode) -->
+        <div v-if="isAdminMode" class="space-y-1.5">
+          <PasswordInput
+            ref="passwordInputRef"
+            v-model="form.password"
+            :label="lang === 'kh' ? 'ពាក្យសម្ងាត់' : 'Password'"
+            :placeholder="lang === 'kh' ? 'បញ្ចូលពាក្យសម្ងាត់' : 'Enter admin password'"
+            required
+            @input="errorMessage = ''"
+          >
+            <template #labelRight>
+              <RouterLink
+                to="/forgot-password"
+                class="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                {{ t.forgotPassword }}
+              </RouterLink>
+            </template>
+          </PasswordInput>
+        </div>
 
         <!-- Dynamic Guidance Note -->
         <div class="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-blue-50/60 border border-blue-100 text-xs text-slate-600 flex items-start gap-2.5 leading-relaxed">
@@ -149,51 +171,30 @@ const errorMessage = ref('')
 const isAdminMode = ref(false)
 const passwordInputRef = ref(null)
 
-const identifierCache = new Map()
-let checkDebounceTimer = null
-let currentRequestId = 0
-
-const onUsernameInput = () => {
+const setLoginMode = (admin) => {
+  isAdminMode.value = admin
   errorMessage.value = ''
-  const val = form.username.trim()
-  if (!val) {
-    isAdminMode.value = false
-    return
+  form.password = ''
+  if (admin) {
+    nextTick(() => {
+      if (form.username) {
+        passwordInputRef.value?.focus?.()
+      }
+    })
   }
-
-  // Instant response from in-memory cache
-  const lowerVal = val.toLowerCase()
-  if (identifierCache.has(lowerVal)) {
-    isAdminMode.value = identifierCache.get(lowerVal)
-  }
-
-  const reqId = ++currentRequestId
-
-  if (checkDebounceTimer) clearTimeout(checkDebounceTimer)
-  checkDebounceTimer = setTimeout(async () => {
-    try {
-      const res = await axios.post('/api/check-identifier', { identifier: val })
-      // Guard against race conditions from out-of-order async responses
-      if (reqId !== currentRequestId) return
-
-      // Set admin mode directly based on Database check & cache
-      const requiresPwd = Boolean(res.data?.requiresPassword)
-      identifierCache.set(lowerVal, requiresPwd)
-      isAdminMode.value = requiresPwd
-    } catch (e) {
-      // Ignore background check errors
-    }
-  }, 40)
 }
 
 onMounted(() => {
   document.title = 'OnlineXam - Online Examination System'
   fetchSettings(true)
   const saved = localStorage.getItem('saved_login_username')
+  const savedMode = localStorage.getItem('saved_login_mode')
+  if (savedMode === 'admin') {
+    isAdminMode.value = true
+  }
   if (saved) {
     form.username = saved
     rememberUsername.value = true
-    onUsernameInput()
   }
 })
 
@@ -244,8 +245,10 @@ const handleLogin = async () => {
     // Handle Remember Identifier persistence
     if (rememberUsername.value) {
       localStorage.setItem('saved_login_username', identifier)
+      localStorage.setItem('saved_login_mode', isAdminMode.value ? 'admin' : 'student')
     } else {
       localStorage.removeItem('saved_login_username')
+      localStorage.removeItem('saved_login_mode')
     }
 
     localStorage.setItem('isAuthenticated', 'true')

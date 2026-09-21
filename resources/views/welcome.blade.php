@@ -36,7 +36,7 @@
     <link rel="canonical" href="{{ $canonicalUrl }}">
 
     <!-- JSON-LD Structured Data for Google Indexing -->
-    <script type="application/ld+json">
+    <script type="application/ld+json" nonce="{{ $cspNonce ?? '' }}">
     {!! json_encode($jsonLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}
     </script>
 
@@ -82,7 +82,7 @@
     <meta name="application-name" content="OnlineXam">
 
     <!-- Instant Standalone State & PWA Event Detection -->
-    <script>
+    <script nonce="{{ $cspNonce ?? '' }}">
         window.__pwa_deferred_prompt = null;
         window.__pwa_is_standalone = false;
 

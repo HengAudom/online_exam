@@ -188,36 +188,10 @@ class AuthController extends Controller
 
     public function checkIdentifier(Request $request)
     {
-        $identifier = trim($request->input('identifier') ?? $request->input('username') ?? '');
-        if ($identifier === '') {
-            return response()->json(['requiresPassword' => false]);
-        }
-
-        // Query Database for Admin / Super Admin (tbladmin) with resilient retry for serverless DB
-        $admin = null;
-        for ($attempt = 1; $attempt <= 2; $attempt++) {
-            try {
-                $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($identifier)])
-                    ->select('AdminId', 'Username', 'Role')
-                    ->first();
-                break;
-            } catch (\Throwable $e) {
-                if ($attempt >= 2) {
-                    \Log::warning('checkIdentifier exception: ' . $e->getMessage());
-                    break;
-                }
-                usleep(300000);
-            }
-        }
-
-        if ($admin) {
-            return response()->json([
-                'requiresPassword' => true
-            ]);
-        }
-
-        // Student accounts sign in passwordless with Student ID
+        // Uniform response to prevent username/identifier enumeration (Finding #1 in README (1).md)
+        // Never leaks whether an account exists or requires password.
         return response()->json([
+            'status' => 'ok',
             'requiresPassword' => false
         ]);
     }
@@ -233,6 +207,38 @@ class AuthController extends Controller
                 'message' => $lang === 'en' ? 'Please enter Student ID or Username.' : 'សូមបញ្ចូល Student ID ឬ Username'
             ], 422);
         }
+
+        // Account Lockout & Brute Force Prevention (Finding #3 in README (1).md)
+        $clientIp = $request->ip();
+        $safeIdentifierKey = preg_replace('/[^a-zA-Z0-9_-]/', '', strtolower($identifier));
+        $lockoutKey = "login_lockout_{$safeIdentifierKey}_{$clientIp}";
+        $attemptsKey = "login_failed_attempts_{$safeIdentifierKey}_{$clientIp}";
+
+        if (Cache::has($lockoutKey)) {
+            $unlockTime = (int)Cache::get($lockoutKey);
+            $remainingSeconds = max(1, $unlockTime - time());
+            $remainingMinutes = max(1, (int)ceil($remainingSeconds / 60));
+            return response()->json([
+                'message' => $lang === 'en'
+                    ? "Too many failed login attempts. Account temporarily locked. Please try again in {$remainingMinutes} minute(s)."
+                    : "អ្នកបានព្យាយាម Login បរាជ័យច្រើនដងពេក! គណនីត្រូវបានចាក់សោបណ្តោះអាសន្ន សូមព្យាយាមម្តងទៀតក្នុងរយៈពេល {$remainingMinutes} នាទី។"
+            ], 429);
+        }
+
+        $recordFailedAttempt = function () use ($attemptsKey, $lockoutKey, $lang) {
+            $failed = (int)Cache::get($attemptsKey, 0) + 1;
+            if ($failed >= 5) {
+                Cache::forget($attemptsKey);
+                Cache::put($lockoutKey, time() + 300, now()->addMinutes(5));
+                return response()->json([
+                    'message' => $lang === 'en'
+                        ? 'Too many failed login attempts. Account temporarily locked for 5 minutes.'
+                        : 'អ្នកបានព្យាយាម Login បរាជ័យលើសពី ៥ ដង! គណនីត្រូវបានចាក់សោបណ្តោះអាសន្នរយៈពេល ៥ នាទី'
+                ], 429);
+            }
+            Cache::put($attemptsKey, $failed, now()->addMinutes(5));
+            return null;
+        };
 
         try {
             // 1. Try Admin / Super Admin Login (strictly from tbladmin)
@@ -264,6 +270,10 @@ class AuthController extends Controller
                         details: 'Invalid password attempt for admin account',
                         request: $request
                     );
+
+                    $lockoutResp = $recordFailedAttempt();
+                    if ($lockoutResp) return $lockoutResp;
+
                     return response()->json([
                         'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
                     ], 422);
@@ -274,6 +284,10 @@ class AuthController extends Controller
                         'message' => $lang === 'en' ? 'Account is suspended.' : 'គណនីនេះត្រូវបានផ្អាកជាបណ្ដោះអាសន្ន'
                     ], 403);
                 }
+
+                // Successful login - clear lockout counters
+                Cache::forget($attemptsKey);
+                Cache::forget($lockoutKey);
 
                 Auth::login($adminUser);
 
@@ -321,16 +335,26 @@ class AuthController extends Controller
                 // Check if student has password in database
                 if (!empty($student->Password)) {
                     if (empty($password) || !Hash::check($password, $student->Password)) {
+                        $lockoutResp = $recordFailedAttempt();
+                        if ($lockoutResp) return $lockoutResp;
+
                         return response()->json([
                             'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
                         ], 422);
                     }
                 } elseif (!empty($password) && trim((string)$password) !== '') {
                     // Reject unexpected passwords to prevent authentication bypass confusion
+                    $lockoutResp = $recordFailedAttempt();
+                    if ($lockoutResp) return $lockoutResp;
+
                     return response()->json([
                         'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
                     ], 422);
                 }
+
+                // Successful login - clear lockout counters
+                Cache::forget($attemptsKey);
+                Cache::forget($lockoutKey);
 
                 Auth::login($student);
 
@@ -363,6 +387,9 @@ class AuthController extends Controller
             }
 
             // Neither admin nor student found
+            $lockoutResp = $recordFailedAttempt();
+            if ($lockoutResp) return $lockoutResp;
+
             return response()->json([
                 'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
             ], 422);
@@ -588,6 +615,9 @@ class AuthController extends Controller
         $data = $request->validate([
             'username' => ['required', 'string'],
             'phone'    => ['required', 'string'],
+        ], [
+            'username.required' => 'សូមបញ្ចូលឈ្មោះគណនី (Username is required).',
+            'phone.required'    => 'សូមបញ្ចូលលេខទូរស័ព្ទ (Phone number is required).',
         ]);
 
         $username = trim($data['username']);
@@ -688,6 +718,11 @@ class AuthController extends Controller
             'username' => ['required', 'string'],
             'phone'    => ['required', 'string'],
             'otp'      => ['required', 'string', 'regex:/^[0-9]{6}$/'],
+        ], [
+            'username.required' => 'សូមបញ្ចូលឈ្មោះគណនី (Username is required).',
+            'phone.required'    => 'សូមបញ្ចូលលេខទូរស័ព្ទ (Phone number is required).',
+            'otp.required'      => 'សូមបញ្ចូលលេខកូដ OTP (OTP code is required).',
+            'otp.regex'         => 'លេខកូដ OTP ត្រូវតែជាលេខ ៦ ខ្ទង់ (OTP code must be 6 digits).',
         ]);
 
         $username = trim($data['username']);
@@ -771,6 +806,13 @@ class AuthController extends Controller
             'phone'    => ['required', 'string'],
             'otp'      => ['required', 'string', 'regex:/^[0-9]{6}$/'],
             'password' => ['required', 'string', 'min:6'],
+        ], [
+            'username.required' => 'សូមបញ្ចូលឈ្មោះគណនី (Username is required).',
+            'phone.required'    => 'សូមបញ្ចូលលេខទូរស័ព្ទ (Phone number is required).',
+            'otp.required'      => 'សូមបញ្ចូលលេខកូដ OTP (OTP code is required).',
+            'otp.regex'         => 'លេខកូដ OTP ត្រូវតែជាលេខ ៦ ខ្ទង់ (OTP code must be 6 digits).',
+            'password.required' => 'សូមបញ្ចូលពាក្យសម្ងាត់ថ្មី (New password is required).',
+            'password.min'      => 'ពាក្យសម្ងាត់ថ្មីត្រូវតែមានយ៉ាងតិច ៦ តួអក្សរ (Password must be at least 6 characters).',
         ]);
 
         $username = trim($data['username']);
