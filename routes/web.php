@@ -9,21 +9,10 @@ use App\Http\Controllers\TelegramBotController;
 use App\Http\Controllers\LuckyWheelRemoteController;
 use Illuminate\Support\Facades\Route;
 
-// ─── Lucky Wheel Remote Controller (Mobile Remote Clicker - PIN-gated + Throttled) ────────
-Route::middleware(['throttle:30,1'])->group(function () {
-    Route::match(['get', 'post'], '/api/lucky-wheel/remote/state', [LuckyWheelRemoteController::class, 'getState']);
-    Route::match(['get', 'post'], '/api/lucky-wheel/remote/command', [LuckyWheelRemoteController::class, 'sendCommand']);
-    Route::match(['get', 'post'], '/api/lucky-wheel/remote/ping', [LuckyWheelRemoteController::class, 'ping']);
-});
-
-// ─── Telegram Webhook & Cloud Sync ───────────────────────────────────────────
+// ─── Telegram Bot Webhook (Secret-gated external callback) ───────────────────
 Route::post('/api/telegram/webhook', [TelegramBotController::class, 'webhook']);
-Route::post('/api/telegram/sync-link', [TelegramBotController::class, 'syncLinkDirect']);
-Route::post('/api/telegram/sync-unlink', [TelegramBotController::class, 'syncUnlinkDirect']);
-Route::match(['get', 'post'], '/api/telegram/student-results', [TelegramBotController::class, 'getStudentResultsApi']);
-Route::match(['get', 'post'], '/api/telegram/submission-questions', [TelegramBotController::class, 'getSubmissionQuestionsApi']);
 
-// ─── Public Endpoints ────────────────────────────────────────────────────────
+// ─── Public Endpoints (Strictly needed for unauthenticated guests) ─────────────
 Route::get('/api/public-settings', [AdminController::class, 'publicSettings']);
 Route::get('/api/skills-groups', [AdminController::class, 'skillsGroups']);
 
@@ -62,6 +51,17 @@ Route::middleware(['auth'])->group(function () {
     // Student Telegram linking
     Route::post('/api/student/telegram/unlink', [TelegramBotController::class, 'unlinkStudent']);
     Route::post('/api/student/telegram/manual-link', [TelegramBotController::class, 'manualLinkStudent']);
+
+    // Lucky Wheel Remote Controller (Protected by Auth Session)
+    Route::match(['get', 'post'], '/api/lucky-wheel/remote/state', [LuckyWheelRemoteController::class, 'getState']);
+    Route::match(['get', 'post'], '/api/lucky-wheel/remote/command', [LuckyWheelRemoteController::class, 'sendCommand']);
+    Route::match(['get', 'post'], '/api/lucky-wheel/remote/ping', [LuckyWheelRemoteController::class, 'ping']);
+
+    // Telegram Results & Sync (Protected by Auth Session)
+    Route::post('/api/telegram/sync-link', [TelegramBotController::class, 'syncLinkDirect']);
+    Route::post('/api/telegram/sync-unlink', [TelegramBotController::class, 'syncUnlinkDirect']);
+    Route::match(['get', 'post'], '/api/telegram/student-results', [TelegramBotController::class, 'getStudentResultsApi']);
+    Route::match(['get', 'post'], '/api/telegram/submission-questions', [TelegramBotController::class, 'getSubmissionQuestionsApi']);
 
     // ─── Exam (Student) ──────────────────────────────────────────────────────
     Route::get('/api/exam/{testId}/start', [ExamController::class, 'start']);
@@ -415,6 +415,13 @@ Route::get('/robots.txt', function () {
         'Cache-Control' => 'public, max-age=86400',
     ]);
 });
+
+// ─── API Fallback (Strictly reject any unauthenticated/undefined API calls) ─
+Route::any('/api/{any}', function () {
+    return response()->json([
+        'message' => 'Unauthenticated.'
+    ], 401);
+})->where('any', '.*');
 
 // ─── SPA Catch-all ────────────────────────────────────────────────────────────
 Route::view('/{any}', 'welcome')->where('any', '.*');

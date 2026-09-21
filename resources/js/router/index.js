@@ -60,7 +60,7 @@ const routes = [
     name: 'WheelRemoteController',
     component: () => import('../admin/WheelRemoteController.vue'),
     meta: {
-      requiresAuth: false,
+      requiresAuth: true,
       title: 'តេលេបញ្ជាកងវិល | OnlineXam'
     }
   },

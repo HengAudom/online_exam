@@ -237,4 +237,30 @@ class SecurityHardeningRemediationTest extends TestCase
         $response->assertHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         $this->assertFalse($response->headers->has('X-XSS-Protection'));
     }
+
+    public function test_unauthenticated_requests_to_apis_are_strictly_rejected_with_401(): void
+    {
+        $endpoints = [
+            ['GET', '/api/profile'],
+            ['POST', '/api/profile/update'],
+            ['GET', '/api/lucky-wheel/remote/state'],
+            ['POST', '/api/lucky-wheel/remote/command'],
+            ['GET', '/api/lucky-wheel/remote/ping'],
+            ['GET', '/api/lucky-wheel/remote/room'],
+            ['GET', '/api/exam/1/start'],
+            ['GET', '/api/student/results'],
+            ['GET', '/api/admin/dashboard'],
+            ['GET', '/api/admin/students'],
+            ['GET', '/api/admin/tests'],
+            ['GET', '/api/admin/system-settings'],
+            ['GET', '/api/unknown-endpoint-test'],
+            ['POST', '/api/some/random/action'],
+        ];
+
+        foreach ($endpoints as [$method, $uri]) {
+            $response = $this->json($method, $uri);
+            $response->assertStatus(401);
+            $response->assertJson(['message' => 'Unauthenticated.']);
+        }
+    }
 }
