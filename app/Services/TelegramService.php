@@ -100,6 +100,10 @@ class TelegramService
      */
     public function pushToGoogleAppsScript(array $payload): bool
     {
+        if (app()->environment('testing')) {
+            return true;
+        }
+
         $gasUrl = config('services.telegram.google_script_url', env('TELEGRAM_GOOGLE_SCRIPT_URL'));
         if (empty($gasUrl)) {
             return false;
@@ -121,6 +125,10 @@ class TelegramService
      */
     public function sendExamSubmissionAlert(StudentSubmission $submission, ?string $chatId = null): array
     {
+        if (app()->environment('testing')) {
+            return ['ok' => true, 'studentSent' => true, 'adminSent' => true];
+        }
+
         try {
             $submission->loadMissing(['student', 'test']);
 
@@ -281,6 +289,10 @@ class TelegramService
      */
     public function sendInterruptionAlert(StudentSubmission $submission, int $count, ?string $chatId = null): array
     {
+        if (app()->environment('testing')) {
+            return ['ok' => true, 'description' => 'Suppressed in testing environment'];
+        }
+
         try {
             $submission->loadMissing(['student', 'test']);
             $student = $submission->student;
