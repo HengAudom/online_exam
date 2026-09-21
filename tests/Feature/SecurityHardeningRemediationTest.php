@@ -252,6 +252,8 @@ class SecurityHardeningRemediationTest extends TestCase
     public function test_unauthenticated_requests_to_apis_are_strictly_rejected_with_401(): void
     {
         $endpoints = [
+            ['GET', '/api/public-settings'],
+            ['GET', '/api/skills-groups'],
             ['GET', '/api/profile'],
             ['POST', '/api/profile/update'],
             ['GET', '/api/lucky-wheel/remote/state'],
