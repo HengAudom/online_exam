@@ -725,16 +725,22 @@ class AuthController extends Controller
         $cacheKey = "admin_reset_otp_{$admin->AdminId}";
         $cachedOtpData = Cache::get($cacheKey);
 
+        $lang = $request->input('lang') === 'en' ? 'en' : 'kh';
+
         if (!$cachedOtpData || empty($cachedOtpData['otp'])) {
             return response()->json([
-                'message' => 'លេខកូដ OTP បានផុតកំណត់ ឬមិនត្រឹមត្រូវ សូមស្នើសុំលេខកូដថ្មី (OTP has expired or is invalid. Please request a new OTP).'
+                'message' => $lang === 'en'
+                    ? 'OTP has expired or is invalid. Please request a new OTP.'
+                    : 'លេខកូដ OTP បានផុតកំណត់ ឬមិនត្រឹមត្រូវ សូមស្នើសុំលេខកូដថ្មី'
             ], 422);
         }
 
         if (($cachedOtpData['attempts'] ?? 0) >= 5) {
             Cache::forget($cacheKey);
             return response()->json([
-                'message' => 'អ្នកបានបញ្ចូលលេខកូដ OTP ខុសលើសពី ៥ ដង! សូមស្នើសុំលេខកូដ OTP ថ្មីឡើងវិញ (Too many incorrect OTP attempts. Please request a new OTP).'
+                'message' => $lang === 'en'
+                    ? 'Too many incorrect attempts. Please request a new OTP.'
+                    : 'អ្នកបានបញ្ចូលលេខកូដ OTP ខុសលើសពី ៥ ដង! សូមស្នើសុំលេខកូដថ្មីឡើងវិញ'
             ], 422);
         }
 
@@ -742,7 +748,9 @@ class AuthController extends Controller
             $cachedOtpData['attempts'] = ($cachedOtpData['attempts'] ?? 0) + 1;
             Cache::put($cacheKey, $cachedOtpData, now()->addMinutes(5));
             return response()->json([
-                'message' => 'លេខកូដ OTP មិនត្រឹមត្រូវឡើយ សូមពិនិត្យមើលសារក្នុង Telegram ឡើងវិញ (Incorrect OTP code. Please check Telegram).'
+                'message' => $lang === 'en'
+                    ? 'Incorrect OTP code. Please check your Telegram.'
+                    : 'លេខកូដ OTP មិនត្រឹមត្រូវ សូមពិនិត្យមើលសារក្នុង Telegram ឡើងវិញ'
             ], 422);
         }
 
@@ -804,9 +812,13 @@ class AuthController extends Controller
         $cacheKey = "admin_reset_otp_{$admin->AdminId}";
         $cachedOtpData = Cache::get($cacheKey);
 
+        $lang = $request->input('lang') === 'en' ? 'en' : 'kh';
+
         if (!$cachedOtpData || empty($cachedOtpData['otp'])) {
             return response()->json([
-                'message' => 'លេខកូដ OTP បានផុតកំណត់ ឬមិនត្រឹមត្រូវ សូមស្នើសុំលេខកូដថ្មី (OTP has expired or is invalid. Please request a new OTP).'
+                'message' => $lang === 'en'
+                    ? 'OTP has expired or is invalid. Please request a new OTP.'
+                    : 'លេខកូដ OTP បានផុតកំណត់ ឬមិនត្រឹមត្រូវ សូមស្នើសុំលេខកូដថ្មី'
             ], 422);
         }
 
@@ -814,7 +826,9 @@ class AuthController extends Controller
         if (($cachedOtpData['attempts'] ?? 0) >= 5) {
             Cache::forget($cacheKey);
             return response()->json([
-                'message' => 'អ្នកបានបញ្ចូលលេខកូដ OTP ខុសលើសពី ៥ ដង! សូមស្នើសុំលេខកូដ OTP ថ្មីឡើងវិញ (Too many incorrect OTP attempts. Please request a new OTP).'
+                'message' => $lang === 'en'
+                    ? 'Too many incorrect attempts. Please request a new OTP.'
+                    : 'អ្នកបានបញ្ចូលលេខកូដ OTP ខុសលើសពី ៥ ដង! សូមស្នើសុំលេខកូដថ្មីឡើងវិញ'
             ], 422);
         }
 
@@ -822,7 +836,9 @@ class AuthController extends Controller
             $cachedOtpData['attempts'] = ($cachedOtpData['attempts'] ?? 0) + 1;
             Cache::put($cacheKey, $cachedOtpData, now()->addMinutes(5));
             return response()->json([
-                'message' => 'លេខកូដ OTP មិនត្រឹមត្រូវឡើយ សូមពិនិត្យមើលសារក្នុង Telegram ឡើងវិញ (Incorrect OTP code. Please check Telegram).'
+                'message' => $lang === 'en'
+                    ? 'Incorrect OTP code. Please check your Telegram.'
+                    : 'លេខកូដ OTP មិនត្រឹមត្រូវ សូមពិនិត្យមើលសារក្នុង Telegram ឡើងវិញ'
             ], 422);
         }
 

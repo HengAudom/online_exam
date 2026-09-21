@@ -22,12 +22,10 @@
                   ? (lang === 'kh' ? 'ផ្ទៀងផ្ទាត់កូដ OTP' : 'Verify OTP Code') 
                   : (lang === 'kh' ? 'កំណត់ពាក្យសម្ងាត់ថ្មី' : 'Set New Password')) }}
         </h2>
-        <p class="text-xs sm:text-sm text-slate-500">
+        <p v-if="currentStep !== 2" class="text-xs sm:text-sm text-slate-500">
           {{ currentStep === 1 
             ? (lang === 'kh' ? 'បញ្ចូលឈ្មោះគណនី និងលេខទូរស័ព្ទដែលបានចុះឈ្មោះ ដើម្បីផ្ទៀងផ្ទាត់' : 'Enter your username and registered phone number to verify your account.') 
-            : (currentStep === 2
-                ? (lang === 'kh' ? 'បញ្ចូលលេខកូដ ៦ ខ្ទង់ដែលបានផ្ញើទៅកាន់ Telegram របស់អ្នក (@onlinexam_bot)' : 'Enter the 6-digit verification code sent to your Telegram (@onlinexam_bot).')
-                : (lang === 'kh' ? 'បញ្ចូលពាក្យសម្ងាត់ថ្មីសម្រាប់គណនីរបស់អ្នក' : 'Create a new secure password for your account.')) }}
+            : (lang === 'kh' ? 'បញ្ចូលពាក្យសម្ងាត់ថ្មីសម្រាប់គណនីរបស់អ្នក' : 'Create a new secure password for your account.') }}
         </p>
       </div>
 
@@ -362,7 +360,8 @@ const handleVerifyIdentity = async () => {
   try {
     const res = await axios.post('/api/password/verify-identity', {
       username: username,
-      phone: phone
+      phone: phone,
+      lang: lang.value
     })
 
     if (res.data.username) {
@@ -396,7 +395,8 @@ const handleResendOtp = async () => {
   try {
     const res = await axios.post('/api/password/verify-identity', {
       username: form.username.trim(),
-      phone: form.phone.trim()
+      phone: form.phone.trim(),
+      lang: lang.value
     })
 
     form.otp = ''
@@ -430,7 +430,8 @@ const handleVerifyOtp = async () => {
     const res = await axios.post('/api/password/verify-otp', {
       username: form.username.trim(),
       phone: form.phone.trim(),
-      otp: form.otp.trim()
+      otp: form.otp.trim(),
+      lang: lang.value
     })
 
     currentStep.value = 3
@@ -441,7 +442,7 @@ const handleVerifyOtp = async () => {
         ? 'អ្នកបានព្យាយាមច្រើនដងពេកហើយ! សូមរង់ចាំ ១ នាទី (Too Many Attempts).'
         : 'Too many attempts. Please wait a minute.'
     } else {
-      errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'លេខកូដ OTP មិនត្រឹមត្រូវឡើយ សូមពិនិត្យសារក្នុង Telegram ឡើងវិញ' : 'Incorrect OTP code. Please check Telegram.')
+      errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'លេខកូដ OTP មិនត្រឹមត្រូវ សូមពិនិត្យមើលសារក្នុង Telegram ឡើងវិញ' : 'Incorrect OTP code. Please check your Telegram.')
     }
   } finally {
     loading.value = false
@@ -467,7 +468,8 @@ const handleResetPassword = async () => {
       username: form.username.trim(),
       phone: form.phone.trim(),
       otp: form.otp.trim(),
-      password: form.password
+      password: form.password,
+      lang: lang.value
     })
 
     toastSuccess(res.data.message || (lang.value === 'kh' ? 'ពាក្យសម្ងាត់ត្រូវបានផ្លាស់ប្តូរដោយជោគជ័យ' : 'Password reset successfully.'))
