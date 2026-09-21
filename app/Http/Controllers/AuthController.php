@@ -188,10 +188,36 @@ class AuthController extends Controller
 
     public function checkIdentifier(Request $request)
     {
-        // Uniform response to prevent username/identifier enumeration (Finding #1 in README (1).md)
-        // Never leaks whether an account exists or requires password.
+        $identifier = trim($request->input('identifier') ?? $request->input('username') ?? '');
+        if ($identifier === '') {
+            return response()->json(['requiresPassword' => false]);
+        }
+
+        // Query Database for Admin / Super Admin (tbladmin) with resilient retry for serverless DB
+        $admin = null;
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            try {
+                $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($identifier)])
+                    ->select('AdminId', 'Username', 'Role')
+                    ->first();
+                break;
+            } catch (\Throwable $e) {
+                if ($attempt >= 2) {
+                    \Log::warning('checkIdentifier exception: ' . $e->getMessage());
+                    break;
+                }
+                usleep(300000);
+            }
+        }
+
+        if ($admin) {
+            return response()->json([
+                'requiresPassword' => true
+            ]);
+        }
+
+        // Student accounts sign in passwordless with Student ID
         return response()->json([
-            'status' => 'ok',
             'requiresPassword' => false
         ]);
     }

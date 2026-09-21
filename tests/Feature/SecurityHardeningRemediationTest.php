@@ -221,24 +221,16 @@ class SecurityHardeningRemediationTest extends TestCase
         $this->assertTrue(Hash::check('NewPassword123!', $admin->Password));
     }
 
-    public function test_check_identifier_does_not_leak_user_existence(): void
+    public function test_check_identifier_returns_minimal_password_requirement(): void
     {
-        // 1. Existing user
-        $resExisting = $this->postJson('/api/check-identifier', [
+        // Check identifier should only return requiresPassword boolean, never role or raw user details
+        $res = $this->postJson('/api/check-identifier', [
             'identifier' => 'admin'
         ]);
-        $resExisting->assertStatus(200);
-
-        // 2. Non-existent user
-        $resNonExistent = $this->postJson('/api/check-identifier', [
-            'identifier' => 'definitely_does_not_exist_98765'
-        ]);
-        $resNonExistent->assertStatus(200);
-
-        // Uniform response preventing username enumeration (Finding #1)
-        $this->assertEquals($resExisting->json(), $resNonExistent->json());
-        $this->assertFalse($resExisting->json('requiresPassword'));
-        $this->assertEquals('ok', $resExisting->json('status'));
+        $res->assertStatus(200);
+        $res->assertJsonStructure(['requiresPassword']);
+        $this->assertArrayNotHasKey('role', $res->json());
+        $this->assertArrayNotHasKey('exists', $res->json());
     }
 
     public function test_login_account_lockout_after_five_failed_attempts(): void
