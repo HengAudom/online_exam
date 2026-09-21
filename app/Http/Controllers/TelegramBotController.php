@@ -101,10 +101,50 @@ class TelegramBotController extends Controller
     }
 
     /**
+     * Verify if the incoming request is authorized via Bot Secret Token or Admin Session.
+     */
+    protected function isAuthorizedBotOrAdmin(Request $request): bool
+    {
+        $user = $request->user();
+        if ($user && in_array(strtolower((string)($user->role ?? $user->Role ?? '')), ['admin', 'superadmin', 'super_admin', 'super admin'])) {
+            return true;
+        }
+
+        $botToken = (string)(config('services.telegram.bot_token') ?: env('TELEGRAM_BOT_TOKEN') ?: '');
+        $configuredSecret = (string)(config('services.telegram.webhook_secret') 
+            ?: env('TELEGRAM_WEBHOOK_SECRET') 
+            ?: env('TELEGRAM_BOT_SECRET') 
+            ?: ($botToken ? hash('sha256', $botToken . '_secret_salt') : 'onlinexam_tele_secret'));
+
+        $providedToken = $request->header('X-Telegram-Bot-Api-Secret-Token')
+            ?: $request->header('X-Telegram-Secret')
+            ?: $request->bearerToken()
+            ?: $request->input('secret')
+            ?: $request->input('token')
+            ?: $request->query('secret')
+            ?: $request->query('token');
+
+        if (!empty($providedToken)) {
+            if (!empty($configuredSecret) && hash_equals($configuredSecret, (string)$providedToken)) {
+                return true;
+            }
+            if (!empty($botToken) && hash_equals($botToken, (string)$providedToken)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Telegram Webhook handler for incoming bot messages & commands.
      */
     public function webhook(Request $request)
     {
+        if (!$this->isAuthorizedBotOrAdmin($request)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized webhook update.'], 401);
+        }
+
         $update = $request->all();
         $res = $this->handleUpdate($update);
         return response()->json($res);
@@ -162,6 +202,17 @@ class TelegramBotController extends Controller
      */
     public function getStudentResultsApi(Request $request)
     {
+        $isBotOrAdmin = $this->isAuthorizedBotOrAdmin($request);
+        $user = $request->user();
+        $isStudent = $user && (($user instanceof Student) || strtolower((string)($user->role ?? '')) === 'student');
+
+        if (!$isBotOrAdmin && !$isStudent) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized: Telegram Bot Secret or Authentication required.',
+            ], 401);
+        }
+
         if ($request->filled('submissionId')) {
             return $this->getSubmissionQuestionsApi($request);
         }
@@ -170,12 +221,16 @@ class TelegramBotController extends Controller
         $fromId = trim((string)$request->input('fromId', $request->input('chatId', $request->query('fromId', $request->query('chatId', '')))));
 
         $student = null;
-        if (!empty($code)) {
-            $student = $this->findStudentByQuery($code);
-        }
-
-        if (!$student && !empty($fromId)) {
-            $student = Student::where('TelegramChatId', $fromId)->first();
+        if ($isStudent) {
+            $studentId = $user->StudentId ?? $user->id ?? 0;
+            $student = Student::find($studentId);
+        } else {
+            if (!empty($code)) {
+                $student = $this->findStudentByQuery($code);
+            }
+            if (!$student && !empty($fromId)) {
+                $student = Student::where('TelegramChatId', $fromId)->first();
+            }
         }
 
         if (!$student) {
@@ -234,6 +289,18 @@ class TelegramBotController extends Controller
      */
     public function getSubmissionQuestionsApi(Request $request)
     {
+        $isBotOrAdmin = $this->isAuthorizedBotOrAdmin($request);
+        $user = $request->user();
+        $isStudent = $user && (($user instanceof Student) || strtolower((string)($user->role ?? '')) === 'student');
+        $isAdmin = $user && in_array(strtolower((string)($user->role ?? $user->Role ?? '')), ['admin', 'superadmin', 'super_admin', 'super admin']);
+
+        if (!$isBotOrAdmin && !$isStudent) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized: Telegram Bot Secret or Authentication required.',
+            ], 401);
+        }
+
         $submissionId = $request->input('submissionId', $request->query('submissionId'));
         if (empty($submissionId)) {
             return response()->json([
@@ -254,6 +321,16 @@ class TelegramBotController extends Controller
                 'success' => false,
                 'message' => 'Submission not found',
             ], 404);
+        }
+
+        if ($isStudent) {
+            $studentId = $user->StudentId ?? $user->id ?? 0;
+            if ((int)$submission->StudentId !== (int)$studentId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Forbidden: Cannot access another student submission.',
+                ], 403);
+            }
         }
 
         $test = $submission->test;
@@ -302,7 +379,7 @@ class TelegramBotController extends Controller
                 $options[] = [
                     'label' => $label,
                     'text' => strip_tags($ans->AnswerText ?? ''),
-                    'isCorrect' => $isThisCorrect,
+                    'isCorrect' => $isAdmin ? $isThisCorrect : null,
                     'isSelected' => $isThisSelected,
                 ];
             }
@@ -316,8 +393,8 @@ class TelegramBotController extends Controller
                 'options' => $options,
                 'selectedLabel' => $selectedLabel,
                 'selectedText' => $selectedText ? strip_tags($selectedText) : null,
-                'correctLabel' => $correctLabel,
-                'correctText' => $correctText ? strip_tags($correctText) : null,
+                'correctLabel' => $isAdmin ? $correctLabel : null,
+                'correctText' => $isAdmin ? ($correctText ? strip_tags($correctText) : null) : null,
                 'isCorrect' => $isCorrect,
                 'isSkipped' => $isSkipped,
             ];
@@ -398,6 +475,12 @@ class TelegramBotController extends Controller
             if (!$student) {
                 $this->telegram->sendMessage($chatId, "❌ <b>មិនអាចភ្ជាប់គណនីបានទេ!</b>\n\nរកមិនឃើញទិន្នន័យសិស្សដែលមានលេខកូដ <code>{$linkTarget}</code> ក្នុងប្រព័ន្ធឡើយ។ សូមពិនិត្យលេខកូដសិស្សរបស់អ្នកឡើងវិញ ឬទាក់ទងគ្រូ/Admin។");
                 return ['status' => 'ok', 'action' => 'link_failed', 'chat_id' => $chatId];
+            }
+
+            // Prevent hijacking if already linked to another Telegram account
+            if (!empty($student->TelegramChatId) && (string)$student->TelegramChatId !== (string)$fromId) {
+                $this->telegram->sendMessage($chatId, "⚠️ <b>គណនីសិស្សនេះត្រូវបានភ្ជាប់ជាមួយ Telegram ផ្សេងរួចហើយ!</b>\n\nប្រសិនបើនេះជាគណនីរបស់អ្នក សូមចូលទៅកាន់គេហទំព័រ Student Portal ដើម្បីផ្ដាច់ការភ្ជាប់ចាស់ជាមុនសិន។");
+                return ['status' => 'ok', 'action' => 'already_linked_elsewhere', 'chat_id' => $chatId];
             }
 
             // CRITICAL: In groups, link the user's private ID ($fromId), NOT the group chat ID ($chatId)!
@@ -669,7 +752,13 @@ class TelegramBotController extends Controller
             ], 422);
         }
 
-        $res = $this->telegram->setWebhook($url);
+        $botToken = (string)(config('services.telegram.bot_token') ?: env('TELEGRAM_BOT_TOKEN') ?: '');
+        $secretToken = (string)(config('services.telegram.webhook_secret') 
+            ?: env('TELEGRAM_WEBHOOK_SECRET') 
+            ?: env('TELEGRAM_BOT_SECRET') 
+            ?: ($botToken ? hash('sha256', $botToken . '_secret_salt') : 'onlinexam_tele_secret'));
+
+        $res = $this->telegram->setWebhook($url, $secretToken);
         return response()->json($res);
     }
 
@@ -876,6 +965,10 @@ class TelegramBotController extends Controller
      */
     public function syncLinkDirect(Request $request)
     {
+        if (!$this->isAuthorizedBotOrAdmin($request)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized: Valid bot token or admin required.'], 401);
+        }
+
         $code = trim($request->get('studentCode', $request->input('studentCode', $request->input('student_code', ''))));
         $chatId = trim($request->get('chatId', $request->input('chatId', $request->input('chat_id', ''))));
         $username = trim($request->get('username', $request->input('username', '')));
@@ -914,6 +1007,10 @@ class TelegramBotController extends Controller
      */
     public function syncUnlinkDirect(Request $request)
     {
+        if (!$this->isAuthorizedBotOrAdmin($request)) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized: Valid bot token or admin required.'], 401);
+        }
+
         $rawJson = @json_decode($request->getContent(), true) ?: [];
         $chatId = trim((string)($request->input('chatId') ?? $rawJson['chatId'] ?? $rawJson['fromId'] ?? $request->query('chatId') ?? $request->json('chatId') ?? $request->input('chat_id') ?? $request->input('fromId') ?? $request->input('from_id') ?? ''));
         $code = trim((string)($request->input('studentCode') ?? $rawJson['studentCode'] ?? $rawJson['code'] ?? $request->query('studentCode') ?? $request->json('studentCode') ?? $request->input('code') ?? $request->query('code') ?? ''));

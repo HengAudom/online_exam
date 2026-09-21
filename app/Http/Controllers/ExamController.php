@@ -287,12 +287,26 @@ class ExamController extends Controller
             ], 403);
         }
 
+        $question = Question::where('QuestionId', $data['questionId'])
+            ->where('TestId', $submission->TestId)
+            ->first();
+
+        if (!$question) {
+            return response()->json(['message' => 'Invalid question for this exam.'], 422);
+        }
+
         $answer = null;
         $isCorrect = false;
 
-        if ($data['selectedAnswerId']) {
-            $answer = Answer::find($data['selectedAnswerId']);
-            $isCorrect = $answer ? (bool) $answer->IsCorrect : false;
+        if (!empty($data['selectedAnswerId'])) {
+            $answer = Answer::where('AnswerId', $data['selectedAnswerId'])
+                ->where('QuestionId', $question->QuestionId)
+                ->first();
+
+            if (!$answer) {
+                return response()->json(['message' => 'Selected answer does not belong to this question.'], 422);
+            }
+            $isCorrect = (bool) $answer->IsCorrect;
         }
 
         SubmissionDetail::updateOrCreate(

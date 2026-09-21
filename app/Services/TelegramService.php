@@ -391,16 +391,18 @@ class TelegramService
     /**
      * Set Webhook URL.
      */
-    public function setWebhook(string $url): array
+    public function setWebhook(string $url, ?string $secretToken = null): array
     {
         if (!$this->isConfigured()) {
             return ['ok' => false, 'description' => 'Telegram Bot Token not set.'];
         }
 
         try {
-            $response = Http::timeout(10)->post("https://api.telegram.org/bot{$this->token}/setWebhook", [
-                'url' => $url,
-            ]);
+            $params = ['url' => $url];
+            if (!empty($secretToken)) {
+                $params['secret_token'] = $secretToken;
+            }
+            $response = Http::timeout(10)->post("https://api.telegram.org/bot{$this->token}/setWebhook", $params);
             return $response->json() ?? [];
         } catch (\Throwable $e) {
             return ['ok' => false, 'description' => $e->getMessage()];

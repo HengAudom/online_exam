@@ -77,12 +77,7 @@ class AuthController extends Controller
                 $durationMonths = $this->parseDurationMonths($data['durationMonths'] ?? 4);
 
                 $dummyStudent = new Student();
-                $table = $dummyStudent->getTable();
-
-                // Proactively ensure UserId column is nullable if it exists
-                try {
-                    DB::statement("ALTER TABLE `{$table}` MODIFY COLUMN `UserId` BIGINT UNSIGNED NULL DEFAULT NULL");
-                } catch (\Throwable $t) {}
+                // Proactively ensure UserId column is handled safely in payload without DDL in transaction
 
                 $availableColumns = [];
                 try {
@@ -558,10 +553,17 @@ class AuthController extends Controller
             'phone'    => ['required', 'string'],
         ]);
 
-        $username   = trim($data['username']);
-        $phoneInput = preg_replace('/[^0-9]/', '', $data['phone']);
+        $username = trim($data['username']);
+        $normalizePhone = function (?string $raw): string {
+            $digits = preg_replace('/[^0-9]/', '', (string)$raw);
+            if (str_starts_with($digits, '855')) {
+                $digits = substr($digits, 3);
+            }
+            return ltrim($digits, '0');
+        };
 
-        if (!$phoneInput) {
+        $cleanInput = $normalizePhone($data['phone']);
+        if (strlen($cleanInput) < 7) {
             return response()->json(['message' => 'សូមបញ្ចូលលេខទូរស័ព្ទឲ្យបានត្រឹមត្រូវ (Please enter a valid phone number).'], 422);
         }
 
@@ -570,8 +572,8 @@ class AuthController extends Controller
         $displayName = '';
 
         if ($admin) {
-            $adminPhone = preg_replace('/[^0-9]/', '', $admin->Phone ?? '');
-            if ($adminPhone && (str_ends_with($adminPhone, $phoneInput) || str_ends_with($phoneInput, $adminPhone))) {
+            $cleanAdminPhone = $normalizePhone($admin->Phone ?? '');
+            if (!empty($cleanAdminPhone) && hash_equals($cleanAdminPhone, $cleanInput)) {
                 $matched = true;
                 $fullName = trim(($admin->FirstName ?? '') . ' ' . ($admin->LastName ?? ''));
                 if ($fullName) {
@@ -607,22 +609,31 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'min:6'],
         ]);
 
-        $username   = trim($data['username']);
-        $phoneInput = preg_replace('/[^0-9]/', '', $data['phone']);
+        $username = trim($data['username']);
+        $normalizePhone = function (?string $raw): string {
+            $digits = preg_replace('/[^0-9]/', '', (string)$raw);
+            if (str_starts_with($digits, '855')) {
+                $digits = substr($digits, 3);
+            }
+            return ltrim($digits, '0');
+        };
 
-        if (!$phoneInput) {
+        $cleanInput = $normalizePhone($data['phone']);
+        if (strlen($cleanInput) < 7) {
             return response()->json(['message' => 'សូមបញ្ចូលលេខទូរស័ព្ទឲ្យបានត្រឹមត្រូវ (Please enter a valid phone number).'], 422);
         }
 
         $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($username)])->first();
 
         if ($admin) {
-            $adminPhone = preg_replace('/[^0-9]/', '', $admin->Phone ?? '');
-            if (!$adminPhone || (!str_ends_with($adminPhone, $phoneInput) && !str_ends_with($phoneInput, $adminPhone))) {
+            $cleanAdminPhone = $normalizePhone($admin->Phone ?? '');
+            if (empty($cleanAdminPhone) || !hash_equals($cleanAdminPhone, $cleanInput)) {
                 return response()->json(['message' => 'លេខទូរស័ព្ទមិនត្រូវគ្នានឹងគណនីនេះឡើយ សូមពិនិត្យលេខទូរស័ព្ទដែលបានចុះឈ្មោះ (Phone number does not match registered profile).'], 422);
             }
 
-            $admin->Password = Hash::make($data['password']);
+            $hashedPassword = Hash::make($data['password']);
+            $admin->Password = $hashedPassword;
+            $admin->password = $hashedPassword;
             $admin->save();
 
             return response()->json([
@@ -725,19 +736,23 @@ class AuthController extends Controller
     public function changePassword(Request $request)
     {
         $user = $request->user();
-        if (!$user)
+        if (!$user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
 
         $request->validate([
             'currentPassword' => ['required', 'string'],
             'newPassword' => ['required', 'string', 'min:6', 'confirmed'],
         ]);
 
-        if (!Hash::check($request->currentPassword, $user->password)) {
+        $currentHash = $user->Password ?? $user->password ?? '';
+        if (empty($currentHash) || !Hash::check($request->currentPassword, $currentHash)) {
             return response()->json(['message' => 'Current password is incorrect.'], 422);
         }
 
-        $user->password = $request->newPassword;
+        $hashedPassword = Hash::make($request->newPassword);
+        $user->Password = $hashedPassword;
+        $user->password = $hashedPassword;
         $user->save();
 
         return response()->json(['message' => 'Password changed successfully.']);

@@ -17,17 +17,15 @@ Route::middleware(['throttle:30,1'])->group(function () {
 });
 
 // ─── Telegram Webhook & Cloud Sync ───────────────────────────────────────────
-Route::match(['get', 'post'], '/api/telegram/webhook', [TelegramBotController::class, 'webhook']);
-Route::match(['get', 'post'], '/api/telegram/sync-link', [TelegramBotController::class, 'syncLinkDirect']);
-Route::match(['get', 'post'], '/api/telegram/sync-unlink', [TelegramBotController::class, 'syncUnlinkDirect']);
+Route::post('/api/telegram/webhook', [TelegramBotController::class, 'webhook']);
+Route::post('/api/telegram/sync-link', [TelegramBotController::class, 'syncLinkDirect']);
+Route::post('/api/telegram/sync-unlink', [TelegramBotController::class, 'syncUnlinkDirect']);
 Route::match(['get', 'post'], '/api/telegram/student-results', [TelegramBotController::class, 'getStudentResultsApi']);
 Route::match(['get', 'post'], '/api/telegram/submission-questions', [TelegramBotController::class, 'getSubmissionQuestionsApi']);
 
 // ─── Public Endpoints ────────────────────────────────────────────────────────
 Route::get('/api/public-settings', [AdminController::class, 'publicSettings']);
 Route::get('/api/skills-groups', [AdminController::class, 'skillsGroups']);
-Route::get('/api/student-photo/{id}', [AdminController::class, 'studentPhoto']);
-Route::get('/api/admin-photo/{id}', [AdminController::class, 'adminPhoto']);
 
 // Rate-limited Auth Endpoints
 Route::middleware(['throttle:30,1'])->group(function () {
@@ -53,13 +51,17 @@ Route::post('/api/logout', [AuthController::class, 'logout']);
 // ─── Authenticated User Routes (Student & Admin) ─────────────────────────────
 Route::middleware(['auth'])->group(function () {
     Route::get('/api/profile', [AuthController::class, 'profile']);
-    Route::match(['get', 'post'], '/api/profile/update', [AuthController::class, 'updateProfile']);
-    Route::match(['get', 'post'], '/api/profile/upload-image', [AuthController::class, 'uploadProfileImage']);
-    Route::match(['get', 'post'], '/api/profile/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/api/profile/update', [AuthController::class, 'updateProfile']);
+    Route::post('/api/profile/upload-image', [AuthController::class, 'uploadProfileImage']);
+    Route::post('/api/profile/change-password', [AuthController::class, 'changePassword']);
+
+    // Photos (Protected for authenticated users)
+    Route::get('/api/student-photo/{id}', [AdminController::class, 'studentPhoto']);
+    Route::get('/api/admin-photo/{id}', [AdminController::class, 'adminPhoto']);
 
     // Student Telegram linking
-    Route::match(['get', 'post'], '/api/student/telegram/unlink', [TelegramBotController::class, 'unlinkStudent']);
-    Route::match(['get', 'post'], '/api/student/telegram/manual-link', [TelegramBotController::class, 'manualLinkStudent']);
+    Route::post('/api/student/telegram/unlink', [TelegramBotController::class, 'unlinkStudent']);
+    Route::post('/api/student/telegram/manual-link', [TelegramBotController::class, 'manualLinkStudent']);
 
     // ─── Exam (Student) ──────────────────────────────────────────────────────
     Route::get('/api/exam/{testId}/start', [ExamController::class, 'start']);

@@ -1462,6 +1462,10 @@ class AdminController extends Controller
 
     public function studentPhoto($id)
     {
+        if (!Auth::check()) {
+            return response('', 401);
+        }
+
         try {
             $student = DB::table('tblstudent')->where('StudentId', $id)->first(['Photo']);
             if (!$student || empty($student->Photo)) {
@@ -1506,7 +1510,7 @@ class AdminController extends Controller
 
             return response($binary, 200, [
                 'Content-Type' => $mime,
-                'Cache-Control' => 'public, max-age=604800, immutable',
+                'Cache-Control' => 'private, max-age=604800, immutable',
                 'Content-Length' => strlen($binary),
             ]);
         } catch (\Throwable $e) {
@@ -1516,6 +1520,9 @@ class AdminController extends Controller
 
     public function adminPhoto($id)
     {
+        if (!Auth::check()) {
+            return response('', 401);
+        }
         try {
             $adminTable = Schema::hasTable('tbladmin') ? 'tbladmin' : 'tbladminprofile';
             $adminIdCol = Schema::hasColumn($adminTable, 'AdminId') ? 'AdminId' : 'AdminProfileId';
