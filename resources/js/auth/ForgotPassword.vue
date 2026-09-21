@@ -195,11 +195,20 @@ const handleVerifyIdentity = async () => {
       phone: phone
     })
 
+    if (res.data.username) {
+      form.username = res.data.username
+    }
     verifiedDisplayName.value = res.data.displayName || username
     currentStep.value = 2
     toastSuccess(res.data.message || (lang.value === 'kh' ? 'ការផ្ទៀងផ្ទាត់ជោគជ័យ' : 'Identity verified.'))
   } catch (error) {
-    errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'ការផ្ទៀងផ្ទាត់មិនត្រឹមត្រូវ សូមពិនិត្យឈ្មោះគណនី និងលេខទូរស័ព្ទឡើងវិញ' : 'Verification failed. Please check your username and phone number.')
+    if (error.response?.status === 429) {
+      errorMessage.value = lang.value === 'kh'
+        ? 'អ្នកបានព្យាយាមច្រើនដងពេកហើយ! សូមរង់ចាំ ១ នាទី រួចសាកល្បងម្ដងទៀត (Too Many Attempts. Please wait a minute).'
+        : 'Too many attempts. Please wait a minute and try again.'
+    } else {
+      errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'ការផ្ទៀងផ្ទាត់មិនត្រឹមត្រូវ សូមពិនិត្យឈ្មោះគណនី និងលេខទូរស័ព្ទឡើងវិញ' : 'Verification failed. Please check your username and phone number.')
+    }
   } finally {
     loading.value = false
   }
@@ -229,7 +238,13 @@ const handleResetPassword = async () => {
     toastSuccess(res.data.message || (lang.value === 'kh' ? 'ពាក្យសម្ងាត់ត្រូវបានផ្លាស់ប្តូរដោយជោគជ័យ' : 'Password reset successfully.'))
     router.push('/login')
   } catch (error) {
-    errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចផ្លាស់ប្តូរពាក្យសម្ងាត់បានទេ សូមព្យាយាមម្តងទៀត' : 'Failed to reset password.')
+    if (error.response?.status === 429) {
+      errorMessage.value = lang.value === 'kh'
+        ? 'អ្នកបានព្យាយាមច្រើនដងពេកហើយ! សូមរង់ចាំ ១ នាទី រួចសាកល្បងម្ដងទៀត (Too Many Attempts. Please wait a minute).'
+        : 'Too many attempts. Please wait a minute and try again.'
+    } else {
+      errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចផ្លាស់ប្តូរពាក្យសម្ងាត់បានទេ សូមព្យាយាមម្តងទៀត' : 'Failed to reset password.')
+    }
   } finally {
     loading.value = false
   }

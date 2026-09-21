@@ -29,7 +29,7 @@ Route::middleware(['throttle:5,1'])->group(function () {
     Route::post('/api/register', [AuthController::class, 'register']);
 });
 
-Route::middleware(['throttle:5,1'])->group(function () {
+Route::middleware(['throttle:30,1'])->group(function () {
     Route::post('/api/password/verify-identity', [AuthController::class, 'verifyIdentity']);
     Route::post('/api/password/forgot', [AuthController::class, 'forgotPassword']);
     Route::post('/api/password/reset', [AuthController::class, 'resetPassword']);

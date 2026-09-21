@@ -96,6 +96,8 @@ class SecurityHardeningRemediationTest extends TestCase
     {
         Admin::create([
             'Username' => 'admin_test_phone',
+            'FirstName' => 'Audom',
+            'LastName' => 'Heng',
             'Password' => Hash::make('secret123'),
             'Phone' => '012999888',
             'Role' => 'Admin',
@@ -115,6 +117,15 @@ class SecurityHardeningRemediationTest extends TestCase
             'phone' => '85512999888',
         ]);
         $resSuccess->assertStatus(200);
+        $resSuccess->assertJson(['username' => 'admin_test_phone']);
+
+        // Verification by full name "Audom Heng" should also SUCCEED
+        $resFullName = $this->postJson('/api/password/verify-identity', [
+            'username' => 'Audom Heng',
+            'phone' => '012999888',
+        ]);
+        $resFullName->assertStatus(200);
+        $resFullName->assertJson(['username' => 'admin_test_phone']);
     }
 
     public function test_exam_save_answer_validates_question_and_answer_belong_to_test(): void

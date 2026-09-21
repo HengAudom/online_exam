@@ -568,13 +568,26 @@ class AuthController extends Controller
         }
 
         $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($username)])->first();
+        if (!$admin) {
+            foreach (Admin::all() as $a) {
+                $f1 = strtolower(trim(($a->FirstName ?? '') . ' ' . ($a->LastName ?? '')));
+                $f2 = strtolower(trim(($a->LastName ?? '') . ' ' . ($a->FirstName ?? '')));
+                if ($f1 === strtolower($username) || $f2 === strtolower($username)) {
+                    $admin = $a;
+                    break;
+                }
+            }
+        }
+
         $matched = false;
         $displayName = '';
+        $canonicalUsername = $username;
 
         if ($admin) {
             $cleanAdminPhone = $normalizePhone($admin->Phone ?? '');
             if (!empty($cleanAdminPhone) && hash_equals($cleanAdminPhone, $cleanInput)) {
                 $matched = true;
+                $canonicalUsername = $admin->Username;
                 $fullName = trim(($admin->FirstName ?? '') . ' ' . ($admin->LastName ?? ''));
                 if ($fullName) {
                     $parts = explode(' ', $fullName);
@@ -596,7 +609,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'ការផ្ទៀងផ្ទាត់ជោគជ័យ! (Identity verified successfully)',
-            'username' => $username,
+            'username' => $canonicalUsername,
             'displayName' => $displayName,
         ]);
     }
@@ -624,6 +637,16 @@ class AuthController extends Controller
         }
 
         $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($username)])->first();
+        if (!$admin) {
+            foreach (Admin::all() as $a) {
+                $f1 = strtolower(trim(($a->FirstName ?? '') . ' ' . ($a->LastName ?? '')));
+                $f2 = strtolower(trim(($a->LastName ?? '') . ' ' . ($a->FirstName ?? '')));
+                if ($f1 === strtolower($username) || $f2 === strtolower($username)) {
+                    $admin = $a;
+                    break;
+                }
+            }
+        }
 
         if ($admin) {
             $cleanAdminPhone = $normalizePhone($admin->Phone ?? '');
