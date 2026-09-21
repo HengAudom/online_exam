@@ -1308,7 +1308,7 @@ class AdminController extends Controller
             $studentCode = $request->input('studentCode');
             if (empty($studentCode)) {
                 for ($i = 0; $i < 100; $i++) {
-                    $randCode = 'RTC-' . $year . '-' . str_pad((string)mt_rand(10000, 99999), 5, '0', STR_PAD_LEFT);
+                    $randCode = 'RTC-' . $year . '-' . str_pad((string)random_int(10000, 99999), 5, '0', STR_PAD_LEFT);
                     if (!Student::where('StudentCode', $randCode)->exists()) {
                         $studentCode = $randCode;
                         break;

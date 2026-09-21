@@ -377,7 +377,12 @@ const groupOptions = ref([])
 const durationOptions = ref([])
 
 const generateRandomCode = (year = '2026') => {
-  const rand = Math.floor(10000 + Math.random() * 90000)
+  let rand = 10000 + Math.floor(Math.random() * 90000)
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+    const array = new Uint32Array(1)
+    window.crypto.getRandomValues(array)
+    rand = 10000 + (array[0] % 90000)
+  }
   return `RTC-${year}-${rand}`
 }
 

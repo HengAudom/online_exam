@@ -149,10 +149,6 @@ const errorMessage = ref('')
 const isAdminMode = ref(false)
 const passwordInputRef = ref(null)
 
-const identifierCache = new Map()
-let checkDebounceTimer = null
-let currentRequestId = 0
-
 const onUsernameInput = () => {
   errorMessage.value = ''
   const val = form.username.trim()
@@ -161,29 +157,10 @@ const onUsernameInput = () => {
     return
   }
 
-  // Instant response from in-memory cache
-  const lowerVal = val.toLowerCase()
-  if (identifierCache.has(lowerVal)) {
-    isAdminMode.value = identifierCache.get(lowerVal)
-  }
-
-  const reqId = ++currentRequestId
-
-  if (checkDebounceTimer) clearTimeout(checkDebounceTimer)
-  checkDebounceTimer = setTimeout(async () => {
-    try {
-      const res = await axios.post('/api/check-identifier', { identifier: val })
-      // Guard against race conditions from out-of-order async responses
-      if (reqId !== currentRequestId) return
-
-      // Set admin mode directly based on Database check & cache
-      const requiresPwd = Boolean(res.data?.requiresPassword)
-      identifierCache.set(lowerVal, requiresPwd)
-      isAdminMode.value = requiresPwd
-    } catch (e) {
-      // Ignore background check errors
-    }
-  }, 40)
+  // Instant client-side role detection: students use RTC-XXXX-XXXXX or numeric IDs
+  // Admins use standard alphanumeric usernames (admin, audom, etc.)
+  const isStudentPattern = /^rtc-|^[0-9]+$/i.test(val)
+  isAdminMode.value = !isStudentPattern
 }
 
 onMounted(() => {

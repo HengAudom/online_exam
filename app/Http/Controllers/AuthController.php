@@ -190,35 +190,19 @@ class AuthController extends Controller
     {
         $identifier = trim($request->input('identifier') ?? $request->input('username') ?? '');
         if ($identifier === '') {
-            return response()->json(['requiresPassword' => false]);
-        }
-
-        // Query Database for Admin / Super Admin (tbladmin) with resilient retry for serverless DB
-        $admin = null;
-        for ($attempt = 1; $attempt <= 2; $attempt++) {
-            try {
-                $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($identifier)])
-                    ->select('AdminId', 'Username', 'Role')
-                    ->first();
-                break;
-            } catch (\Throwable $e) {
-                if ($attempt >= 2) {
-                    \Log::warning('checkIdentifier exception: ' . $e->getMessage());
-                    break;
-                }
-                usleep(300000);
-            }
-        }
-
-        if ($admin) {
             return response()->json([
-                'requiresPassword' => true
+                'status' => 'ok',
+                'requiresPassword' => false
             ]);
         }
 
-        // Student accounts sign in passwordless with Student ID
+        // Evaluate format only (students: RTC-XXXX or numeric; admins: alphanumeric string)
+        // Never queries database directly so attackers cannot enumerate valid user accounts (Finding #2 in README-Att.md)
+        $isStudent = preg_match('/^rtc-|^[0-9]+$/i', $identifier);
+
         return response()->json([
-            'requiresPassword' => false
+            'status' => 'ok',
+            'requiresPassword' => !$isStudent
         ]);
     }
 
@@ -774,13 +758,11 @@ class AuthController extends Controller
             }
         }
 
-        if (!$admin) {
-            return response()->json(['message' => 'ការកំណត់ពាក្យសម្ងាត់ថ្មីអាចធ្វើបានសម្រាប់ Admin តែប៉ុណ្ណោះ (Password reset is for Admin only).'], 422);
-        }
-
-        $cleanAdminPhone = $normalizePhone($admin->Phone ?? '');
-        if (empty($cleanAdminPhone) || !hash_equals($cleanAdminPhone, $cleanInput)) {
-            return response()->json(['message' => 'លេខទូរស័ព្ទមិនត្រូវគ្នានឹងគណនីនេះឡើយ (Phone number does not match registered profile).'], 422);
+        $cleanAdminPhone = $admin ? $normalizePhone($admin->Phone ?? '') : '';
+        if (!$admin || empty($cleanAdminPhone) || !hash_equals($cleanAdminPhone, $cleanInput)) {
+            return response()->json([
+                'message' => 'ឈ្មោះគណនី ឬលេខទូរស័ព្ទមិនត្រឹមត្រូវឡើយ សូមពិនិត្យព័ត៌មានឡើងវិញ (Invalid username or registered phone number).'
+            ], 422);
         }
 
         $cacheKey = "admin_reset_otp_{$admin->AdminId}";
@@ -831,14 +813,14 @@ class AuthController extends Controller
             'username' => ['required', 'string'],
             'phone'    => ['required', 'string'],
             'otp'      => ['required', 'string', 'regex:/^[0-9]{6}$/'],
-            'password' => ['required', 'string', 'min:6'],
+            'password' => ['required', 'string', 'min:8'],
         ], [
             'username.required' => 'សូមបញ្ចូលឈ្មោះគណនី (Username is required).',
             'phone.required'    => 'សូមបញ្ចូលលេខទូរស័ព្ទ (Phone number is required).',
             'otp.required'      => 'សូមបញ្ចូលលេខកូដ OTP (OTP code is required).',
             'otp.regex'         => 'លេខកូដ OTP ត្រូវតែជាលេខ ៦ ខ្ទង់ (OTP code must be 6 digits).',
             'password.required' => 'សូមបញ្ចូលពាក្យសម្ងាត់ថ្មី (New password is required).',
-            'password.min'      => 'ពាក្យសម្ងាត់ថ្មីត្រូវតែមានយ៉ាងតិច ៦ តួអក្សរ (Password must be at least 6 characters).',
+            'password.min'      => 'ពាក្យសម្ងាត់ថ្មីត្រូវតែមានយ៉ាងតិច ៨ តួអក្សរ (Password must be at least 8 characters).',
         ]);
 
         $username = trim($data['username']);
@@ -935,10 +917,6 @@ class AuthController extends Controller
         ]);
     }
 
-    public function forgotPassword(Request $request)
-    {
-        return $this->resetPassword($request);
-    }
     public function uploadProfileImage(Request $request)
     {
         $user = $request->user();
@@ -1051,7 +1029,7 @@ class AuthController extends Controller
     {
         $yearStr = !empty($year) ? trim($year) : date('Y');
         for ($i = 0; $i < 100; $i++) {
-            $randomNum = str_pad((string)mt_rand(10000, 99999), 5, '0', STR_PAD_LEFT);
+            $randomNum = str_pad((string)random_int(10000, 99999), 5, '0', STR_PAD_LEFT);
             $candidateCode = 'RTC-' . $yearStr . '-' . $randomNum;
             $exists = Student::where('StudentCode', $candidateCode)->exists();
             if (!$exists) {

@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../auth/Login.vue'
 import Register from '../auth/Register.vue'
 import ForgotPassword from '../auth/ForgotPassword.vue'
-import ResetPassword from '../auth/ResetPassword.vue'
 import axios from 'axios'
 
 const routes = [
@@ -38,11 +37,7 @@ const routes = [
   },
   {
     path: '/reset-password',
-    name: 'ResetPassword',
-    component: ResetPassword,
-    meta: {
-      title: 'Reset Password - OnlineXam'
-    }
+    redirect: '/forgot-password'
   },
 
   // ── Lucky Wheel Game (Full-Screen Dedicated Room) ─────────────────

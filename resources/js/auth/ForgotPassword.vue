@@ -182,7 +182,7 @@
           v-model="form.password"
           :label="lang === 'kh' ? 'ពាក្យសម្ងាត់ថ្មី' : 'New Password'"
           required
-          :placeholder="lang === 'kh' ? 'បញ្ចូលពាក្យសម្ងាត់ថ្មី (យ៉ាងតិច ៦ ខ្ទង់)' : 'Enter new password (min 6 chars)'"
+          :placeholder="lang === 'kh' ? 'បញ្ចូលពាក្យសម្ងាត់ថ្មី (យ៉ាងតិច ៨ ខ្ទង់)' : 'Enter new password (min 8 chars)'"
           @input="errorMessage = ''"
         />
 
@@ -450,8 +450,8 @@ const handleVerifyOtp = async () => {
 }
 
 const handleResetPassword = async () => {
-  if (form.password.length < 6) {
-    errorMessage.value = lang.value === 'kh' ? 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច ៦ ខ្ទង់' : 'Password must be at least 6 characters.'
+  if (form.password.length < 8) {
+    errorMessage.value = lang.value === 'kh' ? 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច ៨ ខ្ទង់' : 'Password must be at least 8 characters.'
     return
   }
 

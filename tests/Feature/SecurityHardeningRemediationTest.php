@@ -304,5 +304,74 @@ class SecurityHardeningRemediationTest extends TestCase
         // Ensure raw key like "validation.required" is not displayed (Finding #5)
         $this->assertStringNotContainsString('validation.required', $message);
     }
+
+    public function test_password_reset_requires_minimum_eight_characters(): void
+    {
+        $admin = Admin::create([
+            'Username' => 'pwd_policy_admin',
+            'Password' => Hash::make('OldPassword123!'),
+            'Phone' => '012345678',
+            'FirstName' => 'Policy',
+            'LastName' => 'Admin',
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+
+        \Illuminate\Support\Facades\Cache::put("admin_reset_otp_{$admin->AdminId}", [
+            'otp' => '123456',
+            'attempts' => 0,
+            'verified' => true,
+        ], now()->addMinutes(10));
+
+        // Attempt with 6-char password should fail (Finding #5 in README-Att.md)
+        $res6 = $this->postJson('/api/password/reset', [
+            'username' => 'pwd_policy_admin',
+            'phone' => '012345678',
+            'otp' => '123456',
+            'password' => 'Pass1!',
+        ]);
+        $res6->assertStatus(422);
+
+        // Attempt with 8+ chars should succeed
+        $res8 = $this->postJson('/api/password/reset', [
+            'username' => 'pwd_policy_admin',
+            'phone' => '012345678',
+            'otp' => '123456',
+            'password' => 'Pass1234!',
+        ]);
+        $res8->assertStatus(200);
+    }
+
+    public function test_verify_identity_and_otp_do_not_enumerate_users(): void
+    {
+        Admin::create([
+            'Username' => 'existing_admin_enum',
+            'Password' => Hash::make('Secret123!'),
+            'Phone' => '012345678',
+            'FirstName' => 'Exist',
+            'LastName' => 'Admin',
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+
+        // Non-existent user
+        $resNonExistent = $this->postJson('/api/password/verify-otp', [
+            'username' => 'non_existent_admin_xyz',
+            'phone' => '012345678',
+            'otp' => '123456',
+        ]);
+        $resNonExistent->assertStatus(422);
+
+        // Existing user with wrong phone
+        $resWrongPhone = $this->postJson('/api/password/verify-otp', [
+            'username' => 'existing_admin_enum',
+            'phone' => '099999999',
+            'otp' => '123456',
+        ]);
+        $resWrongPhone->assertStatus(422);
+
+        // Both error messages must be strictly identical (Anti-Enumeration Finding #4)
+        $this->assertEquals($resNonExistent->json('message'), $resWrongPhone->json('message'));
+    }
 }
 
