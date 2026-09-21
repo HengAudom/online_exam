@@ -224,7 +224,10 @@ axios.interceptors.response.use(
         localStorage.removeItem('isAuthenticated')
         localStorage.removeItem('userRole')
         cachedUser = null
-        router.replace({ name: 'Login' })
+        const currentRouteName = router.currentRoute.value?.name
+        if (currentRouteName && !['Login', 'Register', 'ForgotPassword', 'ResetPassword'].includes(currentRouteName)) {
+          router.replace({ name: 'Login' })
+        }
       }
     }
     return Promise.reject(error)

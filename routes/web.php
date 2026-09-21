@@ -12,7 +12,10 @@ use Illuminate\Support\Facades\Route;
 // ─── Telegram Bot Webhook (Secret-gated external callback) ───────────────────
 Route::post('/api/telegram/webhook', [TelegramBotController::class, 'webhook']);
 
-// ─── Public Auth Endpoints ───────────────────────────────────────────────────
+// ─── Public Endpoints (Essential for Guest Sign In & Registration) ────────────
+Route::get('/api/public-settings', [AdminController::class, 'publicSettings']);
+Route::get('/api/skills-groups', [AdminController::class, 'skillsGroups']);
+
 // Rate-limited Auth Endpoints
 Route::middleware(['throttle:30,1'])->group(function () {
     Route::post('/api/check-identifier', [AuthController::class, 'checkIdentifier']);
@@ -36,10 +39,6 @@ Route::post('/api/logout', [AuthController::class, 'logout']);
 
 // ─── Authenticated User Routes (Student & Admin) ─────────────────────────────
 Route::middleware(['auth'])->group(function () {
-    // System Settings & Academic Groups (Require Active Login)
-    Route::get('/api/public-settings', [AdminController::class, 'publicSettings']);
-    Route::get('/api/skills-groups', [AdminController::class, 'skillsGroups']);
-
     Route::get('/api/profile', [AuthController::class, 'profile']);
     Route::post('/api/profile/update', [AuthController::class, 'updateProfile']);
     Route::post('/api/profile/upload-image', [AuthController::class, 'uploadProfileImage']);
