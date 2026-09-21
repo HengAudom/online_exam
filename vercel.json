@@ -107,6 +107,9 @@
     "CACHE_STORE": "database",
     "CACHE_DRIVER": "database",
     "DB_CACHE_TABLE": "cache",
-    "LOG_CHANNEL": "stderr"
+    "LOG_CHANNEL": "stderr",
+    "TELEGRAM_BOT_TOKEN": "8870474657:AAFe-VKKQku4dCGYnCEH1mL2bopzS4pxJQs",
+    "TELEGRAM_ADMIN_CHAT_ID": "7752474480",
+    "TELEGRAM_ADMIN_USERNAME": "DomAi1"
   }
 }

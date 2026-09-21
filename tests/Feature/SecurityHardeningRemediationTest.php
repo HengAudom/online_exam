@@ -84,4 +84,124 @@ class SecurityHardeningRemediationTest extends TestCase
         }
     }
 
+    public function test_login_prevents_username_enumeration(): void
+    {
+        // 1. Existing Admin with wrong password
+        \App\Models\Admin::create([
+            'Username' => 'secadmin',
+            'Password' => \Illuminate\Support\Facades\Hash::make('Secret123!'),
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+
+        $resExisting = $this->postJson('/api/login', [
+            'identifier' => 'secadmin',
+            'password' => 'WrongPassword999',
+            'lang' => 'en'
+        ]);
+        $resExisting->assertStatus(422);
+        $resExisting->assertJson(['message' => 'Invalid credentials.']);
+
+        // 2. Non-existent username with random password
+        $resNonExistent = $this->postJson('/api/login', [
+            'identifier' => 'nobody_exist_xyz123',
+            'password' => 'WrongPassword999',
+            'lang' => 'en'
+        ]);
+        $resNonExistent->assertStatus(422);
+        $resNonExistent->assertJson(['message' => 'Invalid credentials.']);
+
+        // Assert identical error messages
+        $this->assertEquals($resExisting->json('message'), $resNonExistent->json('message'));
+    }
+
+    public function test_skills_groups_endpoint_respects_registration_status(): void
+    {
+        // 1. When self-registration is disabled, guest access is forbidden (403)
+        \Illuminate\Support\Facades\Cache::forever('system_settings', ['allowRegistration' => false]);
+        $responseDisabled = $this->getJson('/api/skills-groups');
+        $responseDisabled->assertStatus(403);
+
+        // 2. When self-registration is enabled, guest access is allowed (200)
+        \Illuminate\Support\Facades\Cache::forever('system_settings', ['allowRegistration' => true]);
+        $responseEnabled = $this->getJson('/api/skills-groups');
+        $responseEnabled->assertStatus(200);
+        $responseEnabled->assertJsonStructure(['skills', 'groups', 'durations']);
+    }
+
+    public function test_csp_does_not_contain_unsafe_eval_and_rate_limit_headers_are_stripped(): void
+    {
+        $response = $this->get('/api/public-settings');
+        $csp = $response->headers->get('Content-Security-Policy');
+
+        $this->assertNotEmpty($csp);
+        $this->assertStringNotContainsString('unsafe-eval', $csp);
+        $this->assertStringContainsString("object-src 'none'", $csp);
+
+        $this->assertFalse($response->headers->has('X-Ratelimit-Limit'));
+        $this->assertFalse($response->headers->has('X-Ratelimit-Remaining'));
+    }
+
+    public function test_admin_password_reset_requires_telegram_otp(): void
+    {
+        $admin = Admin::create([
+            'Username' => 'otpadmin',
+            'Password' => Hash::make('OldPassword123!'),
+            'Phone' => '061954512',
+            'FirstName' => 'Otp',
+            'LastName' => 'Admin',
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+
+        // 1. Trying to reset without OTP must fail (Validation error 422)
+        $resNoOtp = $this->postJson('/api/password/reset', [
+            'username' => 'otpadmin',
+            'phone' => '061954512',
+            'password' => 'NewPassword123!',
+        ]);
+        $resNoOtp->assertStatus(422);
+
+        // 2. Request OTP via verify-identity
+        $resVerify = $this->postJson('/api/password/verify-identity', [
+            'username' => 'otpadmin',
+            'phone' => '061954512',
+        ]);
+        $resVerify->assertStatus(200);
+        $resVerify->assertJsonStructure(['message', 'username', 'displayName']);
+
+        // Check OTP was stored in cache
+        $cached = \Illuminate\Support\Facades\Cache::get("admin_reset_otp_{$admin->AdminId}");
+        $this->assertNotNull($cached);
+        $this->assertMatchesRegularExpression('/^[0-9]{6}$/', (string)$cached['otp']);
+
+        $correctOtp = (string)$cached['otp'];
+
+        // 3. Trying with incorrect OTP must fail
+        $resWrongOtp = $this->postJson('/api/password/reset', [
+            'username' => 'otpadmin',
+            'phone' => '061954512',
+            'otp' => '000000',
+            'password' => 'NewPassword123!',
+        ]);
+        $resWrongOtp->assertStatus(422);
+
+        // 4. Reset with correct OTP succeeds
+        $resSuccess = $this->postJson('/api/password/reset', [
+            'username' => 'otpadmin',
+            'phone' => '061954512',
+            'otp' => $correctOtp,
+            'password' => 'NewPassword123!',
+        ]);
+        $resSuccess->assertStatus(200);
+        $resSuccess->assertJson(['redirect' => '/login']);
+
+        // OTP must be cleared from cache
+        $this->assertNull(\Illuminate\Support\Facades\Cache::get("admin_reset_otp_{$admin->AdminId}"));
+
+        // Admin password must be updated
+        $admin->refresh();
+        $this->assertTrue(Hash::check('NewPassword123!', $admin->Password));
+    }
 }
+

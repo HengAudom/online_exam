@@ -27,13 +27,9 @@
             'image' => 'https://onlinexam.site/pwa-512.png',
             'logo' => 'https://onlinexam.site/pwa-512.png',
             'author' => [
-                '@type' => 'Person',
-                'name' => 'Heng Audom',
-                'alternateName' => 'ហេង ឧត្តម',
-                'sameAs' => [
-                    'https://www.facebook.com/may.dom.bon.1502',
-                    'https://t.me/DomAi1'
-                ]
+                '@type' => 'Organization',
+                'name' => 'OnlineXam Evaluation Platform',
+                'url' => 'https://onlinexam.site'
             ]
         ];
     @endphp

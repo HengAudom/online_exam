@@ -542,11 +542,30 @@ class AdminController extends Controller
             'serverTime' => now()->toDateTimeString()
         ];
 
+        // 1. First priority: Persistent Cache store (persisted in database on serverless Vercel)
+        try {
+            $cached = Cache::get('system_settings');
+            if (is_array($cached) && !empty($cached)) {
+                $defaults = array_merge($defaults, $cached);
+                $defaults['phpVersion'] = phpversion();
+                $defaults['laravelVersion'] = app()->version();
+                $defaults['databaseDriver'] = config('database.default');
+                $defaults['serverTime'] = now()->toDateTimeString();
+                return $defaults;
+            }
+        } catch (\Throwable $e) {
+            \Log::warning('Failed reading system_settings from cache: ' . $e->getMessage());
+        }
+
+        // 2. Secondary fallback: Local storage file
         $settingsFile = storage_path('app/settings.json');
         if (file_exists($settingsFile)) {
             $saved = json_decode(file_get_contents($settingsFile), true);
             if (is_array($saved)) {
                 $defaults = array_merge($defaults, $saved);
+                try {
+                    Cache::forever('system_settings', $defaults);
+                } catch (\Throwable $e) {}
             }
         }
 
@@ -599,15 +618,27 @@ class AdminController extends Controller
             'maxExamAttempts' => 'nullable|integer|min:1',
         ]);
 
-        $dir = storage_path('app');
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+        $current = self::getSystemSettings();
+        $merged = array_merge($current, $data);
+
+        // 1. Save to database persistent Cache (critical for Vercel Serverless)
+        try {
+            Cache::forever('system_settings', $merged);
+        } catch (\Throwable $e) {
+            \Log::error('Failed saving system_settings to cache: ' . $e->getMessage());
         }
 
-        $settingsFile = storage_path('app/settings.json');
-        $existing = file_exists($settingsFile) ? (json_decode(file_get_contents($settingsFile), true) ?: []) : [];
-        $merged = array_merge($existing, $data);
-        file_put_contents($settingsFile, json_encode($merged, JSON_PRETTY_PRINT));
+        // 2. Save to local storage file as backup
+        try {
+            $dir = storage_path('app');
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+            $settingsFile = storage_path('app/settings.json');
+            file_put_contents($settingsFile, json_encode($merged, JSON_PRETTY_PRINT));
+        } catch (\Throwable $e) {
+            \Log::warning('Failed saving system_settings to file: ' . $e->getMessage());
+        }
 
         return response()->json(['message' => 'System settings updated successfully!', 'settings' => self::getSystemSettings()]);
     }
@@ -787,6 +818,16 @@ class AdminController extends Controller
 
     public function skillsGroups(Request $request)
     {
+        // If unauthenticated guest request, ensure self-registration is enabled before exposing academic catalog
+        if (!auth()->check()) {
+            $settings = self::getSystemSettings();
+            if (isset($settings['allowRegistration']) && !$settings['allowRegistration']) {
+                return response()->json([
+                    'message' => 'ការចុះឈ្មោះបង្កើតគណនីដោយខ្លួនឯងត្រូវបានបិទជាបណ្ដោះអាសន្ន (Self-registration is currently disabled).'
+                ], 403);
+            }
+        }
+
         $data = Cache::remember('admin_skills_groups', 60, function () {
             $skills = Skill::orderBy('SkillName')->get(['SkillId', 'SkillName', 'Description']);
             $groups = Group::orderBy('GroupName')->get(['GroupId', 'GroupName']);

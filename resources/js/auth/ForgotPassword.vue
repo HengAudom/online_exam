@@ -76,7 +76,7 @@
         </div>
       </form>
 
-      <!-- Step 2: Set New Password -->
+      <!-- Step 2: Set New Password with Telegram OTP -->
       <form v-else @submit.prevent="handleResetPassword" class="space-y-4">
         <!-- Verified User Chip -->
         <div class="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs font-semibold flex items-center justify-between gap-2 animate-fade-in">
@@ -91,6 +91,52 @@
           >
             {{ lang === 'kh' ? 'កែប្រែ' : 'Change' }}
           </button>
+        </div>
+
+        <!-- Telegram Notification Banner -->
+        <div class="p-3.5 rounded-2xl bg-blue-50/80 border border-blue-200/80 text-blue-900 text-xs flex items-start gap-2.5 animate-fade-in">
+          <span class="material-symbols-outlined text-blue-600 text-xl shrink-0 mt-0.5">send</span>
+          <div class="space-y-0.5">
+            <p class="font-bold text-blue-950">{{ lang === 'kh' ? 'លេខកូដ OTP ៦ ខ្ទង់ត្រូវបានផ្ញើរួចរាល់' : '6-digit OTP Dispatched' }}</p>
+            <p class="text-[11px] text-blue-700">
+              {{ lang === 'kh' 
+                ? 'សូមពិនិត្យមើលសារក្នុង Telegram របស់អ្នក (@onlinexam_bot) ដើម្បីយកលេខកូដផ្ទៀងផ្ទាត់។' 
+                : 'Please check your Telegram messages (@onlinexam_bot) to get the verification code.' }}
+            </p>
+          </div>
+        </div>
+
+        <!-- OTP Input Field -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-bold text-slate-700">
+              {{ lang === 'kh' ? 'លេខកូដ OTP (៦ ខ្ទង់)' : 'OTP Code (6 digits)' }}
+              <span class="text-red-500">*</span>
+            </label>
+            <button
+              type="button"
+              @click="handleResendOtp"
+              :disabled="resendCountdown > 0 || resendLoading"
+              class="text-[11px] font-bold text-blue-600 hover:text-blue-700 disabled:text-slate-400 cursor-pointer disabled:cursor-not-allowed inline-flex items-center gap-1 transition-colors"
+            >
+              <span class="material-symbols-outlined text-xs" :class="{ 'animate-spin': resendLoading }">sync</span>
+              <span v-if="resendCountdown > 0">
+                {{ lang === 'kh' ? `ផ្ញើម្ដងទៀត (${resendCountdown}s)` : `Resend in ${resendCountdown}s` }}
+              </span>
+              <span v-else>
+                {{ lang === 'kh' ? 'ផ្ញើកូដឡើងវិញ' : 'Resend OTP' }}
+              </span>
+            </button>
+          </div>
+          <Input
+            v-model="form.otp"
+            type="text"
+            required
+            maxlength="6"
+            icon="pin"
+            :placeholder="lang === 'kh' ? 'បញ្ចូលលេខ ៦ ខ្ទង់ ឧ. 123456' : 'Enter 6-digit code e.g. 123456'"
+            @input="handleOtpInput"
+          />
         </div>
 
         <PasswordInput
@@ -145,7 +191,7 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, onBeforeUnmount } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import axios from 'axios'
 import PublicLayout from '../layouts/PublicLayout.vue'
@@ -164,13 +210,39 @@ const currentStep = ref(1)
 const verifiedDisplayName = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
+const resendCountdown = ref(0)
+const resendLoading = ref(false)
+let timer = null
 
 const form = reactive({
   username: '',
   phone: '',
+  otp: '',
   password: '',
   confirmPassword: ''
 })
+
+const startCountdown = () => {
+  resendCountdown.value = 60
+  if (timer) clearInterval(timer)
+  timer = setInterval(() => {
+    if (resendCountdown.value > 0) {
+      resendCountdown.value--
+    } else {
+      clearInterval(timer)
+      timer = null
+    }
+  }, 1000)
+}
+
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer)
+})
+
+const handleOtpInput = () => {
+  form.otp = form.otp.replace(/[^0-9]/g, '').slice(0, 6)
+  errorMessage.value = ''
+}
 
 const handleVerifyIdentity = async () => {
   const username = form.username.trim()
@@ -199,8 +271,10 @@ const handleVerifyIdentity = async () => {
       form.username = res.data.username
     }
     verifiedDisplayName.value = res.data.displayName || username
+    form.otp = ''
     currentStep.value = 2
-    toastSuccess(res.data.message || (lang.value === 'kh' ? 'ការផ្ទៀងផ្ទាត់ជោគជ័យ' : 'Identity verified.'))
+    startCountdown()
+    toastSuccess(res.data.message || (lang.value === 'kh' ? 'លេខកូដ OTP ត្រូវបានផ្ញើទៅ Telegram រួចរាល់' : 'OTP dispatched to Telegram.'))
   } catch (error) {
     if (error.response?.status === 429) {
       errorMessage.value = lang.value === 'kh'
@@ -214,7 +288,38 @@ const handleVerifyIdentity = async () => {
   }
 }
 
+const handleResendOtp = async () => {
+  if (resendCountdown.value > 0 || resendLoading.value) return
+  resendLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const res = await axios.post('/api/password/verify-identity', {
+      username: form.username.trim(),
+      phone: form.phone.trim()
+    })
+
+    startCountdown()
+    toastSuccess(res.data.message || (lang.value === 'kh' ? 'លេខកូដ OTP ថ្មីត្រូវបានផ្ញើទៅកាន់ Telegram' : 'New OTP dispatched to Telegram.'))
+  } catch (error) {
+    if (error.response?.status === 429) {
+      errorMessage.value = lang.value === 'kh'
+        ? 'អ្នកបានព្យាយាមច្រើនដងពេកហើយ! សូមរង់ចាំ ១ នាទី (Too Many Attempts).'
+        : 'Too many attempts. Please wait a minute.'
+    } else {
+      errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចផ្ញើកូដឡើងវិញបានទេ' : 'Failed to resend OTP.')
+    }
+  } finally {
+    resendLoading.value = false
+  }
+}
+
 const handleResetPassword = async () => {
+  if (!form.otp || form.otp.trim().length !== 6) {
+    errorMessage.value = lang.value === 'kh' ? 'សូមបញ្ចូលលេខកូដ OTP ៦ ខ្ទង់ដែលបានផ្ញើទៅ Telegram' : 'Please enter the 6-digit OTP code sent to Telegram.'
+    return
+  }
+
   if (form.password.length < 6) {
     errorMessage.value = lang.value === 'kh' ? 'ពាក្យសម្ងាត់ត្រូវមានយ៉ាងតិច ៦ ខ្ទង់' : 'Password must be at least 6 characters.'
     return
@@ -232,6 +337,7 @@ const handleResetPassword = async () => {
     const res = await axios.post('/api/password/reset', {
       username: form.username.trim(),
       phone: form.phone.trim(),
+      otp: form.otp.trim(),
       password: form.password
     })
 
@@ -243,7 +349,7 @@ const handleResetPassword = async () => {
         ? 'អ្នកបានព្យាយាមច្រើនដងពេកហើយ! សូមរង់ចាំ ១ នាទី រួចសាកល្បងម្ដងទៀត (Too Many Attempts. Please wait a minute).'
         : 'Too many attempts. Please wait a minute and try again.'
     } else {
-      errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចផ្លាស់ប្តូរពាក្យសម្ងាត់បានទេ សូមព្យាយាមម្តងទៀត' : 'Failed to reset password.')
+      errorMessage.value = error.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចផ្លាស់ប្តូរពាក្យសម្ងាត់បានទេ សូមពិនិត្យលេខកូដ OTP' : 'Failed to reset password. Please check your OTP.')
     }
   } finally {
     loading.value = false

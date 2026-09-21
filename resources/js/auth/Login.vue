@@ -188,7 +188,7 @@ const onUsernameInput = () => {
 
 onMounted(() => {
   document.title = 'OnlineXam - Online Examination System'
-  fetchSettings()
+  fetchSettings(true)
   const saved = localStorage.getItem('saved_login_username')
   if (saved) {
     form.username = saved
@@ -276,16 +276,39 @@ const handleLogin = async () => {
       return
     }
 
-    if (err.response?.status === 422 || err.response?.status === 404) {
-      if (rawMsg.includes('Student ID') || rawMsg.includes('not found') || rawMsg.includes('រកមិនឃើញ')) {
-        errorMessage.value = lang.value === 'kh'
-          ? 'រកមិនឃើញ Student ID នេះឡើយ'
-          : 'Student ID not found.'
-      } else if (rawMsg.includes('Invalid password') || rawMsg.includes('ពាក្យសម្ងាត់')) {
-        errorMessage.value = lang.value === 'kh'
-          ? 'ពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
-          : 'Invalid password.'
-      } else if (rawMsg.includes('suspended') || rawMsg.includes('ផ្អាក')) {
+    if (!err.response) {
+      // Network error, offline, or request aborted
+      errorMessage.value = lang.value === 'kh'
+        ? 'មិនអាចតភ្ជាប់ទៅកាន់ Server បានទេ សូមពិនិត្យមើលអ៊ីនធឺណិតរបស់អ្នក'
+        : 'Unable to connect to the server. Please check your internet connection.'
+      return
+    }
+
+    const status = err.response.status
+
+    if (status === 429) {
+      errorMessage.value = lang.value === 'kh'
+        ? 'អ្នកបានព្យាយាមចូលច្រើនដងពេក សូមរង់ចាំ ១ នាទីរួចព្យាយាមម្តងទៀត'
+        : 'Too many login attempts. Please wait a minute and try again.'
+      return
+    }
+
+    if (status === 403) {
+      errorMessage.value = lang.value === 'kh'
+        ? 'គណនីនេះត្រូវបានផ្អាកជាបណ្ដោះអាសន្ន'
+        : (rawMsg || 'Account is suspended.')
+      return
+    }
+
+    if (status === 419) {
+      errorMessage.value = lang.value === 'kh'
+        ? 'Session ផុតកំណត់ សូម Refresh ទំព័ររួចព្យាយាមម្តងទៀត'
+        : 'Session expired. Please refresh the page and try again.'
+      return
+    }
+
+    if (status === 422 || status === 404) {
+      if (rawMsg.includes('suspended') || rawMsg.includes('ផ្អាក')) {
         errorMessage.value = lang.value === 'kh'
           ? 'គណនីនេះត្រូវបានផ្អាកជាបណ្ដោះអាសន្ន'
           : 'Account is suspended.'
@@ -296,12 +319,17 @@ const handleLogin = async () => {
       } else {
         errorMessage.value = isAdminMode.value
           ? (lang.value === 'kh' ? 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ' : 'Invalid username or password.')
-          : (lang.value === 'kh' ? 'រកមិនឃើញ Student ID នេះឡើយ' : 'Student ID not found.')
+          : (lang.value === 'kh' ? 'លេខកូដសិស្ស ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ' : 'Invalid student ID or credentials.')
       }
     } else {
-      errorMessage.value = lang.value === 'kh'
-        ? 'មានបញ្ហាតភ្ជាប់មូលដ្ឋានទិន្នន័យ សូមព្យាយាមម្តងទៀត'
-        : 'Database connection error. Please try again.'
+      // 500 or other unexpected server errors
+      if (rawMsg && !rawMsg.toLowerCase().includes('database connection error')) {
+        errorMessage.value = rawMsg
+      } else {
+        errorMessage.value = lang.value === 'kh'
+          ? 'មានបញ្ហាតភ្ជាប់មូលដ្ឋានទិន្នន័យ សូមព្យាយាមម្តងទៀត'
+          : 'Database connection error. Please try again.'
+      }
     }
   } finally {
     isSubmitting.value = false

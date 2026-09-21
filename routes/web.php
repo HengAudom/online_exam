@@ -14,7 +14,10 @@ Route::post('/api/telegram/webhook', [TelegramBotController::class, 'webhook']);
 
 // ─── Public Endpoints (Essential for Guest Sign In & Registration) ────────────
 Route::get('/api/public-settings', [AdminController::class, 'publicSettings']);
-Route::get('/api/skills-groups', [AdminController::class, 'skillsGroups']);
+
+Route::middleware(['throttle:5,1'])->group(function () {
+    Route::get('/api/skills-groups', [AdminController::class, 'skillsGroups']);
+});
 
 // Rate-limited Auth Endpoints
 Route::middleware(['throttle:30,1'])->group(function () {

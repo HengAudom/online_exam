@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { fastCache } from '../stores/fastCache'
 
 /**
  * Handle user logout.
@@ -12,8 +13,13 @@ export async function logout() {
     // If session already expired, just move on
     console.warn('Logout API failed (likely session already expired)')
   } finally {
-    // Clear local authentication flag
+    // Clear local authentication and role flags
     localStorage.removeItem('isAuthenticated')
+    localStorage.removeItem('userRole')
+
+    try {
+      fastCache.clear()
+    } catch (err) {}
     
     // Replace current state so user cannot go back
     window.history.replaceState(null, '', '/login')

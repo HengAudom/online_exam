@@ -8,9 +8,11 @@ use App\Models\Student;
 use App\Models\Admin;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use App\Services\TelegramService;
 
 class AuthController extends Controller
 {
@@ -191,10 +193,22 @@ class AuthController extends Controller
             return response()->json(['requiresPassword' => false]);
         }
 
-        // Query Database for Admin / Super Admin (tbladmin)
-        $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($identifier)])
-            ->select('AdminId', 'Username', 'Role')
-            ->first();
+        // Query Database for Admin / Super Admin (tbladmin) with resilient retry for serverless DB
+        $admin = null;
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            try {
+                $admin = Admin::whereRaw('LOWER(Username) = ?', [strtolower($identifier)])
+                    ->select('AdminId', 'Username', 'Role')
+                    ->first();
+                break;
+            } catch (\Throwable $e) {
+                if ($attempt >= 2) {
+                    \Log::warning('checkIdentifier exception: ' . $e->getMessage());
+                    break;
+                }
+                usleep(300000);
+            }
+        }
 
         if ($admin) {
             return response()->json([
@@ -222,7 +236,16 @@ class AuthController extends Controller
 
         try {
             // 1. Try Admin / Super Admin Login (strictly from tbladmin)
-            $adminUser = Admin::whereRaw('LOWER(Username) = ?', [strtolower($identifier)])->first();
+            $adminUser = null;
+            for ($attempt = 1; $attempt <= 2; $attempt++) {
+                try {
+                    $adminUser = Admin::whereRaw('LOWER(Username) = ?', [strtolower($identifier)])->first();
+                    break;
+                } catch (\Illuminate\Database\QueryException $qe) {
+                    if ($attempt >= 2) throw $qe;
+                    usleep(350000);
+                }
+            }
 
             if ($adminUser) {
                 if (empty($password)) {
@@ -242,7 +265,7 @@ class AuthController extends Controller
                         request: $request
                     );
                     return response()->json([
-                        'message' => $lang === 'en' ? 'Invalid password.' : 'ពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
+                        'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
                     ], 422);
                 }
 
@@ -283,20 +306,29 @@ class AuthController extends Controller
             }
 
             // 2. Student lookup strictly by StudentCode or StudentId in tblstudent
-            $student = self::findStudentByIdentifier($identifier);
+            $student = null;
+            for ($attempt = 1; $attempt <= 2; $attempt++) {
+                try {
+                    $student = self::findStudentByIdentifier($identifier);
+                    break;
+                } catch (\Illuminate\Database\QueryException $qe) {
+                    if ($attempt >= 2) throw $qe;
+                    usleep(350000);
+                }
+            }
 
             if ($student) {
                 // Check if student has password in database
                 if (!empty($student->Password)) {
                     if (empty($password) || !Hash::check($password, $student->Password)) {
                         return response()->json([
-                            'message' => $lang === 'en' ? 'Invalid password.' : 'ពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
+                            'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
                         ], 422);
                     }
                 } elseif (!empty($password) && trim((string)$password) !== '') {
                     // Reject unexpected passwords to prevent authentication bypass confusion
                     return response()->json([
-                        'message' => $lang === 'en' ? 'This student account logs in with Student ID only (no password required).' : 'គណនីសិស្សនេះត្រូវចូលដោយប្រើតែ Student ID ប៉ុណ្ណោះ (មិនប្រើពាក្យសម្ងាត់ទេ)'
+                        'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
                     ], 422);
                 }
 
@@ -332,13 +364,18 @@ class AuthController extends Controller
 
             // Neither admin nor student found
             return response()->json([
-                'message' => $lang === 'en' ? 'Student ID not found.' : 'រកមិនឃើញ Student ID នេះឡើយ'
+                'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
             ], 422);
 
         } catch (\Throwable $e) {
-            \Log::error('Login database exception: ' . $e->getMessage());
+            \Log::error('Login exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            $isDbError = ($e instanceof \Illuminate\Database\QueryException || $e instanceof \PDOException);
+            $msg = $isDbError
+                ? ($lang === 'en' ? 'Database connection error. Please try again.' : 'មានបញ្ហាតភ្ជាប់មូលដ្ឋានទិន្នន័យ សូមព្យាយាមម្តងទៀត')
+                : ($lang === 'en' ? 'An unexpected server error occurred. Please try again.' : 'មានបញ្ហាមិនប្រក្រតីមួយបានកើតឡើង សូមព្យាយាមម្តងទៀត');
+
             return response()->json([
-                'message' => $lang === 'en' ? 'Database connection error. Please try again.' : 'មានបញ្ហាតភ្ជាប់មូលដ្ឋានទិន្នន័យ សូមព្យាយាមម្តងទៀត'
+                'message' => $msg
             ], 500);
         }
     }
@@ -607,8 +644,39 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // Generate a 6-digit cryptographically secure numeric OTP
+        $otp = (string) random_int(100000, 999999);
+
+        // Cache the OTP for 5 minutes (300 seconds)
+        $cacheKey = "admin_reset_otp_{$admin->AdminId}";
+        Cache::put($cacheKey, [
+            'otp' => $otp,
+            'phone' => $cleanAdminPhone,
+            'username' => $admin->Username,
+            'attempts' => 0,
+        ], now()->addMinutes(5));
+
+        // Format message for Telegram
+        $nowStr = now()->setTimezone('Asia/Phnom_Penh')->format('d-m-Y H:i:s');
+        $telegramMessage = "🔐 <b>[OnlineXam] លេខកូដផ្ទៀងផ្ទាត់ប្តូរពាក្យសម្ងាត់ Admin</b>\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "👉 លេខកូដ OTP របស់អ្នកគឺ: <code>{$otp}</code>\n"
+            . "👤 <b>គណនី:</b> {$admin->Username}\n"
+            . "🕒 <b>កាលបរិច្ឆេទ:</b> {$nowStr}\n"
+            . "⏱️ <b>សុពលភាព:</b> ៥ នាទី (5 minutes)\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "⚠️ <i>ប្រសិនបើអ្នកមិនបានស្នើសុំផ្លាស់ប្តូរពាក្យសម្ងាត់ទេ សូមកុំចែករំលែកលេខកូដនេះដាច់ខាត!</i>";
+
+        try {
+            $telegramService = app(TelegramService::class);
+            $targetChatId = config('services.telegram.admin_chat_id', env('TELEGRAM_ADMIN_CHAT_ID', '7752474480'));
+            $telegramService->sendMessage($targetChatId, $telegramMessage);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Telegram OTP send failed: ' . $e->getMessage());
+        }
+
         return response()->json([
-            'message' => 'ការផ្ទៀងផ្ទាត់ជោគជ័យ! (Identity verified successfully)',
+            'message' => 'លេខកូដ OTP ៦ ខ្ទង់ត្រូវបានផ្ញើទៅកាន់ Telegram របស់អ្នករួចរាល់ហើយ! (A 6-digit OTP has been sent to your Telegram).',
             'username' => $canonicalUsername,
             'displayName' => $displayName,
         ]);
@@ -619,10 +687,12 @@ class AuthController extends Controller
         $data = $request->validate([
             'username' => ['required', 'string'],
             'phone'    => ['required', 'string'],
+            'otp'      => ['required', 'string', 'regex:/^[0-9]{6}$/'],
             'password' => ['required', 'string', 'min:6'],
         ]);
 
         $username = trim($data['username']);
+        $otp = trim($data['otp']);
         $normalizePhone = function (?string $raw): string {
             $digits = preg_replace('/[^0-9]/', '', (string)$raw);
             if (str_starts_with($digits, '855')) {
@@ -648,25 +718,63 @@ class AuthController extends Controller
             }
         }
 
-        if ($admin) {
-            $cleanAdminPhone = $normalizePhone($admin->Phone ?? '');
-            if (empty($cleanAdminPhone) || !hash_equals($cleanAdminPhone, $cleanInput)) {
-                return response()->json(['message' => 'លេខទូរស័ព្ទមិនត្រូវគ្នានឹងគណនីនេះឡើយ សូមពិនិត្យលេខទូរស័ព្ទដែលបានចុះឈ្មោះ (Phone number does not match registered profile).'], 422);
-            }
-
-            $hashedPassword = Hash::make($data['password']);
-            $admin->Password = $hashedPassword;
-            $admin->password = $hashedPassword;
-            $admin->save();
-
-            return response()->json([
-                'message' => 'ពាក្យសម្ងាត់ត្រូវបានផ្លាស់ប្តូរដោយជោគជ័យ! (Password changed successfully)',
-                'username' => $admin->Username,
-                'redirect' => '/login',
-            ]);
+        if (!$admin) {
+            return response()->json(['message' => 'ការកំណត់ពាក្យសម្ងាត់ថ្មីអាចធ្វើបានសម្រាប់ Admin តែប៉ុណ្ណោះ (Password reset is for Admin only).'], 422);
         }
 
-        return response()->json(['message' => 'ការកំណត់ពាក្យសម្ងាត់ថ្មីអាចធ្វើបានសម្រាប់ Admin តែប៉ុណ្ណោះ (Password reset is for Admin only).'], 422);
+        $cleanAdminPhone = $normalizePhone($admin->Phone ?? '');
+        if (empty($cleanAdminPhone) || !hash_equals($cleanAdminPhone, $cleanInput)) {
+            return response()->json(['message' => 'លេខទូរស័ព្ទមិនត្រូវគ្នានឹងគណនីនេះឡើយ សូមពិនិត្យលេខទូរស័ព្ទដែលបានចុះឈ្មោះ (Phone number does not match registered profile).'], 422);
+        }
+
+        $cacheKey = "admin_reset_otp_{$admin->AdminId}";
+        $cachedOtpData = Cache::get($cacheKey);
+
+        if (!$cachedOtpData || empty($cachedOtpData['otp'])) {
+            return response()->json([
+                'message' => 'លេខកូដ OTP បានផុតកំណត់ ឬមិនត្រឹមត្រូវ សូមស្នើសុំលេខកូដថ្មី (OTP has expired or is invalid. Please request a new OTP).'
+            ], 422);
+        }
+
+        // Limit maximum wrong attempts on OTP to 5 attempts
+        if (($cachedOtpData['attempts'] ?? 0) >= 5) {
+            Cache::forget($cacheKey);
+            return response()->json([
+                'message' => 'អ្នកបានបញ្ចូលលេខកូដ OTP ខុសលើសពី ៥ ដង! សូមស្នើសុំលេខកូដ OTP ថ្មីឡើងវិញ (Too many incorrect OTP attempts. Please request a new OTP).'
+            ], 422);
+        }
+
+        if (!hash_equals((string)$cachedOtpData['otp'], $otp)) {
+            $cachedOtpData['attempts'] = ($cachedOtpData['attempts'] ?? 0) + 1;
+            Cache::put($cacheKey, $cachedOtpData, now()->addMinutes(5));
+            return response()->json([
+                'message' => 'លេខកូដ OTP មិនត្រឹមត្រូវឡើយ សូមពិនិត្យមើលសារក្នុង Telegram ឡើងវិញ (Incorrect OTP code. Please check Telegram).'
+            ], 422);
+        }
+
+        // OTP verified successfully -> clear cache
+        Cache::forget($cacheKey);
+
+        $hashedPassword = Hash::make($data['password']);
+        $admin->Password = $hashedPassword;
+        $admin->password = $hashedPassword;
+        $admin->save();
+
+        self::recordLoginAudit(
+            userId: $admin->AdminId,
+            username: $admin->Username,
+            role: 'Admin',
+            displayName: trim(($admin->FirstName ?? '') . ' ' . ($admin->LastName ?? '')) ?: $admin->Username,
+            status: 'Password Reset',
+            details: 'Admin password successfully reset via Telegram OTP verification',
+            request: $request
+        );
+
+        return response()->json([
+            'message' => 'ពាក្យសម្ងាត់ត្រូវបានផ្លាស់ប្តូរដោយជោគជ័យ! (Password changed successfully)',
+            'username' => $admin->Username,
+            'redirect' => '/login',
+        ]);
     }
 
     public function forgotPassword(Request $request)

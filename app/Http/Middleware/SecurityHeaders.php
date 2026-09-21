@@ -20,6 +20,8 @@ class SecurityHeaders
         $response = $next($request);
 
         $response->headers->remove('X-Powered-By');
+        $response->headers->remove('X-Ratelimit-Limit');
+        $response->headers->remove('X-Ratelimit-Remaining');
 
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('X-Content-Type-Options', 'nosniff');
@@ -29,11 +31,12 @@ class SecurityHeaders
 
         if (!$response->headers->has('Content-Security-Policy')) {
             $csp = "default-src 'self'; "
-                . "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; "
+                . "script-src 'self' 'unsafe-inline' https:; "
                 . "connect-src 'self' https: wss: ws:; "
                 . "img-src 'self' data: blob: https:; "
                 . "font-src 'self' data: https: fonts.gstatic.com; "
                 . "style-src 'self' 'unsafe-inline' https: fonts.googleapis.com; "
+                . "object-src 'none'; "
                 . "frame-ancestors 'self'; "
                 . "base-uri 'self'; "
                 . "form-action 'self';";

@@ -145,35 +145,35 @@ const router = createRouter({
   routes
 })
 
-// Cached user in memory
+// Cached user in memory (verified by server)
 let cachedUser = null
 
-// ══ Global Navigation Guard (Instant 0ms synchronous transition) ════
+// ══ Global Navigation Guard (Server-verified authentication) ═══════
 router.beforeEach(async (to, _from, next) => {
   if (!to.matched.some(r => r.meta?.requiresAuth)) {
     return next()
   }
 
-  if (!localStorage.getItem('isAuthenticated')) {
-    return next({ name: 'Login', replace: true })
-  }
-
-  let role = cachedUser?.role || localStorage.getItem('userRole') || ''
-
-  // Only perform network request if role is completely unknown
-  if (!role && !cachedUser) {
+  // If cachedUser is null in memory, we MUST verify with the server (/api/profile)
+  // rather than blindly trusting localStorage, preventing console manipulation bypass
+  if (!cachedUser) {
     try {
       const res = await axios.get('/api/profile')
       cachedUser = res.data.user
-      role = cachedUser?.role || 'Student'
-      localStorage.setItem('userRole', role)
+      if (!cachedUser) {
+        throw new Error('Unauthenticated')
+      }
+      localStorage.setItem('isAuthenticated', 'true')
+      localStorage.setItem('userRole', cachedUser.role || 'Student')
     } catch {
+      cachedUser = null
       localStorage.removeItem('isAuthenticated')
       localStorage.removeItem('userRole')
       return next({ name: 'Login', replace: true })
     }
   }
 
+  const role = cachedUser.role || 'Student'
   const isAdminRole = ['Admin', 'Super Admin', 'SuperAdmin'].includes(role)
   const isSuperAdminRole = ['Super Admin', 'SuperAdmin'].includes(role)
 
