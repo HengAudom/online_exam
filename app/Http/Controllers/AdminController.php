@@ -425,10 +425,34 @@ class AdminController extends Controller
             }
 
             // Find highest timestamp among current logs to guarantee everything existing is purged
-            $maxSub = DB::table('tblstudentsubmission')->max('CompletedAt');
-            $maxTest = DB::table('tbltest')->max('created_at');
-            $maxStu = DB::table('tblstudent')->max('created_at');
-            $maxAdm = DB::table('tbladminprofile')->max('created_at');
+            $maxSub = null;
+            try {
+                if (Schema::hasTable('tblstudentsubmission')) {
+                    $maxSub = DB::table('tblstudentsubmission')->max('CompletedAt');
+                }
+            } catch (\Throwable $e) {}
+
+            $maxTest = null;
+            try {
+                if (Schema::hasTable('tbltest')) {
+                    $maxTest = DB::table('tbltest')->max('created_at');
+                }
+            } catch (\Throwable $e) {}
+
+            $maxStu = null;
+            try {
+                if (Schema::hasTable('tblstudent')) {
+                    $maxStu = DB::table('tblstudent')->max('created_at');
+                }
+            } catch (\Throwable $e) {}
+
+            $maxAdm = null;
+            try {
+                $adminTable = Schema::hasTable('tbladmin') ? 'tbladmin' : (Schema::hasTable('tbladminprofile') ? 'tbladminprofile' : null);
+                if ($adminTable) {
+                    $maxAdm = DB::table($adminTable)->max('created_at');
+                }
+            } catch (\Throwable $e) {}
 
             $dates = array_filter([$maxSub, $maxTest, $maxStu, $maxAdm, now()->toDateTimeString()]);
             rsort($dates);

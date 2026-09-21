@@ -263,4 +263,23 @@ class SecurityHardeningRemediationTest extends TestCase
             $response->assertJson(['message' => 'Unauthenticated.']);
         }
     }
+
+    public function test_clear_audit_logs_succeeds_without_error(): void
+    {
+        $superAdmin = Admin::create([
+            'Username' => 'superadmin_clear_logs',
+            'Password' => Hash::make('password123'),
+            'Role' => 'Super Admin',
+            'Status' => 'Active',
+        ]);
+
+        $this->actingAs($superAdmin);
+
+        $response = $this->deleteJson('/api/admin/audit-logs');
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'message' => 'All audit logs cleared successfully.'
+        ]);
+    }
 }
