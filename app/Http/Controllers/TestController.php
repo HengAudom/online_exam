@@ -352,12 +352,22 @@ class TestController extends Controller
         }
 
         $request->validate([
-            'file' => 'required|file|max:20480',
+            'file' => ['required', 'file', 'mimes:docx,doc,txt', 'max:20480'],
+        ], [
+            'file.required' => 'សូមជ្រើសរើសឯកសារសម្រាប់ Import (File is required).',
+            'file.mimes'    => 'អនុញ្ញាតតែឯកសារ Word (.docx, .doc) ឬ Text (.txt) ប៉ុណ្ណោះ (Only .docx, .doc, and .txt files are allowed).',
+            'file.max'      => 'ទំហំឯកសារអតិបរមាគឺ 20MB (Maximum file size is 20MB).',
         ]);
 
         $file = $request->file('file');
         $origName = $file->getClientOriginalName();
         $ext = strtolower($file->getClientOriginalExtension() ?: pathinfo($origName, PATHINFO_EXTENSION));
+
+        if (!in_array($ext, ['docx', 'doc', 'txt'])) {
+            return response()->json([
+                'message' => 'ប្រភេទឯកសារមិនត្រូវបានអនុញ្ញាត (Disallowed file type).'
+            ], 422);
+        }
         $text = '';
 
         if ($ext === 'txt') {

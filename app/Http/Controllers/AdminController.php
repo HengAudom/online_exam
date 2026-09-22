@@ -584,11 +584,8 @@ class AdminController extends Controller
             'settings' => [
                 'institutionName' => $settings['institutionName'] ?? 'OnlineXam',
                 'academicYear' => $settings['academicYear'] ?? '2026-2027',
-                'timezone' => $settings['timezone'] ?? 'Asia/Phnom_Penh',
                 'defaultLanguage' => $settings['defaultLanguage'] ?? 'kh',
                 'allowRegistration' => (bool) ($settings['allowRegistration'] ?? true),
-                'sessionTimeoutMinutes' => (int) ($settings['sessionTimeoutMinutes'] ?? 60),
-                'maxExamAttempts' => (int) ($settings['maxExamAttempts'] ?? 1),
             ]
         ]);
     }
@@ -823,7 +820,7 @@ class AdminController extends Controller
             $settings = self::getSystemSettings();
             if (isset($settings['allowRegistration']) && !$settings['allowRegistration']) {
                 return response()->json([
-                    'message' => 'ការចុះឈ្មោះបង្កើតគណនីដោយខ្លួនឯងត្រូវបានបិទជាបណ្ដោះអាសន្ន (Self-registration is currently disabled).'
+                    'message' => 'Access denied.'
                 ], 403);
             }
         }

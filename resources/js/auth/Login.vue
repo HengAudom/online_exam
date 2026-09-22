@@ -90,6 +90,41 @@
           </label>
         </div>
 
+        <!-- CAPTCHA Verification (Displayed after multiple failed attempts) -->
+        <div
+          v-if="requiresCaptcha"
+          class="p-3.5 bg-slate-50 border border-slate-200/90 rounded-xl sm:rounded-2xl space-y-2.5 animate-fade-in"
+        >
+          <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
+            <span class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-base text-amber-500">security</span>
+              {{ lang === 'kh' ? 'ផ្ទៀងផ្ទាត់សុវត្ថិភាព (Security Check)' : 'Security Verification' }}
+            </span>
+            <button
+              type="button"
+              @click="fetchCaptcha"
+              class="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-[11px] font-medium transition-colors"
+              :disabled="isCaptchaLoading"
+            >
+              <span class="material-symbols-outlined text-sm" :class="{ 'animate-spin': isCaptchaLoading }">refresh</span>
+              {{ lang === 'kh' ? 'ប្តូរសំណួរ' : 'Reload' }}
+            </button>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-base font-mono font-bold text-slate-800 tracking-wider shadow-xs select-none min-w-[90px] text-center">
+              {{ captchaQuestion || '...' }}
+            </div>
+            <input
+              type="text"
+              inputmode="numeric"
+              v-model="captchaAnswer"
+              :placeholder="lang === 'kh' ? 'បញ្ចូលចម្លើយ' : 'Enter answer'"
+              class="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              required
+            />
+          </div>
+        </div>
+
         <!-- Submit Button -->
         <div class="pt-1">
           <Button
@@ -149,6 +184,26 @@ const errorMessage = ref('')
 const isAdminMode = ref(false)
 const passwordInputRef = ref(null)
 
+const requiresCaptcha = ref(false)
+const captchaQuestion = ref('')
+const captchaToken = ref('')
+const captchaAnswer = ref('')
+const isCaptchaLoading = ref(false)
+
+const fetchCaptcha = async () => {
+  try {
+    isCaptchaLoading.value = true
+    const res = await axios.get('/api/auth/captcha')
+    captchaQuestion.value = res.data.question
+    captchaToken.value = res.data.token
+    captchaAnswer.value = ''
+  } catch (e) {
+    console.error('Failed to load CAPTCHA challenge', e)
+  } finally {
+    isCaptchaLoading.value = false
+  }
+}
+
 const onUsernameInput = () => {
   errorMessage.value = ''
   const val = form.username.trim()
@@ -207,16 +262,30 @@ const handleLogin = async () => {
     return
   }
 
+  if (requiresCaptcha.value && !captchaAnswer.value.trim()) {
+    errorMessage.value = lang.value === 'kh'
+      ? 'សូមបញ្ចូលចម្លើយសុវត្ថិភាព (CAPTCHA)'
+      : 'Please complete the CAPTCHA verification.'
+    return
+  }
+
   isSubmitting.value = true
   errorMessage.value = ''
 
   try {
-    const res = await axios.post('/api/login', {
+    const payload = {
       identifier: identifier,
       username: identifier,
       password: isAdminMode.value ? form.password : '',
       lang: lang.value
-    })
+    }
+
+    if (requiresCaptcha.value) {
+      payload.captcha_token = captchaToken.value
+      payload.captcha_answer = captchaAnswer.value.trim()
+    }
+
+    const res = await axios.post('/api/login', payload)
 
     // Handle Remember Identifier persistence
     if (rememberUsername.value) {
@@ -242,6 +311,11 @@ const handleLogin = async () => {
   } catch (err) {
     const rawMsg = err.response?.data?.message || ''
 
+    if (err.response?.data?.requiresCaptcha) {
+      requiresCaptcha.value = true
+      fetchCaptcha()
+    }
+
     if (rawMsg && (rawMsg.includes('Password is required') || rawMsg.includes('ពាក្យសម្ងាត់') || rawMsg.includes('Admin'))) {
       isAdminMode.value = true
       errorMessage.value = lang.value === 'kh'
@@ -264,9 +338,9 @@ const handleLogin = async () => {
     const status = err.response.status
 
     if (status === 429) {
-      errorMessage.value = lang.value === 'kh'
-        ? 'អ្នកបានព្យាយាមចូលច្រើនដងពេក សូមរង់ចាំ ១ នាទីរួចព្យាយាមម្តងទៀត'
-        : 'Too many login attempts. Please wait a minute and try again.'
+      errorMessage.value = rawMsg || (lang.value === 'kh'
+        ? 'អ្នកបានព្យាយាមចូលច្រើនដងពេក សូមរង់ចាំមួយភ្លែតរួចព្យាយាមម្តងទៀត'
+        : 'Too many login attempts. Please wait a moment and try again.')
       return
     }
 
@@ -285,7 +359,9 @@ const handleLogin = async () => {
     }
 
     if (status === 422 || status === 404) {
-      if (rawMsg.includes('suspended') || rawMsg.includes('ផ្អាក')) {
+      if (rawMsg.includes('CAPTCHA') || rawMsg.includes('សុវត្ថិភាព')) {
+        errorMessage.value = rawMsg
+      } else if (rawMsg.includes('suspended') || rawMsg.includes('ផ្អាក')) {
         errorMessage.value = lang.value === 'kh'
           ? 'គណនីនេះត្រូវបានផ្អាកជាបណ្ដោះអាសន្ន'
           : 'Account is suspended.'

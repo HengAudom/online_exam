@@ -206,6 +206,20 @@ class AuthController extends Controller
         ]);
     }
 
+    public function getCaptchaChallenge(Request $request)
+    {
+        $num1 = random_int(1, 9);
+        $num2 = random_int(1, 9);
+        $token = bin2hex(random_bytes(16));
+
+        Cache::put("login_captcha_{$token}", (string)($num1 + $num2), now()->addMinutes(5));
+
+        return response()->json([
+            'token' => $token,
+            'question' => "{$num1} + {$num2} = ?",
+        ]);
+    }
+
     public function login(Request $request)
     {
         $identifier = trim($request->input('identifier') ?? $request->input('username') ?? '');
@@ -218,37 +232,122 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Account Lockout & Brute Force Prevention (Finding #3 in README (1).md)
+        // Account & IP Lockout and Rate Limiting (F-02 in README-security-kh.md)
         $clientIp = $request->ip();
         $safeIdentifierKey = preg_replace('/[^a-zA-Z0-9_-]/', '', strtolower($identifier));
-        $lockoutKey = "login_lockout_{$safeIdentifierKey}_{$clientIp}";
-        $attemptsKey = "login_failed_attempts_{$safeIdentifierKey}_{$clientIp}";
+        $safeIp = preg_replace('/[^a-zA-Z0-9_-]/', '_', $clientIp);
 
-        if (Cache::has($lockoutKey)) {
-            $unlockTime = (int)Cache::get($lockoutKey);
+        $accountLockoutKey = "login_lockout_account_{$safeIdentifierKey}";
+        $ipLockoutKey = "login_lockout_ip_{$safeIp}";
+        $accountAttemptsKey = "login_failed_attempts_account_{$safeIdentifierKey}";
+        $ipAttemptsKey = "login_failed_attempts_ip_{$safeIp}";
+
+        if (Cache::has($accountLockoutKey)) {
+            $unlockTime = (int)Cache::get($accountLockoutKey);
             $remainingSeconds = max(1, $unlockTime - time());
             $remainingMinutes = max(1, (int)ceil($remainingSeconds / 60));
             return response()->json([
                 'message' => $lang === 'en'
-                    ? "Too many failed login attempts. Account temporarily locked. Please try again in {$remainingMinutes} minute(s)."
-                    : "អ្នកបានព្យាយាម Login បរាជ័យច្រើនដងពេក! គណនីត្រូវបានចាក់សោបណ្តោះអាសន្ន សូមព្យាយាមម្តងទៀតក្នុងរយៈពេល {$remainingMinutes} នាទី។"
+                    ? "Too many failed login attempts on this account. Temporarily locked. Please try again in {$remainingMinutes} minute(s)."
+                    : "គណនីនេះត្រូវបានចាក់សោបណ្តោះអាសន្នដោយសារព្យាយាម Login បរាជ័យច្រើនដងពេក! សូមព្យាយាមម្តងទៀតក្នុងរយៈពេល {$remainingMinutes} នាទី។"
             ], 429);
         }
 
-        $recordFailedAttempt = function () use ($attemptsKey, $lockoutKey, $lang) {
-            $failed = (int)Cache::get($attemptsKey, 0) + 1;
-            if ($failed >= 5) {
-                Cache::forget($attemptsKey);
-                Cache::put($lockoutKey, time() + 300, now()->addMinutes(5));
+        if (Cache::has($ipLockoutKey)) {
+            $unlockTime = (int)Cache::get($ipLockoutKey);
+            $remainingSeconds = max(1, $unlockTime - time());
+            $remainingMinutes = max(1, (int)ceil($remainingSeconds / 60));
+            return response()->json([
+                'message' => $lang === 'en'
+                    ? "Too many failed login attempts from this network. Temporarily locked. Please try again in {$remainingMinutes} minute(s)."
+                    : "បណ្តាញ IP របស់អ្នកត្រូវបានចាក់សោបណ្តោះអាសន្នដោយសារព្យាយាម Login បរាជ័យច្រើនដងពេក! សូមព្យាយាមម្តងទៀតក្នុងរយៈពេល {$remainingMinutes} នាទី។"
+            ], 429);
+        }
+
+        $recordFailedAttempt = function () use (
+            $accountAttemptsKey,
+            $accountLockoutKey,
+            $ipAttemptsKey,
+            $ipLockoutKey,
+            $safeIdentifierKey,
+            $clientIp,
+            $lang
+        ) {
+            $newAcct = (int)Cache::get($accountAttemptsKey, 0) + 1;
+            $newIp = (int)Cache::get($ipAttemptsKey, 0) + 1;
+
+            Cache::put($accountAttemptsKey, $newAcct, now()->addMinutes(5));
+            Cache::put($ipAttemptsKey, $newIp, now()->addMinutes(5));
+
+            if ($newAcct >= 5) {
+                Cache::forget($accountAttemptsKey);
+                Cache::put($accountLockoutKey, time() + 300, now()->addMinutes(5));
+                \Log::warning("Account {$safeIdentifierKey} locked out for 5 minutes due to 5 failed login attempts from IP {$clientIp}.");
                 return response()->json([
                     'message' => $lang === 'en'
                         ? 'Too many failed login attempts. Account temporarily locked for 5 minutes.'
                         : 'អ្នកបានព្យាយាម Login បរាជ័យលើសពី ៥ ដង! គណនីត្រូវបានចាក់សោបណ្តោះអាសន្នរយៈពេល ៥ នាទី'
                 ], 429);
             }
-            Cache::put($attemptsKey, $failed, now()->addMinutes(5));
-            return null;
+
+            if ($newIp >= 5) {
+                Cache::forget($ipAttemptsKey);
+                Cache::put($ipLockoutKey, time() + 300, now()->addMinutes(5));
+                \Log::warning("IP {$clientIp} locked out for 5 minutes due to 5 failed login attempts on account {$safeIdentifierKey}.");
+                return response()->json([
+                    'message' => $lang === 'en'
+                        ? 'Too many failed login attempts from your network. Locked for 5 minutes.'
+                        : 'ការចូលប្រើប្រាស់ពី IP របស់អ្នកត្រូវបានចាក់សោបណ្តោះអាសន្នរយៈពេល ៥ នាទី'
+                ], 429);
+            }
+
+            $needsCaptcha = ($newAcct >= 3 || $newIp >= 3);
+
+            return response()->json([
+                'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ',
+                'requiresCaptcha' => $needsCaptcha,
+            ], 422);
         };
+
+        // Check if CAPTCHA challenge is required (3+ failed attempts on account or IP)
+        $acctAttempts = (int)Cache::get($accountAttemptsKey, 0);
+        $ipAttempts = (int)Cache::get($ipAttemptsKey, 0);
+        $requiresCaptcha = ($acctAttempts >= 3 || $ipAttempts >= 3);
+
+        if ($requiresCaptcha) {
+            $captchaToken = $request->input('captcha_token');
+            $captchaAnswer = trim((string)$request->input('captcha_answer'));
+
+            if (empty($captchaToken) || $captchaAnswer === '') {
+                $failedResp = $recordFailedAttempt();
+                if ($failedResp->getStatusCode() === 429) {
+                    return $failedResp;
+                }
+                return response()->json([
+                    'message' => $lang === 'en'
+                        ? 'Security check required. Please complete the CAPTCHA.'
+                        : 'សូមផ្ទៀងផ្ទាត់លេខកូដសុវត្ថិភាព (CAPTCHA) មុននឹងបន្ត',
+                    'requiresCaptcha' => true,
+                ], 422);
+            }
+
+            $storedAnswer = Cache::get("login_captcha_{$captchaToken}");
+            if ($storedAnswer === null || (string)$storedAnswer !== $captchaAnswer) {
+                $failedResp = $recordFailedAttempt();
+                if ($failedResp->getStatusCode() === 429) {
+                    return $failedResp;
+                }
+                return response()->json([
+                    'message' => $lang === 'en'
+                        ? 'Incorrect CAPTCHA answer. Please try again.'
+                        : 'ចម្លើយសុវត្ថិភាព (CAPTCHA) មិនត្រឹមត្រូវទេ សូមសាកល្បងម្តងទៀត',
+                    'requiresCaptcha' => true,
+                ], 422);
+            }
+
+            // Valid captcha -> consume token
+            Cache::forget("login_captcha_{$captchaToken}");
+        }
 
         try {
             // 1. Try Admin / Super Admin Login (strictly from tbladmin)
@@ -281,12 +380,7 @@ class AuthController extends Controller
                         request: $request
                     );
 
-                    $lockoutResp = $recordFailedAttempt();
-                    if ($lockoutResp) return $lockoutResp;
-
-                    return response()->json([
-                        'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
-                    ], 422);
+                    return $recordFailedAttempt();
                 }
 
                 if ($adminUser->Status !== 'Active') {
@@ -295,9 +389,11 @@ class AuthController extends Controller
                     ], 403);
                 }
 
-                // Successful login - clear lockout counters
-                Cache::forget($attemptsKey);
-                Cache::forget($lockoutKey);
+                // Successful login - clear lockout and attempt counters
+                Cache::forget($accountAttemptsKey);
+                Cache::forget($accountLockoutKey);
+                Cache::forget($ipAttemptsKey);
+                Cache::forget($ipLockoutKey);
 
                 Auth::login($adminUser);
 
@@ -345,26 +441,18 @@ class AuthController extends Controller
                 // Check if student has password in database
                 if (!empty($student->Password)) {
                     if (empty($password) || !Hash::check($password, $student->Password)) {
-                        $lockoutResp = $recordFailedAttempt();
-                        if ($lockoutResp) return $lockoutResp;
-
-                        return response()->json([
-                            'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
-                        ], 422);
+                        return $recordFailedAttempt();
                     }
                 } elseif (!empty($password) && trim((string)$password) !== '') {
-                    // Reject unexpected passwords to prevent authentication bypass confusion
-                    $lockoutResp = $recordFailedAttempt();
-                    if ($lockoutResp) return $lockoutResp;
-
-                    return response()->json([
-                        'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
-                    ], 422);
+                    // Reject unexpected passwords to prevent authentication confusion
+                    return $recordFailedAttempt();
                 }
 
                 // Successful login - clear lockout counters
-                Cache::forget($attemptsKey);
-                Cache::forget($lockoutKey);
+                Cache::forget($accountAttemptsKey);
+                Cache::forget($accountLockoutKey);
+                Cache::forget($ipAttemptsKey);
+                Cache::forget($ipLockoutKey);
 
                 Auth::login($student);
 
@@ -397,12 +485,7 @@ class AuthController extends Controller
             }
 
             // Neither admin nor student found
-            $lockoutResp = $recordFailedAttempt();
-            if ($lockoutResp) return $lockoutResp;
-
-            return response()->json([
-                'message' => $lang === 'en' ? 'Invalid credentials.' : 'ឈ្មោះគណនី ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ'
-            ], 422);
+            return $recordFailedAttempt();
 
         } catch (\Throwable $e) {
             \Log::error('Login exception: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
@@ -684,6 +767,16 @@ class AuthController extends Controller
             ], 422);
         }
 
+        $safeUsernameKey = preg_replace('/[^a-zA-Z0-9_-]/', '', strtolower($admin->Username));
+        $otpReqCountKey = "otp_req_count_{$safeUsernameKey}";
+        $reqCount = (int)Cache::get($otpReqCountKey, 0);
+        if ($reqCount >= 3) {
+            return response()->json([
+                'message' => 'អ្នកបានស្នើសុំលេខកូដ OTP ច្រើនដងពេក សូមរង់ចាំ ៥ នាទីមុននឹងស្នើសុំម្តងទៀត (Too many OTP requests. Please wait 5 minutes before trying again).'
+            ], 429);
+        }
+        Cache::put($otpReqCountKey, $reqCount + 1, now()->addMinutes(5));
+
         // Generate a 6-digit cryptographically secure numeric OTP
         $otp = (string) random_int(100000, 999999);
 
@@ -694,6 +787,7 @@ class AuthController extends Controller
             'phone' => $cleanAdminPhone,
             'username' => $admin->Username,
             'attempts' => 0,
+            'verified' => false,
         ], now()->addMinutes(5));
 
         // Format message for Telegram
@@ -765,10 +859,19 @@ class AuthController extends Controller
             ], 422);
         }
 
+        $lang = $request->input('lang') === 'en' ? 'en' : 'kh';
+
+        $lockoutKey = "otp_lockout_{$admin->AdminId}";
+        if (Cache::has($lockoutKey)) {
+            return response()->json([
+                'message' => $lang === 'en'
+                    ? 'Too many incorrect attempts. OTP verification is locked for 5 minutes.'
+                    : 'អ្នកបានបញ្ចូលលេខកូដ OTP ខុសច្រើនដងពេក! ការផ្ទៀងផ្ទាត់ត្រូវបានចាក់សោរយៈពេល ៥ នាទី'
+            ], 429);
+        }
+
         $cacheKey = "admin_reset_otp_{$admin->AdminId}";
         $cachedOtpData = Cache::get($cacheKey);
-
-        $lang = $request->input('lang') === 'en' ? 'en' : 'kh';
 
         if (!$cachedOtpData || empty($cachedOtpData['otp'])) {
             return response()->json([
@@ -780,26 +883,39 @@ class AuthController extends Controller
 
         if (($cachedOtpData['attempts'] ?? 0) >= 5) {
             Cache::forget($cacheKey);
+            Cache::put($lockoutKey, time() + 300, now()->addMinutes(5));
             return response()->json([
                 'message' => $lang === 'en'
-                    ? 'Too many incorrect attempts. Please request a new OTP.'
-                    : 'អ្នកបានបញ្ចូលលេខកូដ OTP ខុសលើសពី ៥ ដង! សូមស្នើសុំលេខកូដថ្មីឡើងវិញ'
-            ], 422);
+                    ? 'Too many incorrect attempts. OTP verification is locked for 5 minutes.'
+                    : 'អ្នកបានបញ្ចូលលេខកូដ OTP ខុសលើសពី ៥ ដង! ការផ្ទៀងផ្ទាត់ត្រូវបានចាក់សោរយៈពេល ៥ នាទី'
+            ], 429);
         }
 
         if (!hash_equals((string)$cachedOtpData['otp'], $otp)) {
-            $cachedOtpData['attempts'] = ($cachedOtpData['attempts'] ?? 0) + 1;
+            $attempts = ($cachedOtpData['attempts'] ?? 0) + 1;
+            $cachedOtpData['attempts'] = $attempts;
+            if ($attempts >= 5) {
+                Cache::forget($cacheKey);
+                Cache::put($lockoutKey, time() + 300, now()->addMinutes(5));
+                return response()->json([
+                    'message' => $lang === 'en'
+                        ? 'Too many incorrect attempts. OTP verification is locked for 5 minutes.'
+                        : 'អ្នកបានបញ្ចូលលេខកូដ OTP ខុសលើសពី ៥ ដង! ការផ្ទៀងផ្ទាត់ត្រូវបានចាក់សោរយៈពេល ៥ នាទី'
+                ], 429);
+            }
+
             Cache::put($cacheKey, $cachedOtpData, now()->addMinutes(5));
+            $remaining = 5 - $attempts;
             return response()->json([
                 'message' => $lang === 'en'
-                    ? 'Incorrect OTP code. Please check your Telegram.'
-                    : 'លេខកូដ OTP មិនត្រឹមត្រូវ សូមពិនិត្យមើលសារក្នុង Telegram ឡើងវិញ'
+                    ? "Incorrect OTP code. ({$remaining} attempt(s) remaining)."
+                    : "លេខកូដ OTP មិនត្រឹមត្រូវ (នៅសល់ {$remaining} ដង)"
             ], 422);
         }
 
-        // Mark OTP as verified and extend TTL by 10 minutes so user has ample time to enter new password
+        // Mark OTP as verified with 5 minutes TTL
         $cachedOtpData['verified'] = true;
-        Cache::put($cacheKey, $cachedOtpData, now()->addMinutes(10));
+        Cache::put($cacheKey, $cachedOtpData, now()->addMinutes(5));
 
         return response()->json([
             'message' => 'លេខកូដ OTP ត្រឹមត្រូវ! (OTP verified successfully).',
@@ -872,19 +988,16 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Limit maximum wrong attempts on OTP to 5 attempts
-        if (($cachedOtpData['attempts'] ?? 0) >= 5) {
-            Cache::forget($cacheKey);
+        // Enforce that OTP was verified prior to reset
+        if (empty($cachedOtpData['verified']) || $cachedOtpData['verified'] !== true) {
             return response()->json([
                 'message' => $lang === 'en'
-                    ? 'Too many incorrect attempts. Please request a new OTP.'
-                    : 'អ្នកបានបញ្ចូលលេខកូដ OTP ខុសលើសពី ៥ ដង! សូមស្នើសុំលេខកូដថ្មីឡើងវិញ'
+                    ? 'OTP must be verified first before resetting password.'
+                    : 'សូមផ្ទៀងផ្ទាត់លេខកូដ OTP ជាមុនសិន មុននឹងកំណត់ពាក្យសម្ងាត់ថ្មី'
             ], 422);
         }
 
         if (!hash_equals((string)$cachedOtpData['otp'], $otp)) {
-            $cachedOtpData['attempts'] = ($cachedOtpData['attempts'] ?? 0) + 1;
-            Cache::put($cacheKey, $cachedOtpData, now()->addMinutes(5));
             return response()->json([
                 'message' => $lang === 'en'
                     ? 'Incorrect OTP code. Please check your Telegram.'
@@ -892,8 +1005,9 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // OTP verified successfully -> clear cache
+        // OTP verified successfully -> clear cache immediately (Single Use enforcement)
         Cache::forget($cacheKey);
+        Cache::forget("otp_lockout_{$admin->AdminId}");
 
         $hashedPassword = Hash::make($data['password']);
         $admin->Password = $hashedPassword;

@@ -478,5 +478,194 @@ class SecurityHardeningRemediationTest extends TestCase
         $student2->refresh();
         $this->assertEquals('Dara', $student2->FirstName);
     }
+
+    public function test_public_settings_does_not_disclose_internal_configs(): void
+    {
+        // F-04: Ensure sessionTimeoutMinutes, maxExamAttempts, timezone are NOT disclosed to unauthenticated users
+        $res = $this->getJson('/api/public-settings');
+        $res->assertStatus(200);
+        $settings = $res->json('settings');
+
+        $this->assertIsArray($settings);
+        $this->assertArrayNotHasKey('sessionTimeoutMinutes', $settings);
+        $this->assertArrayNotHasKey('maxExamAttempts', $settings);
+        $this->assertArrayNotHasKey('timezone', $settings);
+
+        // Required UI values must still exist
+        $this->assertArrayHasKey('institutionName', $settings);
+        $this->assertArrayHasKey('academicYear', $settings);
+        $this->assertArrayHasKey('defaultLanguage', $settings);
+    }
+
+    public function test_skills_groups_returns_generic_403_when_registration_disabled(): void
+    {
+        // F-05: When registration is disabled, skills-groups returns generic 'Access denied.' without internal config info
+        \Illuminate\Support\Facades\Cache::forever('system_settings', ['allowRegistration' => false]);
+
+        $res = $this->getJson('/api/skills-groups');
+        $res->assertStatus(403);
+        $this->assertEquals('Access denied.', $res->json('message'));
+        $this->assertStringNotContainsString('registration', strtolower($res->json('message')));
+    }
+
+    public function test_login_enforces_captcha_after_three_failed_attempts(): void
+    {
+        Admin::create([
+            'Username' => 'captcha_test_admin',
+            'Password' => Hash::make('AdminSecret123!'),
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+
+        \Illuminate\Support\Facades\Cache::flush();
+
+        // 3 failed attempts
+        for ($i = 1; $i <= 3; $i++) {
+            $res = $this->postJson('/api/login', [
+                'identifier' => 'captcha_test_admin',
+                'password' => 'WrongPass!',
+            ]);
+            $res->assertStatus(422);
+        }
+
+        // 4th attempt without CAPTCHA must require CAPTCHA (requiresCaptcha: true)
+        $res4 = $this->postJson('/api/login', [
+            'identifier' => 'captcha_test_admin',
+            'password' => 'WrongPass!',
+        ]);
+        $res4->assertStatus(422);
+        $res4->assertJson(['requiresCaptcha' => true]);
+
+        // Get CAPTCHA challenge
+        $captchaRes = $this->getJson('/api/auth/captcha');
+        $captchaRes->assertStatus(200);
+        $captchaRes->assertJsonStructure(['token', 'question']);
+
+        $token = $captchaRes->json('token');
+        $question = $captchaRes->json('question');
+        preg_match('/(\d+)\s*\+\s*(\d+)/', $question, $matches);
+        $answer = (string)((int)$matches[1] + (int)$matches[2]);
+
+        // Login with correct CAPTCHA and correct password succeeds
+        $resSuccess = $this->postJson('/api/login', [
+            'identifier' => 'captcha_test_admin',
+            'password' => 'AdminSecret123!',
+            'captcha_token' => $token,
+            'captcha_answer' => $answer,
+        ]);
+        $resSuccess->assertStatus(200);
+        $resSuccess->assertJson(['message' => 'Login successful.']);
+    }
+
+    public function test_account_is_locked_out_globally_across_multiple_ips(): void
+    {
+        Admin::create([
+            'Username' => 'distributed_target',
+            'Password' => Hash::make('StrongPass123!'),
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+
+        \Illuminate\Support\Facades\Cache::flush();
+
+        // Simulate 4 failed attempts from 4 different IPs
+        for ($i = 1; $i <= 4; $i++) {
+            $res = $this->withServerVariables(['REMOTE_ADDR' => "198.51.100.{$i}"])
+                ->postJson('/api/login', [
+                    'identifier' => 'distributed_target',
+                    'password' => 'WrongPass!',
+                    'lang' => 'en',
+                ]);
+            $res->assertStatus(422);
+        }
+
+        // 5th attempt from a 5th distinct IP must lock the account globally (429)
+        $res5 = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.5'])
+            ->postJson('/api/login', [
+                'identifier' => 'distributed_target',
+                'password' => 'WrongPass!',
+                'lang' => 'en',
+            ]);
+        $res5->assertStatus(429);
+        $this->assertStringContainsString('locked', strtolower($res5->json('message')));
+
+        // Even an attempt from yet another IP (6th IP) is now rejected with 429
+        $res6 = $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.6'])
+            ->postJson('/api/login', [
+                'identifier' => 'distributed_target',
+                'password' => 'StrongPass123!',
+                'lang' => 'en',
+            ]);
+        $res6->assertStatus(429);
+    }
+
+    public function test_parse_doc_rejects_disallowed_file_types(): void
+    {
+        $admin = Admin::create([
+            'Username' => 'docadmin',
+            'Password' => Hash::make('AdminPass123!'),
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+        $this->actingAs($admin);
+
+        // Upload an executable/PHP file masked as doc
+        $fakePhp = \Illuminate\Http\UploadedFile::fake()->create('exploit.php', 100, 'application/x-php');
+
+        $res = $this->postJson('/api/admin/tests/parse-doc', [
+            'file' => $fakePhp,
+        ]);
+        $res->assertStatus(422);
+    }
+
+    public function test_otp_expires_and_locks_out_after_five_failed_attempts(): void
+    {
+        $admin = Admin::create([
+            'Username' => 'otplockoutadmin',
+            'Password' => Hash::make('AdminPass123!'),
+            'Phone' => '077889900',
+            'FirstName' => 'Otp',
+            'LastName' => 'Lock',
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+
+        \Illuminate\Support\Facades\Cache::flush();
+
+        // Request OTP
+        $this->postJson('/api/password/verify-identity', [
+            'username' => 'otplockoutadmin',
+            'phone' => '077889900',
+        ])->assertStatus(200);
+
+        // 4 failed OTP attempts
+        for ($i = 1; $i <= 4; $i++) {
+            $res = $this->postJson('/api/password/verify-otp', [
+                'username' => 'otplockoutadmin',
+                'phone' => '077889900',
+                'otp' => '000000',
+            ]);
+            $res->assertStatus(422);
+        }
+
+        // 5th failed OTP attempt must trigger lockout (429) and clear OTP from cache
+        $res5 = $this->postJson('/api/password/verify-otp', [
+            'username' => 'otplockoutadmin',
+            'phone' => '077889900',
+            'otp' => '000000',
+        ]);
+        $res5->assertStatus(429);
+
+        // Cached OTP must be destroyed
+        $this->assertNull(\Illuminate\Support\Facades\Cache::get("admin_reset_otp_{$admin->AdminId}"));
+
+        // Subsequent OTP verify attempt is locked out
+        $res6 = $this->postJson('/api/password/verify-otp', [
+            'username' => 'otplockoutadmin',
+            'phone' => '077889900',
+            'otp' => '123456',
+        ]);
+        $res6->assertStatus(429);
+    }
 }
 
