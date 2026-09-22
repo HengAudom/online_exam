@@ -40,34 +40,28 @@ if (empty($_ENV['APP_KEY']) || trim($_ENV['APP_KEY']) === '') {
     $_SERVER['APP_KEY'] = $appKey;
 }
 
-// Database credentials fallback (allow Vercel Environment Variables to take priority)
-$dbConn     = getenv('DB_CONNECTION') ?: ($_ENV['DB_CONNECTION'] ?? 'mysql');
-$dbHost     = getenv('DB_HOST') ?: ($_ENV['DB_HOST'] ?? 'gateway01.ap-southeast-1.prod.aws.tidbcloud.com');
-$dbPort     = getenv('DB_PORT') ?: ($_ENV['DB_PORT'] ?? '4000');
-$dbDatabase = getenv('DB_DATABASE') ?: ($_ENV['DB_DATABASE'] ?? 'online_exam_db');
-$dbUsername = getenv('DB_USERNAME') ?: ($_ENV['DB_USERNAME'] ?? 'qGXpz3gtCzEhHAf.root');
-$dbPassword = getenv('DB_PASSWORD') ?: ($_ENV['DB_PASSWORD'] ?? '5lO5eZJXXll22jGP');
+// Synchronize Database environment variables from environment (Vercel / .env / system)
+$dbVars = [
+    'DB_CONNECTION',
+    'DB_HOST',
+    'DB_PORT',
+    'DB_DATABASE',
+    'DB_USERNAME',
+    'DB_PASSWORD',
+    'MYSQL_ATTR_SSL_CA',
+];
 
-putenv("DB_CONNECTION={$dbConn}");
-putenv("DB_HOST={$dbHost}");
-putenv("DB_PORT={$dbPort}");
-putenv("DB_DATABASE={$dbDatabase}");
-putenv("DB_USERNAME={$dbUsername}");
-putenv("DB_PASSWORD={$dbPassword}");
-
-$_ENV['DB_CONNECTION'] = $dbConn;
-$_ENV['DB_HOST']       = $dbHost;
-$_ENV['DB_PORT']       = $dbPort;
-$_ENV['DB_DATABASE']   = $dbDatabase;
-$_ENV['DB_USERNAME']   = $dbUsername;
-$_ENV['DB_PASSWORD']   = $dbPassword;
-
-$_SERVER['DB_CONNECTION'] = $dbConn;
-$_SERVER['DB_HOST']       = $dbHost;
-$_SERVER['DB_PORT']       = $dbPort;
-$_SERVER['DB_DATABASE']   = $dbDatabase;
-$_SERVER['DB_USERNAME']   = $dbUsername;
-$_SERVER['DB_PASSWORD']   = $dbPassword;
+foreach ($dbVars as $var) {
+    $val = getenv($var);
+    if ($val === false || $val === null || $val === '') {
+        $val = $_ENV[$var] ?? ($_SERVER[$var] ?? null);
+    }
+    if ($val !== null && $val !== '') {
+        putenv("{$var}={$val}");
+        $_ENV[$var] = $val;
+        $_SERVER[$var] = $val;
+    }
+}
 
 // Detect HTTPS behind reverse proxies like Vercel
 if ((isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||

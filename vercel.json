@@ -91,7 +91,7 @@
     "DB_PORT": "4000",
     "DB_DATABASE": "online_exam_db",
     "DB_USERNAME": "qGXpz3gtCzEhHAf.root",
-    "DB_PASSWORD": "5lO5eZJXXll22jGP",
+    "DB_PASSWORD": "8MF9yAnoKeaANTSD",
     "LARAVEL_STORAGE_PATH": "/tmp/storage",
     "APP_CONFIG_CACHE": "/tmp/bootstrap/cache/config.php",
     "APP_EVENTS_CACHE": "/tmp/bootstrap/cache/events.php",
