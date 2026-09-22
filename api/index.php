@@ -108,6 +108,13 @@ if (empty($_ENV['DB_CONNECTION']) || trim((string)$_ENV['DB_CONNECTION']) === ''
     $_SERVER['DB_CONNECTION'] = 'mysql';
 }
 
+// Support debug query param to inspect live error details if needed
+if (isset($_GET['debug']) && $_GET['debug'] === '1') {
+    putenv('APP_DEBUG=true');
+    $_ENV['APP_DEBUG'] = 'true';
+    $_SERVER['APP_DEBUG'] = 'true';
+}
+
 // Detect HTTPS behind reverse proxies like Vercel
 if ((isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
     (isset($_SERVER['HTTP_X_FORWARDED_PORT']) && (string)$_SERVER['HTTP_X_FORWARDED_PORT'] === '443')) {
