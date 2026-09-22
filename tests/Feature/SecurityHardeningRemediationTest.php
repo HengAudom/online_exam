@@ -227,12 +227,34 @@ class SecurityHardeningRemediationTest extends TestCase
 
     public function test_check_identifier_returns_minimal_password_requirement(): void
     {
-        // Check identifier should only return requiresPassword boolean, never role or raw user details
+        Admin::create([
+            'Username' => 'admin_test_checker',
+            'Password' => Hash::make('AdminPass123!'),
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+
+        // Input under 3 characters (e.g. "sa") must NOT require password
+        $resShort = $this->postJson('/api/check-identifier', [
+            'identifier' => 'sa'
+        ]);
+        $resShort->assertStatus(200);
+        $this->assertFalse($resShort->json('requiresPassword'));
+
+        // Student pattern must NOT require password
+        $resStudent = $this->postJson('/api/check-identifier', [
+            'identifier' => 'RTC-2026-00001'
+        ]);
+        $resStudent->assertStatus(200);
+        $this->assertFalse($resStudent->json('requiresPassword'));
+
+        // Existing admin with 3+ characters requires password
         $res = $this->postJson('/api/check-identifier', [
-            'identifier' => 'admin'
+            'identifier' => 'admin_test_checker'
         ]);
         $res->assertStatus(200);
         $res->assertJsonStructure(['requiresPassword']);
+        $this->assertTrue($res->json('requiresPassword'));
         $this->assertArrayNotHasKey('role', $res->json());
         $this->assertArrayNotHasKey('exists', $res->json());
     }

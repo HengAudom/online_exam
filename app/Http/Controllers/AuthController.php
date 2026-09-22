@@ -189,20 +189,43 @@ class AuthController extends Controller
     public function checkIdentifier(Request $request)
     {
         $identifier = trim($request->input('identifier') ?? $request->input('username') ?? '');
-        if ($identifier === '') {
+        if (mb_strlen($identifier) < 3) {
             return response()->json([
                 'status' => 'ok',
                 'requiresPassword' => false
             ]);
         }
 
-        // Evaluate format only (students: RTC-XXXX or numeric; admins: alphanumeric string)
-        // Never queries database directly so attackers cannot enumerate valid user accounts (Finding #2 in README-Att.md)
-        $isStudent = preg_match('/^rtc-|^[0-9]+$/i', $identifier);
+        // Student pattern (RTC-XXXX or numeric) does not require password
+        if (preg_match('/^rtc-|^[0-9]+$/i', $identifier)) {
+            return response()->json([
+                'status' => 'ok',
+                'requiresPassword' => false
+            ]);
+        }
+
+        $clean = strtolower($identifier);
+
+        // Check if matches an admin username (exact or prefix for 3+ chars) in tbladmin
+        $isAdmin = Admin::whereRaw('LOWER(Username) = ?', [$clean])
+            ->orWhereRaw('LOWER(Username) LIKE ?', [$clean . '%'])
+            ->exists();
+
+        if (!$isAdmin) {
+            foreach (Admin::select('FirstName', 'LastName')->get() as $a) {
+                $f1 = strtolower(trim(($a->FirstName ?? '') . ' ' . ($a->LastName ?? '')));
+                $f2 = strtolower(trim(($a->LastName ?? '') . ' ' . ($a->FirstName ?? '')));
+                if (($f1 !== '' && (str_starts_with($f1, $clean) || $f1 === $clean)) ||
+                    ($f2 !== '' && (str_starts_with($f2, $clean) || $f2 === $clean))) {
+                    $isAdmin = true;
+                    break;
+                }
+            }
+        }
 
         return response()->json([
             'status' => 'ok',
-            'requiresPassword' => !$isStudent
+            'requiresPassword' => (bool)$isAdmin
         ]);
     }
 

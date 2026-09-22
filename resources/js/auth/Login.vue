@@ -213,18 +213,41 @@ const fetchCaptcha = async () => {
   }
 }
 
+let checkIdentifierTimer = null
+
 const onUsernameInput = () => {
   errorMessage.value = ''
   const val = form.username.trim()
-  if (!val) {
+
+  if (checkIdentifierTimer) {
+    clearTimeout(checkIdentifierTimer)
+  }
+
+  // 1. If empty or less than 3 characters, do NOT show password field (stay in Candidate mode)
+  if (!val || val.length < 3) {
     isAdminMode.value = false
     return
   }
 
-  // Instant client-side role detection: students use RTC-XXXX-XXXXX or numeric IDs
-  // Admins use standard alphanumeric usernames (admin, audom, etc.)
+  // 2. If matches Student ID format (starts with RTC- or numeric), stay in Candidate mode
   const isStudentPattern = /^rtc-|^[0-9]+$/i.test(val)
-  isAdminMode.value = !isStudentPattern
+  if (isStudentPattern) {
+    isAdminMode.value = false
+    return
+  }
+
+  // 3. For 3+ characters, check with server if it matches existing Admin data
+  checkIdentifierTimer = setTimeout(async () => {
+    try {
+      const res = await axios.post('/api/check-identifier', { identifier: val })
+      // Prevent race conditions if user kept typing
+      if (form.username.trim() === val) {
+        isAdminMode.value = !!res.data.requiresPassword
+      }
+    } catch (e) {
+      // If error occurs, do not force change
+    }
+  }, 200)
 }
 
 onMounted(() => {
@@ -264,6 +287,23 @@ const handleLogin = async () => {
       ? (lang.value === 'kh' ? 'សូមបញ្ចូលឈ្មោះគណនី' : 'Please enter admin username.')
       : (lang.value === 'kh' ? 'សូមបញ្ចូល Student ID' : 'Please enter Student ID.')
     return
+  }
+
+  // If not yet switched to admin mode, but input is 3+ chars and matches admin data, prompt for password
+  if (!isAdminMode.value && identifier.length >= 3 && !/^rtc-|^[0-9]+$/i.test(identifier)) {
+    try {
+      const checkRes = await axios.post('/api/check-identifier', { identifier })
+      if (checkRes.data?.requiresPassword) {
+        isAdminMode.value = true
+        errorMessage.value = lang.value === 'kh' ? 'សូមបញ្ចូលពាក្យសម្ងាត់' : 'Please enter your password.'
+        nextTick(() => {
+          passwordInputRef.value?.focus()
+        })
+        return
+      }
+    } catch (e) {
+      // Fall through to standard login flow
+    }
   }
 
   if (isAdminMode.value && !form.password) {
