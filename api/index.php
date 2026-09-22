@@ -21,10 +21,28 @@ $dirs = [
     '/tmp/bootstrap/cache',
 ];
 
-if (!is_dir('/tmp/storage/framework/sessions')) {
-    foreach ($dirs as $dir) {
-        if (!is_dir($dir)) {
-            @mkdir($dir, 0755, true);
+foreach ($dirs as $dir) {
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+}
+
+// Auto-load .env file if available in the project
+$envFile = dirname(__DIR__) . '/.env';
+if (file_exists($envFile)) {
+    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+            continue;
+        }
+        list($k, $v) = explode('=', $line, 2);
+        $k = trim($k);
+        $v = trim($v, " \t\n\r\0\x0B\"'");
+        if (getenv($k) === false && !isset($_ENV[$k])) {
+            putenv("{$k}={$v}");
+            $_ENV[$k] = $v;
+            $_SERVER[$k] = $v;
         }
     }
 }
@@ -54,7 +72,7 @@ $_SERVER['SCRIPT_NAME'] = '/index.php';
 
 // Ensure APP_KEY is always set
 if (empty($_ENV['APP_KEY']) || trim($_ENV['APP_KEY']) === '') {
-    $appKey = 'base64:0JcCxZW+s3AKthTJcXnH1u/tP/LPMtoHoeB07s7d4zk=';
+    $appKey = getenv('APP_KEY') ?: ($_ENV['APP_KEY'] ?? ($_SERVER['APP_KEY'] ?? 'base64:0JcCxZW+s3AKthTJcXnH1u/tP/LPMtoHoeB07s7d4zk='));
     putenv("APP_KEY={$appKey}");
     $_ENV['APP_KEY'] = $appKey;
     $_SERVER['APP_KEY'] = $appKey;
@@ -132,4 +150,11 @@ if (empty($_ENV['APP_MAINTENANCE_DRIVER']) || trim($_ENV['APP_MAINTENANCE_DRIVER
 }
 
 // Forward the request to Laravel's public entrypoint
-require __DIR__ . '/../public/index.php';
+try {
+    require __DIR__ . '/../public/index.php';
+} catch (\Throwable $e) {
+    http_response_code(500);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "Server Error (500):\n" . $e->getMessage() . "\n\nFile: " . $e->getFile() . ":" . $e->getLine() . "\n\nTrace:\n" . $e->getTraceAsString();
+    exit;
+}
