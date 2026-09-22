@@ -29,6 +29,26 @@ if (!is_dir('/tmp/storage/framework/sessions')) {
     }
 }
 
+// Serverless storage paths defaults for Vercel
+$serverlessDefaults = [
+    'LARAVEL_STORAGE_PATH' => '/tmp/storage',
+    'VIEW_COMPILED_PATH'   => '/tmp/storage/framework/views',
+    'APP_CONFIG_CACHE'     => '/tmp/bootstrap/cache/config.php',
+    'APP_EVENTS_CACHE'     => '/tmp/bootstrap/cache/events.php',
+    'APP_PACKAGES_CACHE'   => '/tmp/bootstrap/cache/packages.php',
+    'APP_ROUTES_CACHE'     => '/tmp/bootstrap/cache/routes.php',
+    'APP_SERVICES_CACHE'   => '/tmp/bootstrap/cache/services.php',
+    'LOG_CHANNEL'          => 'stderr',
+];
+
+foreach ($serverlessDefaults as $key => $defaultVal) {
+    if (getenv($key) === false && empty($_ENV[$key])) {
+        putenv("{$key}={$defaultVal}");
+        $_ENV[$key] = $defaultVal;
+        $_SERVER[$key] = $defaultVal;
+    }
+}
+
 // Adjust script name so Laravel router resolves correctly
 $_SERVER['SCRIPT_NAME'] = '/index.php';
 
