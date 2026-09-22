@@ -11,6 +11,14 @@ if (str_contains($requestUri, 'manifest.json') && !str_contains($requestUri, 'ma
     exit;
 }
 
+// Block any direct HTTP access to vercel.json, .env, or other sensitive files
+if (preg_match('/(vercel\.json|\.env|composer\.|package(-lock)?\.json|artisan|\.git)/i', $requestUri)) {
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=utf-8');
+    echo '404 Not Found';
+    exit;
+}
+
 // Ensure required serverless /tmp directories exist
 $dirs = [
     '/tmp/storage/framework/views',

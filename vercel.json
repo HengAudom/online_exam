@@ -68,6 +68,10 @@
       }
     },
     {
+      "src": "/(vercel\\.json|\\.env.*|composer\\.(json|lock)|package(-lock)?\\.json|artisan|phpunit\\.xml|README\\.md|REMEDIATION\\.md|\\.git.*)",
+      "status": 404
+    },
+    {
       "src": "/(.*)",
       "dest": "/api/index.php",
       "headers": {
@@ -80,5 +84,36 @@
         "X-Permitted-Cross-Domain-Policies": "none"
       }
     }
-  ]
+  ],
+  "env": {
+    "APP_ENV": "production",
+    "APP_DEBUG": "false",
+    "APP_URL": "https://onlinexam.site",
+    "APP_KEY": "base64:0JcCxZW+s3AKthTJcXnH1u/tP/LPMtoHoeB07s7d4zk=",
+    "DB_CONNECTION": "mysql",
+    "DB_HOST": "gateway01.ap-southeast-1.prod.aws.tidbcloud.com",
+    "DB_PORT": "4000",
+    "DB_DATABASE": "online_exam_db",
+    "DB_USERNAME": "qGXpz3gtCzEhHAf.root",
+    "DB_PASSWORD": "8MF9yAnoKeaANTSD",
+    "LARAVEL_STORAGE_PATH": "/tmp/storage",
+    "APP_CONFIG_CACHE": "/tmp/bootstrap/cache/config.php",
+    "APP_EVENTS_CACHE": "/tmp/bootstrap/cache/events.php",
+    "APP_PACKAGES_CACHE": "/tmp/bootstrap/cache/packages.php",
+    "APP_ROUTES_CACHE": "/tmp/bootstrap/cache/routes.php",
+    "APP_SERVICES_CACHE": "/tmp/bootstrap/cache/services.php",
+    "VIEW_COMPILED_PATH": "/tmp/storage/framework/views",
+    "APP_NAME": "OnlineExam",
+    "SESSION_DRIVER": "database",
+    "SESSION_LIFETIME": "1440",
+    "SESSION_COOKIE": "online_exam_session",
+    "SESSION_SECURE_COOKIE": "true",
+    "CACHE_STORE": "database",
+    "CACHE_DRIVER": "database",
+    "DB_CACHE_TABLE": "cache",
+    "LOG_CHANNEL": "stderr",
+    "TELEGRAM_BOT_TOKEN": "8870474657:AAFe-VKKQku4dCGYnCEH1mL2bopzS4pxJQs",
+    "TELEGRAM_ADMIN_CHAT_ID": "7752474480",
+    "TELEGRAM_ADMIN_USERNAME": "DomAi1"
+  }
 }
