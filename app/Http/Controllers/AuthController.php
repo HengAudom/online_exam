@@ -208,22 +208,104 @@ class AuthController extends Controller
 
     public function getCaptchaChallenge(Request $request)
     {
-        $num1 = random_int(1, 9);
-        $num2 = random_int(1, 9);
-        $token = bin2hex(random_bytes(16));
+        // 4 uppercase/numeric characters avoiding visually ambiguous glyphs (0, O, 1, I, L)
+        $charset = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+        $code = '';
+        $maxIndex = strlen($charset) - 1;
+        for ($i = 0; $i < 4; $i++) {
+            $code .= $charset[random_int(0, $maxIndex)];
+        }
 
-        Cache::put("login_captcha_{$token}", (string)($num1 + $num2), now()->addMinutes(5));
+        $token = bin2hex(random_bytes(16));
+        // Store the solution in cache for 2 minutes
+        Cache::put("login_captcha_{$token}", $code, now()->addMinutes(2));
+
+        // Generate stylized SVG with noise lines and distorted text
+        $width = 140;
+        $height = 44;
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="'.$width.'" height="'.$height.'" viewBox="0 0 '.$width.' '.$height.'">';
+        $svg .= '<rect width="'.$width.'" height="'.$height.'" rx="8" fill="#0f172a"/>';
+
+        // Background noise lines
+        $noiseColors = ['#1e293b', '#334155', '#475569', '#1e3a8a'];
+        for ($i = 0; $i < 4; $i++) {
+            $y1 = random_int(4, $height - 4);
+            $y2 = random_int(4, $height - 4);
+            $cx = random_int(20, $width - 20);
+            $cy = random_int(4, $height - 4);
+            $stroke = $noiseColors[random_int(0, count($noiseColors) - 1)];
+            $svg .= '<path d="M 0 '.$y1.' Q '.$cx.' '.$cy.' '.$width.' '.$y2.'" stroke="'.$stroke.'" stroke-width="1.2" fill="none" opacity="0.6"/>';
+        }
+
+        // Noise dots
+        for ($i = 0; $i < 12; $i++) {
+            $dotX = random_int(4, $width - 4);
+            $dotY = random_int(4, $height - 4);
+            $dotR = random_int(1, 2);
+            $svg .= '<circle cx="'.$dotX.'" cy="'.$dotY.'" r="'.$dotR.'" fill="#38bdf8" opacity="0.25"/>';
+        }
+
+        // Render characters with distortion, rotation, and vibrant colors
+        $charColors = ['#38bdf8', '#34d399', '#f472b6', '#fbbf24', '#a78bfa', '#60a5fa'];
+        for ($i = 0; $i < 4; $i++) {
+            $char = $code[$i];
+            $x = 18 + ($i * 28) + random_int(-2, 2);
+            $y = 31 + random_int(-2, 2);
+            $angle = random_int(-18, 18);
+            $fontSize = random_int(22, 26);
+            $color = $charColors[random_int(0, count($charColors) - 1)];
+            $svg .= '<text x="'.$x.'" y="'.$y.'" font-family="monospace, Courier, sans-serif" font-weight="900" font-size="'.$fontSize.'" fill="'.$color.'" transform="rotate('.$angle.','.$x.','.$y.')">'.$char.'</text>';
+        }
+
+        // Foreground wave line
+        $fy1 = random_int(8, $height - 8);
+        $fy2 = random_int(8, $height - 8);
+        $fcx = random_int(30, $width - 30);
+        $fcy = random_int(8, $height - 8);
+        $svg .= '<path d="M 0 '.$fy1.' Q '.$fcx.' '.$fcy.' '.$width.' '.$fy2.'" stroke="#94a3b8" stroke-width="1" fill="none" opacity="0.35"/>';
+
+        $svg .= '</svg>';
+
+        $imageDataUri = 'data:image/svg+xml;base64,' . base64_encode($svg);
 
         return response()->json([
             'token' => $token,
-            'question' => "{$num1} + {$num2} = ?",
+            'image' => $imageDataUri,
         ]);
     }
 
     public function login(Request $request)
     {
-        $identifier = trim($request->input('identifier') ?? $request->input('username') ?? '');
-        $password = $request->input('password');
+        $rawIdentifier = $request->input('identifier') ?? $request->input('username');
+        if (!is_string($rawIdentifier) && !is_numeric($rawIdentifier) && !is_null($rawIdentifier)) {
+            return response()->json([
+                'message' => 'Invalid identifier format.'
+            ], 422);
+        }
+
+        $rawPassword = $request->input('password');
+        if (!is_string($rawPassword) && !is_null($rawPassword)) {
+            return response()->json([
+                'message' => 'Invalid password format.'
+            ], 422);
+        }
+
+        $rawCaptchaToken = $request->input('captcha_token');
+        if (!is_string($rawCaptchaToken) && !is_null($rawCaptchaToken)) {
+            return response()->json([
+                'message' => 'Invalid captcha token format.'
+            ], 422);
+        }
+
+        $rawCaptchaAnswer = $request->input('captcha_answer');
+        if (!is_string($rawCaptchaAnswer) && !is_null($rawCaptchaAnswer)) {
+            return response()->json([
+                'message' => 'Invalid captcha answer format.'
+            ], 422);
+        }
+
+        $identifier = trim((string)($rawIdentifier ?? ''));
+        $password = $rawPassword !== null ? (string)$rawPassword : null;
         $lang = $request->input('lang') === 'en' ? 'en' : 'kh';
 
         if ($identifier === '') {
@@ -232,35 +314,21 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Account & IP Lockout and Rate Limiting (F-02 in README-security-kh.md)
+        // Account Lockout and Rate Limiting (Account-based to prevent Network-wide DoS - F1 fix)
         $clientIp = $request->ip();
         $safeIdentifierKey = preg_replace('/[^a-zA-Z0-9_-]/', '', strtolower($identifier));
         $safeIp = preg_replace('/[^a-zA-Z0-9_-]/', '_', $clientIp);
 
         $accountLockoutKey = "login_lockout_account_{$safeIdentifierKey}";
-        $ipLockoutKey = "login_lockout_ip_{$safeIp}";
         $accountAttemptsKey = "login_failed_attempts_account_{$safeIdentifierKey}";
         $ipAttemptsKey = "login_failed_attempts_ip_{$safeIp}";
 
+        // If this specific account is locked out, return 429 without leaking countdown timers
         if (Cache::has($accountLockoutKey)) {
-            $unlockTime = (int)Cache::get($accountLockoutKey);
-            $remainingSeconds = max(1, $unlockTime - time());
-            $remainingMinutes = max(1, (int)ceil($remainingSeconds / 60));
             return response()->json([
                 'message' => $lang === 'en'
-                    ? "Too many failed login attempts on this account. Temporarily locked. Please try again in {$remainingMinutes} minute(s)."
-                    : "គណនីនេះត្រូវបានចាក់សោបណ្តោះអាសន្នដោយសារព្យាយាម Login បរាជ័យច្រើនដងពេក! សូមព្យាយាមម្តងទៀតក្នុងរយៈពេល {$remainingMinutes} នាទី។"
-            ], 429);
-        }
-
-        if (Cache::has($ipLockoutKey)) {
-            $unlockTime = (int)Cache::get($ipLockoutKey);
-            $remainingSeconds = max(1, $unlockTime - time());
-            $remainingMinutes = max(1, (int)ceil($remainingSeconds / 60));
-            return response()->json([
-                'message' => $lang === 'en'
-                    ? "Too many failed login attempts from this network. Temporarily locked. Please try again in {$remainingMinutes} minute(s)."
-                    : "បណ្តាញ IP របស់អ្នកត្រូវបានចាក់សោបណ្តោះអាសន្នដោយសារព្យាយាម Login បរាជ័យច្រើនដងពេក! សូមព្យាយាមម្តងទៀតក្នុងរយៈពេល {$remainingMinutes} នាទី។"
+                    ? "Too many failed login attempts on this account. Temporarily locked for security."
+                    : "គណនីនេះត្រូវបានចាក់សោបណ្តោះអាសន្នដោយសារព្យាយាម Login បរាជ័យច្រើនដងពេក!"
             ], 429);
         }
 
@@ -268,7 +336,6 @@ class AuthController extends Controller
             $accountAttemptsKey,
             $accountLockoutKey,
             $ipAttemptsKey,
-            $ipLockoutKey,
             $safeIdentifierKey,
             $clientIp,
             $lang
@@ -279,28 +346,19 @@ class AuthController extends Controller
             Cache::put($accountAttemptsKey, $newAcct, now()->addMinutes(5));
             Cache::put($ipAttemptsKey, $newIp, now()->addMinutes(5));
 
+            // Lock out specific account after 5 failed attempts on this account
             if ($newAcct >= 5) {
                 Cache::forget($accountAttemptsKey);
                 Cache::put($accountLockoutKey, time() + 300, now()->addMinutes(5));
-                \Log::warning("Account {$safeIdentifierKey} locked out for 5 minutes due to 5 failed login attempts from IP {$clientIp}.");
+                \Log::warning("Account {$safeIdentifierKey} locked out for 5 minutes due to 5 failed login attempts.");
                 return response()->json([
                     'message' => $lang === 'en'
-                        ? 'Too many failed login attempts. Account temporarily locked for 5 minutes.'
-                        : 'អ្នកបានព្យាយាម Login បរាជ័យលើសពី ៥ ដង! គណនីត្រូវបានចាក់សោបណ្តោះអាសន្នរយៈពេល ៥ នាទី'
+                        ? 'Too many failed login attempts for this account. Temporarily locked for security.'
+                        : 'អ្នកបានព្យាយាម Login បរាជ័យលើសពី ៥ ដង! គណនីត្រូវបានចាក់សោបណ្តោះអាសន្នដើម្បីសុវត្ថិភាព'
                 ], 429);
             }
 
-            if ($newIp >= 5) {
-                Cache::forget($ipAttemptsKey);
-                Cache::put($ipLockoutKey, time() + 300, now()->addMinutes(5));
-                \Log::warning("IP {$clientIp} locked out for 5 minutes due to 5 failed login attempts on account {$safeIdentifierKey}.");
-                return response()->json([
-                    'message' => $lang === 'en'
-                        ? 'Too many failed login attempts from your network. Locked for 5 minutes.'
-                        : 'ការចូលប្រើប្រាស់ពី IP របស់អ្នកត្រូវបានចាក់សោបណ្តោះអាសន្នរយៈពេល ៥ នាទី'
-                ], 429);
-            }
-
+            // If IP has 3+ or account has 3+ failures, challenge with CAPTCHA
             $needsCaptcha = ($newAcct >= 3 || $newIp >= 3);
 
             return response()->json([
@@ -315,8 +373,8 @@ class AuthController extends Controller
         $requiresCaptcha = ($acctAttempts >= 3 || $ipAttempts >= 3);
 
         if ($requiresCaptcha) {
-            $captchaToken = $request->input('captcha_token');
-            $captchaAnswer = trim((string)$request->input('captcha_answer'));
+            $captchaToken = $rawCaptchaToken ? trim($rawCaptchaToken) : '';
+            $captchaAnswer = $rawCaptchaAnswer ? trim($rawCaptchaAnswer) : '';
 
             if (empty($captchaToken) || $captchaAnswer === '') {
                 $failedResp = $recordFailedAttempt();
@@ -332,15 +390,15 @@ class AuthController extends Controller
             }
 
             $storedAnswer = Cache::get("login_captcha_{$captchaToken}");
-            if ($storedAnswer === null || (string)$storedAnswer !== $captchaAnswer) {
+            if ($storedAnswer === null || strtoupper(trim((string)$storedAnswer)) !== strtoupper(trim((string)$captchaAnswer))) {
                 $failedResp = $recordFailedAttempt();
                 if ($failedResp->getStatusCode() === 429) {
                     return $failedResp;
                 }
                 return response()->json([
                     'message' => $lang === 'en'
-                        ? 'Incorrect CAPTCHA answer. Please try again.'
-                        : 'ចម្លើយសុវត្ថិភាព (CAPTCHA) មិនត្រឹមត្រូវទេ សូមសាកល្បងម្តងទៀត',
+                        ? 'Incorrect security code. Please try again.'
+                        : 'លេខកូដសុវត្ថិភាព (CAPTCHA) មិនត្រឹមត្រូវទេ សូមសាកល្បងម្តងទៀត',
                     'requiresCaptcha' => true,
                 ], 422);
             }
@@ -393,7 +451,6 @@ class AuthController extends Controller
                 Cache::forget($accountAttemptsKey);
                 Cache::forget($accountLockoutKey);
                 Cache::forget($ipAttemptsKey);
-                Cache::forget($ipLockoutKey);
 
                 Auth::login($adminUser);
 
@@ -452,7 +509,6 @@ class AuthController extends Controller
                 Cache::forget($accountAttemptsKey);
                 Cache::forget($accountLockoutKey);
                 Cache::forget($ipAttemptsKey);
-                Cache::forget($ipLockoutKey);
 
                 Auth::login($student);
 

@@ -539,12 +539,12 @@ class SecurityHardeningRemediationTest extends TestCase
         // Get CAPTCHA challenge
         $captchaRes = $this->getJson('/api/auth/captcha');
         $captchaRes->assertStatus(200);
-        $captchaRes->assertJsonStructure(['token', 'question']);
+        $captchaRes->assertJsonStructure(['token', 'image']);
+        $this->assertStringStartsWith('data:image/svg+xml;base64,', $captchaRes->json('image'));
 
         $token = $captchaRes->json('token');
-        $question = $captchaRes->json('question');
-        preg_match('/(\d+)\s*\+\s*(\d+)/', $question, $matches);
-        $answer = (string)((int)$matches[1] + (int)$matches[2]);
+        $answer = \Illuminate\Support\Facades\Cache::get("login_captcha_{$token}");
+        $this->assertNotEmpty($answer);
 
         // Login with correct CAPTCHA and correct password succeeds
         $resSuccess = $this->postJson('/api/login', [
@@ -666,6 +666,91 @@ class SecurityHardeningRemediationTest extends TestCase
             'otp' => '123456',
         ]);
         $res6->assertStatus(429);
+    }
+
+    public function test_login_does_not_lockout_entire_ip_network(): void
+    {
+        // Finding F1: Failed logins for account A should lock out account A, but NOT account B from the same IP
+        Admin::create([
+            'Username' => 'victim_account_a',
+            'Password' => Hash::make('CorrectPassword1!'),
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+        Admin::create([
+            'Username' => 'innocent_account_b',
+            'Password' => Hash::make('CorrectPassword2!'),
+            'Role' => 'Admin',
+            'Status' => 'Active',
+        ]);
+
+        \Illuminate\Support\Facades\Cache::flush();
+
+        $sharedIp = '203.0.113.50';
+
+        // 5 failed attempts on victim_account_a from shared IP
+        for ($i = 1; $i <= 5; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => $sharedIp])
+                ->postJson('/api/login', [
+                    'identifier' => 'victim_account_a',
+                    'password' => 'WrongPass!',
+                    'lang' => 'en',
+                ]);
+        }
+
+        // Account A is locked out
+        $resA = $this->withServerVariables(['REMOTE_ADDR' => $sharedIp])
+            ->postJson('/api/login', [
+                'identifier' => 'victim_account_a',
+                'password' => 'CorrectPassword1!',
+                'lang' => 'en',
+            ]);
+        $resA->assertStatus(429);
+
+        // But Account B from the SAME shared IP is NOT locked out (no network DoS lockout)
+        $resB = $this->withServerVariables(['REMOTE_ADDR' => $sharedIp])
+            ->postJson('/api/login', [
+                'identifier' => 'innocent_account_b',
+                'password' => 'CorrectPassword2!',
+                'lang' => 'en',
+            ]);
+        // Account B must not receive 429 lockout
+        $this->assertNotEquals(429, $resB->status());
+    }
+
+    public function test_captcha_endpoint_rate_limited_and_no_plaintext_question(): void
+    {
+        // Finding F2: Endpoint returns token + image, no plaintext question
+        $res = $this->getJson('/api/auth/captcha');
+        $res->assertStatus(200);
+        $res->assertJsonStructure(['token', 'image']);
+        $this->assertNull($res->json('question'));
+        $this->assertStringStartsWith('data:image/svg+xml;base64,', $res->json('image'));
+    }
+
+    public function test_array_parameters_return_422_not_500(): void
+    {
+        // Finding F3: Array parameter type confusion must return 422, never 500
+        $resLogin = $this->postJson('/api/login', [
+            'identifier' => ['a', 'b'],
+            'password' => ['x' => 1],
+            'lang' => 'en',
+        ]);
+        $this->assertEquals(422, $resLogin->status());
+
+        $resVerify = $this->postJson('/api/password/verify-identity', [
+            'username' => ['a'],
+            'phone' => ['b'],
+            'lang' => 'en',
+        ]);
+        $this->assertEquals(422, $resVerify->status());
+    }
+
+    public function test_vite_manifest_returns_404(): void
+    {
+        // Finding F4: Vite manifest must be hidden from direct access
+        $res = $this->get('/build/manifest.json');
+        $res->assertStatus(404);
     }
 }
 

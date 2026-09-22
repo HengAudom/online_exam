@@ -49,4 +49,22 @@ return Application::configure(basePath: dirname(__DIR__))
                 ], 422);
             }
         });
+
+        $exceptions->render(function (\TypeError $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'message' => 'ទម្រង់ទិន្នន័យមិនត្រឹមត្រូវ (Invalid parameter format).'
+                ], 422);
+            }
+        });
+
+        $exceptions->render(function (\ErrorException $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                if (str_contains($e->getMessage(), 'Array to string conversion') || str_contains($e->getMessage(), 'must be of type string')) {
+                    return response()->json([
+                        'message' => 'ទម្រង់ទិន្នន័យមិនត្រឹមត្រូវ (Invalid parameter format).'
+                    ], 422);
+                }
+            }
+        });
     })->create();

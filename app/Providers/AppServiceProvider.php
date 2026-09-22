@@ -34,7 +34,8 @@ class AppServiceProvider extends ServiceProvider
 
         // F-02: Rate limit login by IP AND by Account/Identifier
         RateLimiter::for('login', function (Request $request) {
-            $identifier = (string) ($request->input('identifier') ?? $request->input('username') ?? '');
+            $rawIdentifier = $request->input('identifier') ?? $request->input('username');
+            $identifier = (is_string($rawIdentifier) || is_numeric($rawIdentifier)) ? (string) $rawIdentifier : '';
             $safeIdentifier = strtolower(trim($identifier));
             return [
                 Limit::perMinute(15)->by($request->ip()),
@@ -48,7 +49,8 @@ class AppServiceProvider extends ServiceProvider
 
         // F-03: Rate limit password reset by IP AND by Username
         RateLimiter::for('password-reset', function (Request $request) {
-            $username = (string) $request->input('username', '');
+            $rawUsername = $request->input('username');
+            $username = (is_string($rawUsername) || is_numeric($rawUsername)) ? (string) $rawUsername : '';
             $safeUser = strtolower(trim($username));
             return [
                 Limit::perMinute(15)->by($request->ip()),

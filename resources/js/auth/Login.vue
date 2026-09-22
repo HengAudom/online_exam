@@ -103,23 +103,32 @@
             <button
               type="button"
               @click="fetchCaptcha"
-              class="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-[11px] font-medium transition-colors"
+              class="text-blue-600 hover:text-blue-700 flex items-center gap-1 text-[11px] font-medium transition-colors cursor-pointer"
               :disabled="isCaptchaLoading"
+              :title="lang === 'kh' ? 'ប្តូរកូដ' : 'Reload code'"
             >
               <span class="material-symbols-outlined text-sm" :class="{ 'animate-spin': isCaptchaLoading }">refresh</span>
-              {{ lang === 'kh' ? 'ប្តូរសំណួរ' : 'Reload' }}
+              {{ lang === 'kh' ? 'ប្តូរកូដ' : 'Reload' }}
             </button>
           </div>
           <div class="flex items-center gap-3">
-            <div class="px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-base font-mono font-bold text-slate-800 tracking-wider shadow-xs select-none min-w-[90px] text-center">
-              {{ captchaQuestion || '...' }}
+            <div class="p-1 bg-white border border-slate-200 rounded-lg shadow-xs select-none flex items-center justify-center min-w-[130px] h-[44px] overflow-hidden">
+              <img
+                v-if="captchaImage"
+                :src="captchaImage"
+                alt="Security CAPTCHA"
+                class="h-full w-auto object-contain rounded select-none pointer-events-none"
+              />
+              <span v-else class="text-xs font-mono text-slate-400">...</span>
             </div>
             <input
               type="text"
-              inputmode="numeric"
               v-model="captchaAnswer"
-              :placeholder="lang === 'kh' ? 'បញ្ចូលចម្លើយ' : 'Enter answer'"
-              class="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="10"
+              :placeholder="lang === 'kh' ? 'បញ្ចូលលេខ/អក្សរក្នុងរូប' : 'Enter code shown'"
+              class="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono font-bold tracking-widest uppercase"
               required
             />
           </div>
@@ -185,7 +194,7 @@ const isAdminMode = ref(false)
 const passwordInputRef = ref(null)
 
 const requiresCaptcha = ref(false)
-const captchaQuestion = ref('')
+const captchaImage = ref('')
 const captchaToken = ref('')
 const captchaAnswer = ref('')
 const isCaptchaLoading = ref(false)
@@ -194,7 +203,7 @@ const fetchCaptcha = async () => {
   try {
     isCaptchaLoading.value = true
     const res = await axios.get('/api/auth/captcha')
-    captchaQuestion.value = res.data.question
+    captchaImage.value = res.data.image
     captchaToken.value = res.data.token
     captchaAnswer.value = ''
   } catch (e) {

@@ -24,7 +24,13 @@ Route::middleware(['throttle:5,1'])->group(function () {
     Route::post('/api/check-identifier', [AuthController::class, 'checkIdentifier']);
 });
 
-Route::get('/api/auth/captcha', [AuthController::class, 'getCaptchaChallenge']);
+Route::middleware(['throttle:10,1'])->group(function () {
+    Route::get('/api/auth/captcha', [AuthController::class, 'getCaptchaChallenge']);
+});
+
+Route::any('/build/manifest.json', function () {
+    return response()->json(['message' => 'Not Found'], 404);
+});
 
 Route::middleware(['throttle:login'])->group(function () {
     Route::post('/api/login', [AuthController::class, 'login']);

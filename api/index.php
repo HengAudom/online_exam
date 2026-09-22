@@ -3,6 +3,14 @@
 @header_remove('X-Powered-By');
 @ini_set('expose_php', 'off');
 
+$requestUri = $_SERVER['REQUEST_URI'] ?? '';
+if (str_contains($requestUri, 'manifest.json') && !str_contains($requestUri, 'manifest.webmanifest')) {
+    http_response_code(404);
+    header('Content-Type: application/json');
+    echo json_encode(['message' => 'Not Found']);
+    exit;
+}
+
 // Ensure required serverless /tmp directories exist
 $dirs = [
     '/tmp/storage/framework/views',
