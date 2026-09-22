@@ -288,12 +288,15 @@ const clearing = ref(false)
 
 const moduleOptions = computed(() => [
   { label: lang.value === 'kh' ? 'គ្រប់ម៉ូឌុលទាំងអស់' : 'All Modules', value: '' },
-  { label: lang.value === 'kh' ? 'ការចូលប្រព័ន្ធ (Authentication / Login)' : 'Authentication (Logins)', value: 'Authentication' },
-  { label: 'Exams', value: 'Exams' },
-  { label: 'Students', value: 'Students' },
-  { label: 'Admins', value: 'Admins' },
-  { label: 'Academic', value: 'Academic' },
-  { label: 'User Management', value: 'User Management' }
+  { label: lang.value === 'kh' ? 'ការចូលប្រព័ន្ធ (Authentication)' : 'Authentication', value: 'Authentication' },
+  { label: lang.value === 'kh' ? 'ការប្រឡង & វិញ្ញាសា (Exams)' : 'Exams', value: 'Exams' },
+  { label: lang.value === 'kh' ? 'សិស្ស (Students)' : 'Students', value: 'Students' },
+  { label: lang.value === 'kh' ? 'អ្នកគ្រប់គ្រង (Admins)' : 'Admins', value: 'Admins' },
+  { label: lang.value === 'kh' ? 'ការសិក្សា (Academic)' : 'Academic', value: 'Academic' },
+  { label: lang.value === 'kh' ? 'ការប្រគល់វិញ្ញាសា (Submissions)' : 'Submissions', value: 'Submissions' },
+  { label: lang.value === 'kh' ? 'ការកំណត់ប្រព័ន្ធ (System Settings)' : 'System Settings', value: 'System Settings' },
+  { label: lang.value === 'kh' ? 'សិទ្ធិ & តួនាទី (Permissions)' : 'Permissions', value: 'Permissions' },
+  { label: lang.value === 'kh' ? 'កំណត់ហេតុ (Audit Logs)' : 'Audit Logs', value: 'Audit Logs' },
 ])
 
 const roleOptions = computed(() => [
@@ -364,7 +367,9 @@ const filteredLogs = computed(() => {
     const matchesSearch = !q ||
       (item.user && item.user.toLowerCase().includes(q)) ||
       (item.action && item.action.toLowerCase().includes(q)) ||
-      (item.target && item.target.toLowerCase().includes(q))
+      (item.target && item.target.toLowerCase().includes(q)) ||
+      (item.details && item.details.toLowerCase().includes(q)) ||
+      (item.ip && item.ip.toLowerCase().includes(q))
 
     const matchesModule = !filterModule.value || item.module === filterModule.value
     const matchesRole = !filterRole.value || item.role === filterRole.value

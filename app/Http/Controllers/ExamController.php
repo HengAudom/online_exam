@@ -10,6 +10,7 @@ use App\Models\SubmissionDetail;
 use App\Models\Test;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\AuditLogger;
 
 class ExamController extends Controller
 {
@@ -405,6 +406,16 @@ class ExamController extends Controller
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Telegram exam submission alert failed: ' . $e->getMessage());
         }
+
+        AuditLogger::log(
+            action: 'Exam Submission',
+            module: 'Exams',
+            target: $test ? $test->TestName : "Exam #{$submission->TestId}",
+            details: "Student {$student->FirstName} {$student->LastName} submitted exam with score {$score}/" . ($test ? $test->TotalMarks : 100),
+            status: 'Completed',
+            request: $request,
+            user: $student
+        );
 
         return response()->json([
             'success' => true,

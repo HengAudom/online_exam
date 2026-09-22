@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use App\Services\TelegramService;
+use App\Services\AuditLogger;
 
 class AuthController extends Controller
 {
@@ -181,8 +182,27 @@ class AuthController extends Controller
             // Keep latest 300 logs
             $logs = array_slice($logs, 0, 300);
             file_put_contents($file, json_encode($logs, JSON_PRETTY_PRINT));
+
+            // Also persist directly via AuditLogger
+            $actionName = $status === 'Failed' ? 'Failed Login Attempt' : (($status === 'Logged Out' ? 'User Logout' : ($status === 'Password Reset' ? 'Password Reset' : 'User Login')));
+            $auditStatus = $status === 'Failed' ? 'Failed' : 'Success';
+
+            AuditLogger::log(
+                action: $actionName,
+                module: 'Authentication',
+                target: "@{$username}",
+                details: $details ?: "IP: {$ip}",
+                status: $auditStatus,
+                request: $request,
+                user: (object)[
+                    'id' => $userId,
+                    'Username' => $username,
+                    'Role' => $role,
+                    'name' => $displayName ?: $username
+                ]
+            );
         } catch (\Throwable $e) {
-            \Log::warning('Could not write login_logs.json: ' . $e->getMessage());
+            \Log::warning('Could not write login audit logs: ' . $e->getMessage());
         }
     }
 
@@ -766,6 +786,16 @@ class AuthController extends Controller
                 ]);
             }
 
+            $target = $student ? "@{$student->StudentCode}" : ("@" . ($admin ? $admin->Username : 'user'));
+            AuditLogger::log(
+                action: 'Updated Profile',
+                module: 'Authentication',
+                target: $target,
+                details: "Updated profile information for {$data['firstName']} {$data['lastName']}",
+                status: 'Success',
+                request: $request
+            );
+
             return response()->json([
                 'message' => 'ព័ត៌មានផ្ទាល់ខ្លួនត្រូវបានកែប្រែដោយជោគជ័យ (Profile updated successfully).',
                 'user' => [
@@ -1214,6 +1244,15 @@ class AuthController extends Controller
         $user->Password = $hashedPassword;
         $user->password = $hashedPassword;
         $user->save();
+
+        AuditLogger::log(
+            action: 'Changed Password',
+            module: 'Authentication',
+            target: '@' . ($user->Username ?? $user->StudentCode ?? 'user'),
+            details: 'Account password was successfully changed',
+            status: 'Success',
+            request: $request
+        );
 
         return response()->json(['message' => 'Password changed successfully.']);
     }

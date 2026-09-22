@@ -9,6 +9,7 @@ use App\Models\Skill;
 use App\Models\Test;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Services\AuditLogger;
 use PhpOffice\PhpWord\PhpWord;
 use PhpOffice\PhpWord\IOFactory;
 
@@ -48,7 +49,7 @@ class TestController extends Controller
 
         $skillId = $data['skillId'] ?? Skill::first()?->SkillId ?? 1;
 
-        DB::transaction(function () use ($data, $user, $skillId) {
+        $test = DB::transaction(function () use ($data, $user, $skillId) {
             $test = Test::create([
                 'SkillId' => $skillId,
                 'GroupId' => $data['groupId'] ?? null,
@@ -82,6 +83,15 @@ class TestController extends Controller
 
             return $test;
         });
+
+        AuditLogger::log(
+            action: 'Created Exam',
+            module: 'Exams',
+            target: $test->TestName,
+            details: "Created exam '{$test->TestName}' with " . count($data['questions']) . " questions (Status: {$test->Status}, Total Marks: {$test->TotalMarks})",
+            status: 'Success',
+            request: $request
+        );
 
         return response()->json(['message' => 'Test created successfully.'], 201);
     }
@@ -201,6 +211,15 @@ class TestController extends Controller
             }
         });
 
+        AuditLogger::log(
+            action: 'Updated Exam',
+            module: 'Exams',
+            target: $test->TestName,
+            details: "Updated exam '{$test->TestName}' with " . count($data['questions']) . " questions (Status: {$test->Status})",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json(['message' => 'Test updated successfully.']);
     }
 
@@ -219,6 +238,7 @@ class TestController extends Controller
             return response()->json(['message' => 'Test not found.'], 404);
         }
 
+        $testName = $test->TestName;
         DB::transaction(function () use ($test) {
             foreach ($test->questions as $question) {
                 Answer::where('QuestionId', $question->QuestionId)->delete();
@@ -226,6 +246,15 @@ class TestController extends Controller
             Question::where('TestId', $test->TestId)->delete();
             $test->delete();
         });
+
+        AuditLogger::log(
+            action: 'Deleted Exam',
+            module: 'Exams',
+            target: $testName,
+            details: "Deleted exam '{$testName}' and all associated questions and answers",
+            status: 'Success',
+            request: $request
+        );
 
         return response()->json(['message' => 'Test deleted.']);
     }
@@ -277,6 +306,14 @@ class TestController extends Controller
             @unlink($jsonTemp);
 
             if ($retCode === 0 && file_exists($docxTemp) && filesize($docxTemp) > 0) {
+                AuditLogger::log(
+                    action: 'Exported Exam (Word)',
+                    module: 'Exams',
+                    target: $test->TestName,
+                    details: "Exported exam '{$test->TestName}' as Word DOCX document",
+                    status: 'Success',
+                    request: $request
+                );
                 return response()->download($docxTemp, $fileName)->deleteFileAfterSend(true);
             }
         }
@@ -334,6 +371,15 @@ class TestController extends Controller
 
         $content = implode("\r\n", $lines);
         $fileName = 'Exam_' . preg_replace('/[^A-Za-z0-9_\-\x{1780}-\x{17FF}]/u', '_', $test->TestName) . '.txt';
+
+        AuditLogger::log(
+            action: 'Exported Exam (Text)',
+            module: 'Exams',
+            target: $test->TestName,
+            details: "Exported exam '{$test->TestName}' as plain text file",
+            status: 'Success',
+            request: $request
+        );
 
         return response($content, 200, [
             'Content-Type' => 'text/plain; charset=UTF-8',
@@ -441,6 +487,15 @@ class TestController extends Controller
                 }
             }
         }
+
+        AuditLogger::log(
+            action: 'Imported Exam Questions',
+            module: 'Exams',
+            target: $origName,
+            details: "Parsed and imported questions from '{$origName}' ({$ext})",
+            status: 'Success',
+            request: $request
+        );
 
         return response()->json([
             'success' => true,

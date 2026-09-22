@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Cache;
+use App\Services\AuditLogger;
 
 class AdminController extends Controller
 {
@@ -259,221 +260,41 @@ class AdminController extends Controller
 
     public function auditLogs(Request $request)
     {
-        $clearedAt = null;
-        $metaFile = storage_path('app/audit_logs_meta.json');
-        if (file_exists($metaFile)) {
-            $meta = json_decode(file_get_contents($metaFile), true);
-            $clearedAt = $meta['cleared_at'] ?? null;
-        }
-
-        $loginLogs = collect();
-
-        try {
-            $jsonFile = storage_path('app/login_logs.json');
-            if (file_exists($jsonFile)) {
-                $fileLogs = json_decode(file_get_contents($jsonFile), true) ?: [];
-                $loginLogs = collect($fileLogs)->map(fn($l) => [
-                    'id' => $l['id'] ?? ('auth-json-' . uniqid()),
-                    'date' => $l['date'] ?? now()->toDateTimeString(),
-                    'user' => $l['displayName'] ?: ($l['username'] ?? 'Unknown'),
-                    'role' => $l['role'] ?? 'User',
-                    'action' => ($l['status'] ?? '') === 'Failed' ? 'Failed Login Attempt' : (($l['status'] ?? '') === 'Logged Out' ? 'User Logout' : 'User Login'),
-                    'module' => 'Authentication',
-                    'target' => '@' . ($l['username'] ?? 'unknown'),
-                    'status' => ($l['status'] ?? '') === 'Failed' ? 'Failed' : (($l['status'] ?? '') === 'Logged Out' ? 'Logged Out' : 'Success'),
-                    'details' => $l['details'] ?? "IP: " . ($l['ipAddress'] ?? '127.0.0.1')
-                ]);
-            }
-        } catch (\Throwable $e) {
-            \Log::warning('Error reading login_logs.json: ' . $e->getMessage());
-        }
-
-        if ($clearedAt) {
-            $loginLogs = $loginLogs->filter(fn($l) => isset($l['date']) && $l['date'] > $clearedAt);
-        }
-
-        $uniqueLoginLogs = $loginLogs->take(80);
-
-        $subQuery = DB::table('tblstudentsubmission as ss')
-            ->join('tblstudent as s', 'ss.StudentId', '=', 's.StudentId')
-            ->join('tbltest as t', 'ss.TestId', '=', 't.TestId')
-            ->whereNotNull('ss.CompletedAt');
-
-        if ($clearedAt) {
-            $subQuery->where('ss.CompletedAt', '>', $clearedAt);
-        }
-
-        $submissions = $subQuery
-            ->orderBy('ss.CompletedAt', 'desc')
-            ->limit(50)
-            ->select('ss.SubmissionId', 's.FirstName', 's.LastName', 't.TestName', 'ss.Score', 'ss.CompletedAt as Date')
-            ->get()
-            ->map(fn($r) => [
-                'id' => 'sub-' . $r->SubmissionId,
-                'date' => $r->Date,
-                'user' => "{$r->FirstName} {$r->LastName}",
-                'role' => 'Student',
-                'action' => 'Exam Submission',
-                'module' => 'Exams',
-                'target' => $r->TestName,
-                'status' => 'Completed',
-                'details' => "Score: {$r->Score} points"
-            ]);
-
-        $adminNameSql = DB::connection()->getDriverName() === 'sqlite'
-            ? "(a.FirstName || ' ' || a.LastName)"
-            : "CONCAT(COALESCE(a.FirstName, ''), ' ', COALESCE(a.LastName, ''))";
-
-        $testQuery = DB::table('tbltest as t')
-            ->leftJoin('tbladmin as a', 't.CreatedByUserId', '=', 'a.AdminId');
-
-        if ($clearedAt) {
-            $testQuery->where('t.created_at', '>', $clearedAt);
-        }
-
-        $tests = $testQuery
-            ->orderBy('t.created_at', 'desc')
-            ->limit(50)
-            ->select('t.TestId', 't.TestName', DB::raw("COALESCE(NULLIF(TRIM($adminNameSql), ''), a.Username, 'Admin') as userName"), 't.created_at as Date', 't.Status')
-            ->get()
-            ->map(fn($r) => [
-                'id' => 'test-' . $r->TestId,
-                'date' => $r->Date,
-                'user' => $r->userName,
-                'role' => 'Admin',
-                'action' => 'Exam Published / Drafted',
-                'module' => 'Exams',
-                'target' => $r->TestName,
-                'status' => $r->Status,
-                'details' => "Exam status set to {$r->Status}"
-            ]);
-
-        $stuQuery = DB::table('tblstudent as s')
-            ->leftJoin('tblskill as sk', 's.SkillId', '=', 'sk.SkillId');
-
-        if ($clearedAt) {
-            $stuQuery->where('s.created_at', '>', $clearedAt);
-        }
-
-        $students = $stuQuery
-            ->orderBy('s.created_at', 'desc')
-            ->limit(50)
-            ->select('s.StudentId', 's.FirstName', 's.LastName', 's.StudentCode', 'sk.SkillName', 's.created_at as Date')
-            ->get()
-            ->map(fn($r) => [
-                'id' => 'stu-' . $r->StudentId,
-                'date' => $r->Date,
-                'user' => trim("{$r->FirstName} {$r->LastName}") ?: ($r->StudentCode ?? ('Student #' . $r->StudentId)),
-                'role' => 'Student',
-                'action' => 'Account Registration',
-                'module' => 'Students',
-                'target' => $r->StudentCode ? "@{$r->StudentCode}" : "@student{$r->StudentId}",
-                'status' => 'Active',
-                'details' => "Enrolled in " . ($r->SkillName ?? 'General')
-            ]);
-
-        $adminTable = Schema::hasTable('tbladmin') ? 'tbladmin' : 'tbladminprofile';
-        $adminIdCol = Schema::hasColumn($adminTable, 'AdminId') ? 'AdminId' : 'AdminProfileId';
-        $admQuery = DB::table($adminTable);
-
-        if ($clearedAt) {
-            $admQuery->where('created_at', '>', $clearedAt);
-        }
-
-        $admins = $admQuery
-            ->orderBy('created_at', 'desc')
-            ->limit(50)
-            ->get()
-            ->map(function($r) use ($adminIdCol) {
-                $name = trim("{$r->FirstName} {$r->LastName}") ?: $r->Username;
-                return [
-                    'id' => 'adm-' . $r->{$adminIdCol},
-                    'date' => $r->created_at,
-                    'user' => $name,
-                    'role' => $r->Role ?? 'Admin',
-                    'action' => 'Admin Creation',
-                    'module' => 'User Management',
-                    'target' => "@{$r->Username}",
-                    'status' => $r->Status ?? 'Active',
-                    'details' => "Role: " . ($r->Role ?? 'Admin')
-                ];
-            });
-
-        $logs = collect()
-            ->concat($uniqueLoginLogs)
-            ->concat($submissions)
-            ->concat($tests)
-            ->concat($students)
-            ->concat($admins)
-            ->sortByDesc('date')
-            ->values();
-
+        $limit = (int) $request->input('limit', 350);
+        $logs = AuditLogger::getLogs(null, $limit);
         return response()->json(['logs' => $logs]);
     }
 
     public function clearAuditLogs(Request $request)
     {
-        try {
-            $jsonFile = storage_path('app/login_logs.json');
-            if (file_exists($jsonFile)) {
-                file_put_contents($jsonFile, json_encode([]));
-            }
+        $currentUser = auth()->user() ?? $request->user();
+        $isSuperAdmin = $currentUser && in_array($currentUser->Role ?? $currentUser->role, ['Super Admin', 'SuperAdmin']);
+        if (!$isSuperAdmin && !self::checkAdminPermission($currentUser, 'Audit Logs', 'delete')) {
+            return response()->json(['message' => 'Unauthorized. Super Admin access required.'], 403);
+        }
 
-            $activityFile = storage_path('app/activity_logs.json');
-            if (file_exists($activityFile)) {
-                file_put_contents($activityFile, json_encode([]));
-            }
-
-            // Find highest timestamp among current logs to guarantee everything existing is purged
-            $maxSub = null;
-            try {
-                if (Schema::hasTable('tblstudentsubmission')) {
-                    $maxSub = DB::table('tblstudentsubmission')->max('CompletedAt');
-                }
-            } catch (\Throwable $e) {}
-
-            $maxTest = null;
-            try {
-                if (Schema::hasTable('tbltest')) {
-                    $maxTest = DB::table('tbltest')->max('created_at');
-                }
-            } catch (\Throwable $e) {}
-
-            $maxStu = null;
-            try {
-                if (Schema::hasTable('tblstudent')) {
-                    $maxStu = DB::table('tblstudent')->max('created_at');
-                }
-            } catch (\Throwable $e) {}
-
-            $maxAdm = null;
-            try {
-                $adminTable = Schema::hasTable('tbladmin') ? 'tbladmin' : (Schema::hasTable('tbladminprofile') ? 'tbladminprofile' : null);
-                if ($adminTable) {
-                    $maxAdm = DB::table($adminTable)->max('created_at');
-                }
-            } catch (\Throwable $e) {}
-
-            $dates = array_filter([$maxSub, $maxTest, $maxStu, $maxAdm, now()->toDateTimeString()]);
-            rsort($dates);
-            $highWaterMark = $dates[0] ?? now()->toDateTimeString();
-
-            $metaFile = storage_path('app/audit_logs_meta.json');
-            file_put_contents($metaFile, json_encode([
-                'cleared_at' => $highWaterMark,
-                'cleared_by' => auth()->user()?->name ?? 'Super Admin'
-            ]));
+        $success = AuditLogger::clear();
+        if ($success) {
+            AuditLogger::log(
+                action: 'Purged System Audit Logs',
+                module: 'Audit Logs',
+                target: 'All Logs',
+                details: 'Audit logs cleared by administrator',
+                status: 'Success',
+                request: $request,
+                user: $currentUser
+            );
 
             return response()->json([
                 'success' => true,
                 'message' => 'All audit logs cleared successfully.'
             ]);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to clear audit logs: ' . $e->getMessage()
-            ], 500);
         }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to clear audit logs.'
+        ], 500);
     }
 
     public function rolesPermissions(Request $request)
@@ -518,6 +339,15 @@ class AdminController extends Controller
             }
             file_put_contents(storage_path('app/permissions.json'), json_encode($permissions, JSON_PRETTY_PRINT));
         }
+
+        AuditLogger::log(
+            action: 'Updated Permissions Matrix',
+            module: 'Permissions',
+            target: 'Role Permissions Matrix',
+            details: 'Updated role permissions matrix with ' . count($permissions) . ' modules',
+            status: 'Success',
+            request: $request
+        );
 
         return response()->json(['message' => 'Roles & permissions matrix updated successfully!']);
     }
@@ -636,6 +466,15 @@ class AdminController extends Controller
         } catch (\Throwable $e) {
             \Log::warning('Failed saving system_settings to file: ' . $e->getMessage());
         }
+
+        AuditLogger::log(
+            action: 'Updated System Settings',
+            module: 'System Settings',
+            target: 'Platform Settings',
+            details: 'Updated global system parameters and configuration',
+            status: 'Success',
+            request: $request
+        );
 
         return response()->json(['message' => 'System settings updated successfully!', 'settings' => self::getSystemSettings()]);
     }
@@ -856,6 +695,16 @@ class AdminController extends Controller
             'DurationMonths' => $months,
         ]);
         Cache::forget('admin_skills_groups');
+
+        AuditLogger::log(
+            action: 'Created Duration',
+            module: 'Academic',
+            target: $duration->DurationName,
+            details: "Created duration {$duration->DurationName} ({$duration->DurationMonths} months)",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json(['duration' => $duration], 201);
     }
 
@@ -866,10 +715,21 @@ class AdminController extends Controller
         }
 
         $duration = Duration::find($id);
+        $name = $duration ? $duration->DurationName : "#{$id}";
         if ($duration) {
             $duration->delete();
         }
         Cache::forget('admin_skills_groups');
+
+        AuditLogger::log(
+            action: 'Deleted Duration',
+            module: 'Academic',
+            target: $name,
+            details: "Deleted academic duration {$name}",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json(['message' => 'Duration deleted.']);
     }
 
@@ -894,6 +754,16 @@ class AdminController extends Controller
             'DurationMonths' => $months,
         ]);
         Cache::forget('admin_skills_groups');
+
+        AuditLogger::log(
+            action: 'Updated Duration',
+            module: 'Academic',
+            target: $duration->DurationName,
+            details: "Updated duration #{$id} to {$duration->DurationName} ({$duration->DurationMonths} months)",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json(['duration' => $duration]);
     }
 
@@ -907,6 +777,16 @@ class AdminController extends Controller
         $skill = Skill::create(['SkillName' => $data['name'], 'Description' => '']);
         Cache::forget('admin_skills_groups');
         Cache::forget('admin_dashboard_payload');
+
+        AuditLogger::log(
+            action: 'Created Skill',
+            module: 'Academic',
+            target: $skill->SkillName,
+            details: "Created academic skill: {$skill->SkillName}",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json(['skill' => ['SkillId' => $skill->SkillId, 'SkillName' => $skill->SkillName]], 201);
     }
 
@@ -917,11 +797,22 @@ class AdminController extends Controller
         }
 
         $skill = Skill::find($id);
+        $name = $skill ? $skill->SkillName : "#{$id}";
         if ($skill) {
             $skill->delete();
         }
         Cache::forget('admin_skills_groups');
         Cache::forget('admin_dashboard_payload');
+
+        AuditLogger::log(
+            action: 'Deleted Skill',
+            module: 'Academic',
+            target: $name,
+            details: "Deleted academic skill: {$name}",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json(['message' => 'Skill deleted.']);
     }
 
@@ -941,6 +832,16 @@ class AdminController extends Controller
         $skill->update(['SkillName' => $data['name']]);
         Cache::forget('admin_skills_groups');
         Cache::forget('admin_dashboard_payload');
+
+        AuditLogger::log(
+            action: 'Updated Skill',
+            module: 'Academic',
+            target: $skill->SkillName,
+            details: "Updated academic skill #{$id} to {$skill->SkillName}",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json(['skill' => ['SkillId' => $skill->SkillId, 'SkillName' => $skill->SkillName]]);
     }
 
@@ -958,6 +859,16 @@ class AdminController extends Controller
         ]);
         Cache::forget('admin_skills_groups');
         Cache::forget('admin_dashboard_payload');
+
+        AuditLogger::log(
+            action: 'Created Group',
+            module: 'Academic',
+            target: $group->GroupName,
+            details: "Created academic group: {$group->GroupName}",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json([
             'group' => [
                 'GroupId' => $group->GroupId,
@@ -973,11 +884,22 @@ class AdminController extends Controller
         }
 
         $group = Group::find($id);
+        $name = $group ? $group->GroupName : "#{$id}";
         if ($group) {
             $group->delete();
         }
         Cache::forget('admin_skills_groups');
         Cache::forget('admin_dashboard_payload');
+
+        AuditLogger::log(
+            action: 'Deleted Group',
+            module: 'Academic',
+            target: $name,
+            details: "Deleted academic group: {$name}",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json(['message' => 'Group deleted.']);
     }
 
@@ -1001,6 +923,16 @@ class AdminController extends Controller
         ]);
         Cache::forget('admin_skills_groups');
         Cache::forget('admin_dashboard_payload');
+
+        AuditLogger::log(
+            action: 'Updated Group',
+            module: 'Academic',
+            target: $group->GroupName,
+            details: "Updated academic group #{$id} to {$group->GroupName}",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json([
             'group' => [
                 'GroupId' => $group->GroupId,
@@ -1121,6 +1053,16 @@ class AdminController extends Controller
         }
 
         DB::table('tblstudentsubmission')->where('SubmissionId', $id)->delete();
+
+        AuditLogger::log(
+            action: 'Deleted Exam Submission',
+            module: 'Submissions',
+            target: "Submission #{$id}",
+            details: "Deleted student exam submission record #{$id}",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json(['message' => 'Result deleted successfully']);
     }
 
@@ -1212,6 +1154,15 @@ class AdminController extends Controller
 
         Cache::forget('admin_dashboard_payload');
 
+        AuditLogger::log(
+            action: 'Created Administrator',
+            module: 'Admins',
+            target: "@{$newAdmin->Username}",
+            details: "Created {$newAdmin->Role} account: {$newAdmin->FirstName} {$newAdmin->LastName} (@{$newAdmin->Username})",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json([
             'message' => 'Administrator created successfully!',
             'admin' => [
@@ -1291,6 +1242,15 @@ class AdminController extends Controller
         $admin->update($adminUpdate);
         Cache::forget('admin_dashboard_payload');
 
+        AuditLogger::log(
+            action: 'Updated Administrator',
+            module: 'Admins',
+            target: "@{$admin->Username}",
+            details: "Updated administrator profile for @{$admin->Username} (Role: {$admin->Role})",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json([
             'message' => 'Administrator updated successfully!',
             'admin' => [
@@ -1328,9 +1288,21 @@ class AdminController extends Controller
             return response()->json(['message' => 'Unauthorized. Only Super Admins can delete Super Admin accounts.'], 403);
         }
 
+        $deletedAdminTarget = "@{$admin->Username}";
+        $deletedAdminDetails = "Deleted administrator {$admin->FirstName} {$admin->LastName} (@{$admin->Username}, Role: {$admin->Role})";
+
         // Strictly delete ONLY from tbladmin! Never delete student!
         $admin->delete();
         Cache::forget('admin_dashboard_payload');
+
+        AuditLogger::log(
+            action: 'Deleted Administrator',
+            module: 'Admins',
+            target: $deletedAdminTarget,
+            details: $deletedAdminDetails,
+            status: 'Success',
+            request: $request
+        );
 
         return response()->json(['message' => 'Administrator deleted successfully.']);
     }
@@ -1405,6 +1377,15 @@ class AdminController extends Controller
         }
         $student->update($studentUpdate);
 
+        AuditLogger::log(
+            action: 'Updated Student',
+            module: 'Students',
+            target: $student->StudentCode ? "@{$student->StudentCode}" : "@student{$student->StudentId}",
+            details: "Updated student profile for {$data['firstName']} {$data['lastName']} (Code: {$student->StudentCode})",
+            status: 'Success',
+            request: $request
+        );
+
         return response()->json([
             'message' => 'Student updated.',
             'student' => [
@@ -1432,11 +1413,25 @@ class AdminController extends Controller
             return response()->json(['message' => 'Unauthorized. You do not have permission to delete.'], 403);
         }
 
-        // Strictly delete from tblstudent ONLY! Never delete from tbladmin!
-        $deleted = Student::where('StudentId', $id)->delete();
-        if (!$deleted) {
+        $student = Student::find($id);
+        if (!$student) {
             return response()->json(['message' => 'Student not found.'], 404);
         }
+
+        $target = $student->StudentCode ? "@{$student->StudentCode}" : "@student{$id}";
+        $details = "Deleted student {$student->FirstName} {$student->LastName} (Code: {$student->StudentCode})";
+
+        // Strictly delete from tblstudent ONLY! Never delete from tbladmin!
+        $student->delete();
+
+        AuditLogger::log(
+            action: 'Deleted Student',
+            module: 'Students',
+            target: $target,
+            details: $details,
+            status: 'Success',
+            request: $request
+        );
 
         return response()->json(['message' => 'Student deleted successfully.']);
     }
@@ -1515,6 +1510,15 @@ class AdminController extends Controller
                 'Phone' => $data['phone'],
                 'Photo' => $photoPath,
             ]);
+
+            AuditLogger::log(
+                action: 'Created Student',
+                module: 'Students',
+                target: "@{$studentCode}",
+                details: "Created student {$data['firstName']} {$data['lastName']} (Code: {$studentCode})",
+                status: 'Success',
+                request: $request
+            );
         } else {
             Admin::create([
                 'UserId' => null,
@@ -1528,6 +1532,15 @@ class AdminController extends Controller
                 'ProfileImage' => $photoPath,
                 'CreatedByUserId' => auth()->id() ?? 5,
             ]);
+
+            AuditLogger::log(
+                action: 'Created Administrator',
+                module: 'Admins',
+                target: "@{$data['username']}",
+                details: "Created {$role} account: {$data['firstName']} {$data['lastName']} (@{$data['username']})",
+                status: 'Success',
+                request: $request
+            );
         }
 
         return response()->json(['message' => "$role created.", 'studentCode' => $studentCode ?? null]);
@@ -1697,6 +1710,15 @@ class AdminController extends Controller
             'Score' => $finalScore,
             'TotalCorrect' => $correctCount,
         ]);
+
+        AuditLogger::log(
+            action: 'Force Submitted Exam',
+            module: 'Submissions',
+            target: $test ? $test->TestName : "Submission #{$submissionId}",
+            details: "Force submitted exam for Student #{$submission->StudentId}, evaluated score: {$finalScore}",
+            status: 'Success',
+            request: $request
+        );
 
         return response()->json([
             'success' => true,
