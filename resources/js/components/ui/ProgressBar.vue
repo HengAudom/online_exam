@@ -20,7 +20,7 @@
           variantClasses,
           animated ? 'animate-pulse' : ''
         ]"
-        :style="{ width: `${clampedPercent}%` }"
+        :style="{ width: `${clampedPercent}%`, minWidth: clampedPercent > 0 ? '6px' : '0' }"
       ></div>
     </div>
   </div>
@@ -45,10 +45,17 @@ const props = defineProps({
 
 const percentage = computed(() => {
   if (props.max <= 0) return 0
-  return Math.round((props.value / props.max) * 100)
+  const raw = (props.value / props.max) * 100
+  return Math.round(raw * 100) / 100
 })
 
-const clampedPercent = computed(() => Math.min(100, Math.max(0, percentage.value)))
+const clampedPercent = computed(() => {
+  const val = Math.min(100, Math.max(0, percentage.value))
+  if (val > 0 && val < 1.5) {
+    return 1.5
+  }
+  return val
+})
 
 const sizeClasses = computed(() => {
   switch (props.size) {

@@ -91,6 +91,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     // Admin Dashboard & Health
     Route::get('/api/admin/dashboard', [AdminController::class, 'dashboard']);
     Route::get('/api/admin/system-health-check', [AdminController::class, 'systemHealthCheck']);
+    Route::post('/api/admin/database-storage/refresh', [AdminController::class, 'refreshDatabaseStorage']);
 
     // Student Management
     Route::get('/api/admin/students', [AdminController::class, 'students']);

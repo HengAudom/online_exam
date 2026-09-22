@@ -212,7 +212,13 @@ class AdminController extends Controller
             ->values()
             ->all();
 
-        $dbStats = self::getRealDatabaseStorageStats();
+        $forceRefresh = request()->boolean('refresh_storage') || request()->boolean('refresh');
+        if ($forceRefresh) {
+            Cache::forget('real_database_storage_stats');
+            Cache::forget('admin_dashboard_stats');
+        }
+
+        $dbStats = self::getRealDatabaseStorageStats($forceRefresh);
         $dbSizeMB = $dbStats['usedMB'];
         $tableCount = $dbStats['tableCount'];
         $driverLabel = $dbStats['driver'];
@@ -251,6 +257,10 @@ class AdminController extends Controller
                 'databaseName' => $dbName,
                 'tableCount' => $tableCount,
                 'bytes' => $dbStats['bytes'] ?? 0,
+                'dataBytes' => $dbStats['dataBytes'] ?? 0,
+                'indexBytes' => $dbStats['indexBytes'] ?? 0,
+                'tables' => $dbStats['tables'] ?? [],
+                'lastUpdated' => $dbStats['lastUpdated'] ?? now()->toIso8601String(),
             ]
         ];
     });
@@ -1857,21 +1867,72 @@ class AdminController extends Controller
         return null;
     }
 
-    public static function getRealDatabaseStorageStats(): array
+    public function refreshDatabaseStorage()
     {
+        Cache::forget('real_database_storage_stats');
+        Cache::forget('admin_dashboard_stats');
+        $dbStats = self::getRealDatabaseStorageStats(true);
+        $dbSizeMB = $dbStats['usedMB'];
+        $settings = self::getSystemSettings();
+        $envQuota = (int) ($settings['dbStorageQuotaMB'] ?? env('DB_STORAGE_LIMIT_MB', env('HOSTING_STORAGE_LIMIT_MB', 5120)));
+        $totalMB = $envQuota > 0 ? $envQuota : 5120;
+        $remainingMB = max(0, round($totalMB - $dbSizeMB, 2));
+        $percentage = $totalMB > 0 ? round(($dbSizeMB / $totalMB) * 100, 2) : 0;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Database storage metrics refreshed successfully.',
+            'databaseStorage' => [
+                'used'         => $dbSizeMB,
+                'remaining'    => $remainingMB,
+                'total'        => $totalMB,
+                'percentage'   => $percentage,
+                'driver'       => $dbStats['driver'],
+                'databaseName' => $dbStats['dbName'],
+                'tableCount'   => $dbStats['tableCount'],
+                'bytes'        => $dbStats['bytes'] ?? 0,
+                'dataBytes'    => $dbStats['dataBytes'] ?? 0,
+                'indexBytes'   => $dbStats['indexBytes'] ?? 0,
+                'tables'       => $dbStats['tables'] ?? [],
+                'lastUpdated'  => $dbStats['lastUpdated'] ?? now()->toIso8601String(),
+            ]
+        ]);
+    }
+
+    public static function getRealDatabaseStorageStats(bool $forceRefresh = false): array
+    {
+        if ($forceRefresh) {
+            Cache::forget('real_database_storage_stats');
+        }
+
         return Cache::remember('real_database_storage_stats', 60, function () {
-            $connection = config('database.default');
+            $connection = config('database.default', 'mysql');
             $dbName = config("database.connections.{$connection}.database", 'online_exam_db');
             $tableCount = 0;
             $dbVersion = '';
             $grandTotalBytes = 0;
+            $totalActualBytes = 0;
+            $totalIndexBytes = 0;
+            $tablesDetail = [];
 
             try {
                 if ($connection === 'mysql' || $connection === 'mariadb') {
                     $versionRow = DB::select("SELECT VERSION() as ver");
                     $dbVersion = !empty($versionRow) ? $versionRow[0]->ver : '';
 
-                    // Fetch all tables & columns to calculate true octet row length
+                    // Fetch index lengths, data lengths, and row counts from information_schema.tables
+                    $infoTables = [];
+                    $idxRows = DB::select("SELECT table_name, index_length, data_length, table_rows FROM information_schema.tables WHERE table_schema = ?", [$dbName]);
+                    foreach ($idxRows as $row) {
+                        $infoTables[$row->table_name] = [
+                            'index_length' => (int)($row->index_length ?? 0),
+                            'data_length'  => (int)($row->data_length ?? 0),
+                            'table_rows'   => (int)($row->table_rows ?? 0),
+                        ];
+                        $totalIndexBytes += (int)($row->index_length ?? 0);
+                    }
+
+                    // Fetch all tables & columns to calculate true octet row length (including base64 photos, long text)
                     $columns = DB::select("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = ? ORDER BY table_name", [$dbName]);
 
                     $tablesMap = [];
@@ -1885,20 +1946,49 @@ class AdminController extends Controller
                         $subqueries = [];
                         foreach ($tablesMap as $table => $cols) {
                             $sums = array_map(fn($col) => "COALESCE(OCTET_LENGTH(`$col`), 0)", $cols);
-                            $subqueries[] = "(SELECT COALESCE(SUM(" . implode(' + ', $sums) . "), 0) FROM `{$table}`)";
+                            $subqueries[] = "(SELECT COALESCE(SUM(" . implode(' + ', $sums) . "), 0) FROM `{$table}`) as `{$table}_bytes`";
                         }
 
-                        $singleSql = "SELECT (" . implode(" + \n", $subqueries) . ") as total_data_bytes";
-                        $res = DB::selectOne($singleSql);
-                        $totalActualBytes = (int)($res->total_data_bytes ?? 0);
-
-                        $indexBytes = 0;
                         try {
-                            $idxRes = DB::selectOne("SELECT SUM(index_length) as idx_size FROM information_schema.tables WHERE table_schema = ?", [$dbName]);
-                            $indexBytes = (int)($idxRes->idx_size ?? 0);
-                        } catch (\Throwable $e) {}
+                            $singleSql = "SELECT " . implode(",\n", $subqueries);
+                            $res = (array) (DB::selectOne($singleSql) ?? []);
 
-                        $grandTotalBytes = $totalActualBytes + $indexBytes;
+                            foreach ($tablesMap as $table => $cols) {
+                                $tDataBytes = (int)($res["{$table}_bytes"] ?? 0);
+                                $tIdxBytes  = (int)($infoTables[$table]['index_length'] ?? 0);
+                                $tRows      = (int)($infoTables[$table]['table_rows'] ?? 0);
+                                $tTotal     = $tDataBytes + $tIdxBytes;
+                                $totalActualBytes += $tDataBytes;
+
+                                $tablesDetail[] = [
+                                    'name'       => $table,
+                                    'dataBytes'  => $tDataBytes,
+                                    'indexBytes' => $tIdxBytes,
+                                    'totalBytes' => $tTotal,
+                                    'sizeMB'     => round($tTotal / 1048576, 2),
+                                    'sizeKB'     => round($tTotal / 1024, 1),
+                                    'rows'       => $tRows,
+                                ];
+                            }
+                        } catch (\Throwable $subErr) {
+                            \Log::warning('Octet subquery fallback: ' . $subErr->getMessage());
+                            foreach ($infoTables as $tName => $tInfo) {
+                                $tTotal = $tInfo['data_length'] + $tInfo['index_length'];
+                                $totalActualBytes += $tInfo['data_length'];
+                                $tablesDetail[] = [
+                                    'name'       => $tName,
+                                    'dataBytes'  => $tInfo['data_length'],
+                                    'indexBytes' => $tInfo['index_length'],
+                                    'totalBytes' => $tTotal,
+                                    'sizeMB'     => round($tTotal / 1048576, 2),
+                                    'sizeKB'     => round($tTotal / 1024, 1),
+                                    'rows'       => $tInfo['table_rows'],
+                                ];
+                            }
+                        }
+
+                        usort($tablesDetail, fn($a, $b) => $b['totalBytes'] <=> $a['totalBytes']);
+                        $grandTotalBytes = $totalActualBytes + $totalIndexBytes;
                     }
 
                     if ($grandTotalBytes === 0) {
@@ -1938,12 +2028,16 @@ class AdminController extends Controller
                     : ($connection === 'mariadb' ? 'MariaDB Hosting' : 'SQLite Database'));
 
             return [
-                'bytes' => $grandTotalBytes,
-                'usedMB' => $dbSizeMB,
-                'tableCount' => $tableCount,
-                'driver' => $driverLabel,
-                'dbName' => $dbName,
-                'version' => $dbVersion,
+                'bytes'       => $grandTotalBytes,
+                'dataBytes'   => $totalActualBytes,
+                'indexBytes'  => $totalIndexBytes,
+                'usedMB'      => $dbSizeMB,
+                'tableCount'  => $tableCount,
+                'driver'      => $driverLabel,
+                'dbName'      => $dbName,
+                'version'     => $dbVersion,
+                'tables'      => $tablesDetail,
+                'lastUpdated' => now()->toIso8601String(),
             ];
         });
     }

@@ -269,16 +269,34 @@
           class="lg:col-span-1"
         >
           <template #actions>
-            <span
-              :class="[
-                'px-2.5 py-1 rounded-full text-xs font-extrabold',
-                dashboard.databaseStorage.percentage > 90
-                  ? 'bg-red-50 text-red-700 border border-red-200'
-                  : 'bg-blue-50 text-blue-700 border border-blue-200'
-              ]"
-            >
-              {{ dashboard.databaseStorage.percentage }}%
-            </span>
+            <div class="flex items-center gap-1.5">
+              <button
+                type="button"
+                @click="refreshStorage"
+                :disabled="isRefreshingStorage"
+                :title="t.refreshStorageTitle"
+                class="p-1 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all duration-200 disabled:opacity-50 cursor-pointer"
+              >
+                <span
+                  class="material-symbols-outlined text-base block"
+                  :class="{ 'animate-spin': isRefreshingStorage }"
+                >
+                  sync
+                </span>
+              </button>
+              <span
+                :class="[
+                  'px-2.5 py-1 rounded-full text-xs font-extrabold transition-colors',
+                  dashboard.databaseStorage.percentage > 90
+                    ? 'bg-red-50 text-red-700 border border-red-200'
+                    : dashboard.databaseStorage.percentage > 75
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                      : 'bg-blue-50 text-blue-700 border border-blue-200'
+                ]"
+              >
+                {{ dashboard.databaseStorage.percentage }}%
+              </span>
+            </div>
           </template>
 
           <div class="space-y-4 pt-1">
@@ -292,11 +310,11 @@
 
             <!-- Storage Metrics Breakdown -->
             <div class="grid grid-cols-2 gap-3 pt-2">
-              <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 hover:bg-blue-50/40 hover:border-blue-100 transition-colors">
                 <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">{{ t.used }}</p>
                 <p class="text-base font-extrabold text-slate-900 mt-0.5">{{ dashboard.databaseStorage.used }} MB</p>
               </div>
-              <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 hover:bg-slate-100/60 transition-colors">
                 <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">{{ t.remaining }}</p>
                 <p class="text-base font-extrabold text-slate-900 mt-0.5">{{ dashboard.databaseStorage.remaining }} MB</p>
               </div>
@@ -314,6 +332,37 @@
               <div v-if="dashboard.databaseStorage.tableCount" class="flex items-center justify-between text-slate-400">
                 <span>{{ t.totalTables }}:</span>
                 <span class="text-slate-700 font-bold">{{ dashboard.databaseStorage.tableCount }} {{ lang === 'kh' ? 'តារាង' : 'tables' }}</span>
+              </div>
+            </div>
+
+            <!-- View Table Breakdown Toggle Button -->
+            <div v-if="dashboard.databaseStorage.tables && dashboard.databaseStorage.tables.length" class="pt-1">
+              <button
+                type="button"
+                @click="showTableDetails = !showTableDetails"
+                class="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold text-blue-600 bg-blue-50/60 hover:bg-blue-100/70 border border-blue-200/60 rounded-xl transition-all select-none cursor-pointer"
+              >
+                <span class="material-symbols-outlined text-sm">
+                  {{ showTableDetails ? 'expand_less' : 'table_view' }}
+                </span>
+                <span>{{ showTableDetails ? t.hideTables : t.viewTables }}</span>
+              </button>
+
+              <!-- Expandable Table Storage List -->
+              <div v-if="showTableDetails" class="mt-2.5 space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                <div
+                  v-for="tbl in dashboard.databaseStorage.tables"
+                  :key="tbl.name"
+                  class="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100/80 text-xs hover:bg-white hover:shadow-sm transition-all"
+                >
+                  <div class="truncate mr-2">
+                    <span class="font-bold text-slate-800">{{ tbl.name }}</span>
+                    <span class="text-[10px] text-slate-400 block font-normal">{{ tbl.rows.toLocaleString() }} {{ t.rowsLabel }}</span>
+                  </div>
+                  <div class="text-right shrink-0">
+                    <span class="font-extrabold text-slate-900 font-mono text-xs">{{ tbl.sizeMB >= 0.01 ? `${tbl.sizeMB} MB` : `${tbl.sizeKB} KB` }}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -627,6 +676,23 @@ const { isSuperAdmin, fetchUser } = usePermissions()
 const { settings, fetchSettings } = useSettings()
 
 const initialLoading = ref(true)
+const isRefreshingStorage = ref(false)
+const showTableDetails = ref(false)
+
+const refreshStorage = async () => {
+  if (isRefreshingStorage.value) return
+  isRefreshingStorage.value = true
+  try {
+    const res = await axios.post('/api/admin/database-storage/refresh')
+    if (res.data?.databaseStorage) {
+      dashboard.databaseStorage = res.data.databaseStorage
+    }
+  } catch (err) {
+    console.error('Failed to refresh storage stats', err)
+  } finally {
+    isRefreshingStorage.value = false
+  }
+}
 
 const t = computed(() => {
   if (lang.value === 'kh') {
@@ -654,6 +720,10 @@ const t = computed(() => {
       remaining: 'នៅសល់',
       engine: 'ម៉ាស៊ីនទិន្នន័យ (Engine)',
       totalTables: 'តារាងទិន្នន័យសរុប',
+      viewTables: 'មើលទំហំតារាងនីមួយៗ',
+      hideTables: 'លាក់តារាងទិន្នន័យ',
+      refreshStorageTitle: 'ធ្វើបច្ចុប្បន្នភាពទំហំផ្ទុក',
+      rowsLabel: 'ជួរ',
       platformActivity: 'សកម្មភាពប្រព័ន្ធទូទាំងស្ថាប័ន',
       activityByWeek: 'សកម្មភាពតាមសប្ដាហ៍',
       activitySub: 'សកម្មភាពថ្មីៗក្នុងប្រព័ន្ធ បែងចែកតាមសប្ដាហ៍',
@@ -713,6 +783,10 @@ const t = computed(() => {
     remaining: 'Remaining space',
     engine: 'Database Engine',
     totalTables: 'Total Tables',
+    viewTables: 'View Table Breakdown',
+    hideTables: 'Hide Table Breakdown',
+    refreshStorageTitle: 'Refresh Storage Metrics',
+    rowsLabel: 'rows',
     platformActivity: 'Platform-wide Activity',
     activityByWeek: 'Activity by Week',
     activitySub: 'Recent system events grouped by week',
