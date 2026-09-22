@@ -101,6 +101,13 @@ foreach ($dbVars as $var) {
     }
 }
 
+// Guarantee default DB_CONNECTION is mysql
+if (empty($_ENV['DB_CONNECTION']) || trim((string)$_ENV['DB_CONNECTION']) === '') {
+    putenv('DB_CONNECTION=mysql');
+    $_ENV['DB_CONNECTION'] = 'mysql';
+    $_SERVER['DB_CONNECTION'] = 'mysql';
+}
+
 // Detect HTTPS behind reverse proxies like Vercel
 if ((isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') ||
     (isset($_SERVER['HTTP_X_FORWARDED_PORT']) && (string)$_SERVER['HTTP_X_FORWARDED_PORT'] === '443')) {
