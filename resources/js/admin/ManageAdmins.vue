@@ -280,10 +280,7 @@
           <label class="block text-xs font-bold uppercase tracking-wider text-slate-600">{{ t.role }}</label>
           <CustomDropdown
             v-model="addForm.role"
-            :options="[
-              { label: 'Admin (Standard)', value: 'Admin' },
-              { label: 'Super Admin (Full Root)', value: 'SuperAdmin' }
-            ]"
+            :options="roleSelectOptions"
           />
         </div>
 
@@ -317,10 +314,7 @@
           <label class="block text-xs font-bold uppercase tracking-wider text-slate-600">{{ t.role }}</label>
           <CustomDropdown
             v-model="editForm.role"
-            :options="[
-              { label: 'Admin (Standard)', value: 'Admin' },
-              { label: 'Super Admin (Full Root)', value: 'SuperAdmin' }
-            ]"
+            :options="roleSelectOptions"
           />
         </div>
 
@@ -426,6 +420,19 @@ const editForm = reactive({
   newPassword: '',
   confirmPassword: ''
 })
+
+const roleSelectOptions = computed(() => [
+  {
+    label: lang.value === 'kh' ? 'Admin (អ្នកគ្រប់គ្រងស្តង់ដារ)' : 'Admin (Standard)',
+    value: 'Admin',
+    subLabel: lang.value === 'kh' ? 'សិទ្ធិស្តង់ដារ' : 'Standard'
+  },
+  {
+    label: lang.value === 'kh' ? 'Super Admin (អ្នកគ្រប់គ្រងជាន់ខ្ពស់ Root)' : 'Super Admin (Full Root)',
+    value: 'SuperAdmin',
+    subLabel: lang.value === 'kh' ? 'សិទ្ធិ Root' : 'Full Root'
+  }
+])
 
 const roleFilterOptions = computed(() => [
   { label: lang.value === 'kh' ? 'តួនាទីទាំងអស់' : 'All Roles', value: '' },
@@ -596,7 +603,8 @@ const saveNewAdmin = async () => {
 
 const editAdmin = (admin) => {
   editingAdminId.value = admin.id
-  editForm.role = admin.role || 'Admin'
+  const r = admin.role || 'Admin'
+  editForm.role = (r === 'Super Admin' || r === 'SuperAdmin') ? 'SuperAdmin' : 'Admin'
   editForm.firstName = admin.firstName || admin.first_name || admin.name?.split(' ')[0] || ''
   editForm.lastName = admin.lastName || admin.last_name || admin.name?.split(' ').slice(1).join(' ') || ''
   editForm.username = admin.username || ''

@@ -849,6 +849,10 @@ const t = computed(() => {
 
 const filteredStudentsList = computed(() => {
   return studentsList.value.filter(s => {
+    // Strictly exclude any admin records from Students Directory
+    if (s.role === 'Admin' || s.role === 'SuperAdmin' || s.role === 'Super Admin') return false
+    if (s.name && s.name.toLowerCase().trim() === 'admin manager') return false
+
     const q = searchQuery.value.toLowerCase().trim()
     const matchesSearch = !q ||
       (s.name && s.name.toLowerCase().includes(q)) ||
@@ -947,26 +951,19 @@ const openAddModal = () => {
 }
 
 const saveNewUser = async () => {
-  if (addForm.role === 'Student') {
-    if (!addForm.firstName.trim() || !addForm.lastName.trim() || !addForm.phone.trim()) {
-      toastError(lang.value === 'kh' ? 'សូមបំពេញព័ត៌មានចាំបាច់ (នាមខ្លួន គោត្តនាម លេខទូរស័ព្ទ)' : 'Please fill all required fields (First Name, Last Name, Phone).')
-      return
-    }
-  } else {
-    if (!addForm.firstName.trim() || !addForm.lastName.trim() || !addForm.username.trim() || !addForm.password.trim() || !addForm.phone.trim()) {
-      toastError(lang.value === 'kh' ? 'សូមបំពេញព័ត៌មានចាំបាច់ទាំងអស់' : 'Please fill all required fields.')
-      return
-    }
+  if (!addForm.firstName.trim() || !addForm.lastName.trim() || !addForm.phone.trim()) {
+    toastError(lang.value === 'kh' ? 'សូមបំពេញព័ត៌មានចាំបាច់ (នាមខ្លួន គោត្តនាម លេខទូរស័ព្ទ)' : 'Please fill all required fields (First Name, Last Name, Phone).')
+    return
   }
 
   savingAdd.value = true
   try {
     const res = await axios.post('/api/admin/students', {
-      role: addForm.role,
+      role: 'Student',
       studentCode: addForm.studentCode,
       firstName: addForm.firstName.trim(),
       lastName: addForm.lastName.trim(),
-      username: addForm.role === 'Student' ? (addForm.studentCode || addForm.username) : addForm.username.trim(),
+      username: addForm.studentCode || `${addForm.firstName}.${addForm.lastName}`,
       phone: addForm.phone.trim(),
       password: addForm.password || undefined,
       photo: addForm.photo,
@@ -979,13 +976,13 @@ const saveNewUser = async () => {
       durationMonths: addForm.durationMonths
     })
 
-    toastSuccess(res.data.message || 'User added successfully!')
-    logActivity(`New ${addForm.role} added: ${addForm.firstName} ${addForm.lastName}`, `Role: ${addForm.role}`)
+    toastSuccess(res.data.message || (lang.value === 'kh' ? 'បានបន្ថែមសិស្សដោយជោគជ័យ!' : 'Student added successfully!'))
+    logActivity(`New Student added: ${addForm.firstName} ${addForm.lastName}`, `Student Code: ${addForm.studentCode}`)
     addingStudent.value = false
     broadcastSync('students_updated')
     await loadData()
   } catch (err) {
-    toastError(err.response?.data?.message || 'Failed to add user.')
+    toastError(err.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចបន្ថែមសិស្សបានទេ' : 'Failed to add student.'))
   } finally {
     savingAdd.value = false
   }
@@ -1014,16 +1011,9 @@ const editStudent = (student) => {
 }
 
 const saveStudent = async () => {
-  if (editForm.role === 'Student') {
-    if (!editForm.firstName.trim() || !editForm.lastName.trim() || !editForm.phone.trim()) {
-      toastError(lang.value === 'kh' ? 'សូមបំពេញព័ត៌មានចាំបាច់' : 'Please fill all required fields.')
-      return
-    }
-  } else {
-    if (!editForm.firstName.trim() || !editForm.lastName.trim() || !editForm.username.trim()) {
-      toastError(lang.value === 'kh' ? 'សូមបំពេញព័ត៌មានចាំបាច់' : 'Please fill all required fields.')
-      return
-    }
+  if (!editForm.firstName.trim() || !editForm.lastName.trim() || !editForm.phone.trim()) {
+    toastError(lang.value === 'kh' ? 'សូមបំពេញព័ត៌មានចាំបាច់' : 'Please fill all required fields.')
+    return
   }
 
   if (editForm.newPassword && editForm.newPassword !== editForm.confirmPassword) {
@@ -1034,36 +1024,32 @@ const saveStudent = async () => {
   savingEdit.value = true
   try {
     const payload = {
-      role: editForm.role,
+      role: 'Student',
+      studentCode: editForm.studentCode,
       firstName: editForm.firstName.trim(),
       lastName: editForm.lastName.trim(),
-      username: editForm.username.trim() || editForm.studentCode,
       phone: editForm.phone.trim(),
+      gender: editForm.gender,
+      shift: editForm.shift,
+      skill: editForm.skill,
+      group: editForm.group,
+      intakeMonth: editForm.intakeMonth,
+      enrolledMonth: editForm.intakeMonth,
+      intakeYear: editForm.intakeYear,
+      enrolledYear: editForm.intakeYear,
+      durationMonths: editForm.durationMonths,
       photo: editForm.photo || undefined,
       newPassword: editForm.newPassword || undefined
     }
 
-    if (editForm.role === 'Student') {
-      payload.studentCode = editForm.studentCode
-      payload.gender = editForm.gender
-      payload.shift = editForm.shift
-      payload.skill = editForm.skill
-      payload.group = editForm.group
-      payload.intakeMonth = editForm.intakeMonth
-      payload.enrolledMonth = editForm.intakeMonth
-      payload.intakeYear = editForm.intakeYear
-      payload.enrolledYear = editForm.intakeYear
-      payload.durationMonths = editForm.durationMonths
-    }
-
     const res = await axios.put(`/api/admin/students/${editingStudentId.value}`, payload)
 
-    toastSuccess(res.data.message || 'User updated successfully!')
+    toastSuccess(res.data.message || (lang.value === 'kh' ? 'កែប្រែព័ត៌មានសិស្សបានជោគជ័យ!' : 'Student updated successfully!'))
     editingStudentModal.value = false
     broadcastSync('students_updated')
     await loadData()
   } catch (err) {
-    toastError(err.response?.data?.message || 'Failed to update user.')
+    toastError(err.response?.data?.message || (lang.value === 'kh' ? 'មិនអាចកែប្រែបានទេ' : 'Failed to update student.'))
   } finally {
     savingEdit.value = false
   }

@@ -40,7 +40,7 @@
       <div
         v-if="isOpen"
         :class="[
-          'absolute z-40 w-full min-w-[180px] bg-white rounded-2xl border border-slate-200/90 shadow-soft-xl overflow-hidden flex flex-col py-1.5',
+          'absolute z-50 w-full min-w-[200px] bg-white rounded-2xl border border-slate-200/90 shadow-soft-xl overflow-hidden flex flex-col py-1.5',
           openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
         ]"
         :style="{ maxHeight: `${menuMaxHeight}px` }"
@@ -51,8 +51,8 @@
             :key="option.value"
             type="button"
             :class="[
-              'w-full flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-xl text-left transition-colors select-none cursor-pointer',
-              String(modelValue) === String(option.value)
+              'w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm rounded-xl text-left transition-colors select-none cursor-pointer',
+              isValueMatch(modelValue, option.value)
                 ? 'bg-blue-50 text-blue-700 font-bold'
                 : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
             ]"
@@ -69,7 +69,7 @@
             </div>
 
             <span
-              v-if="String(modelValue) === String(option.value)"
+              v-if="isValueMatch(modelValue, option.value)"
               class="material-symbols-outlined text-blue-600 text-base shrink-0 select-none"
               style="font-variation-settings: 'FILL' 1;"
             >
@@ -107,6 +107,14 @@ const openUpward = ref(false)
 const menuMaxHeight = ref(240)
 const dropdownRef = ref(null)
 
+const isValueMatch = (a, b) => {
+  if (a === b) return true
+  if (a === null || a === undefined || b === null || b === undefined) return false
+  const s1 = String(a).trim().toLowerCase().replace(/\s+/g, '')
+  const s2 = String(b).trim().toLowerCase().replace(/\s+/g, '')
+  return s1 === s2
+}
+
 const normalizedOptions = computed(() =>
   props.options.map(opt =>
     typeof opt !== 'object' || opt === null
@@ -116,24 +124,24 @@ const normalizedOptions = computed(() =>
 )
 
 const selectedItem = computed(() =>
-  normalizedOptions.value.find(opt => String(opt.value) === String(props.modelValue))
+  normalizedOptions.value.find(opt => isValueMatch(opt.value, props.modelValue))
 )
 
 const selectedLabel = computed(() => selectedItem.value?.label ?? null)
 
 const recalcPosition = () => {
   if (!dropdownRef.value) return
-  const PADDING = 8, MAX_MENU = 240
+  const PADDING = 8, MAX_MENU = 260
   const rect = dropdownRef.value.getBoundingClientRect()
   const spaceBelow = window.innerHeight - rect.bottom - PADDING
   const spaceAbove = rect.top - PADDING
 
-  if (spaceBelow < 160 && spaceAbove > spaceBelow) {
+  if (spaceBelow < 170 && spaceAbove > spaceBelow) {
     openUpward.value = true
-    menuMaxHeight.value = Math.min(MAX_MENU, Math.max(100, spaceAbove))
+    menuMaxHeight.value = Math.min(MAX_MENU, Math.max(120, spaceAbove))
   } else {
     openUpward.value = false
-    menuMaxHeight.value = Math.min(MAX_MENU, Math.max(100, spaceBelow))
+    menuMaxHeight.value = Math.min(MAX_MENU, Math.max(120, spaceBelow))
   }
 }
 

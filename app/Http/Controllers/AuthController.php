@@ -633,10 +633,8 @@ class AuthController extends Controller
         if ($user instanceof Student) {
             $student = $user->loadMissing(['skill', 'group']);
         } else {
-            $student = Student::where('StudentId', $user->id ?? $user->AdminId)
-                ->orWhere('UserId', $user->id ?? $user->AdminId)
-                ->with(['skill', 'group'])
-                ->first();
+            // Admin or SuperAdmin accounts must NEVER be attached to student profiles
+            $student = null;
         }
 
         $payload = [

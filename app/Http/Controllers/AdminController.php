@@ -508,10 +508,22 @@ class AdminController extends Controller
                 $durations = collect();
             }
 
-            // 1. Query Students strictly from tblstudent
-            $students = DB::table('tblstudent as s')
+            // 1. Query Students strictly from tblstudent (excluding any admin records)
+            $studentsQuery = DB::table('tblstudent as s')
                 ->leftJoin('tblskill as sk', 's.SkillId', '=', 'sk.SkillId')
                 ->leftJoin('tblgroup as b', 's.GroupId', '=', 'b.GroupId')
+                ->whereRaw("NOT (LOWER(COALESCE(s.FirstName, '')) = 'admin' AND LOWER(COALESCE(s.LastName, '')) = 'manager')");
+
+            try {
+                $adminUsernames = DB::table('tbladmin')->pluck('Username')->filter()->map(fn($u) => strtolower(trim($u)))->toArray();
+                if (!empty($adminUsernames)) {
+                    $studentsQuery->whereNotIn(DB::raw('LOWER(s.StudentCode)'), $adminUsernames);
+                }
+            } catch (\Throwable $e) {
+                // Ignore if tbladmin query fails
+            }
+
+            $students = $studentsQuery
                 ->select(
                     's.StudentId as id',
                     's.StudentId as studentId',
@@ -1438,112 +1450,73 @@ class AdminController extends Controller
 
     public function addStudent(Request $request)
     {
+        $role = $request->input('role', 'Student');
+        if (in_array($role, ['Admin', 'Super Admin', 'SuperAdmin'])) {
+            return $this->addAdmin($request);
+        }
+
         if (!self::checkAdminPermission($request->user(), 'Students', 'create')) {
-            return response()->json(['message' => 'Unauthorized. You do not have permission to add users.'], 403);
+            return response()->json(['message' => 'Unauthorized. You do not have permission to add students.'], 403);
         }
-
-        $currentUser = auth()->user();
-        $isSelectingSuperAdmin = in_array($request->input('role'), ['Super Admin', 'SuperAdmin']);
-        $isCurrentSuperAdmin = $currentUser && in_array($currentUser->role, ['Super Admin', 'SuperAdmin']);
-
-        if ($isSelectingSuperAdmin && !$isCurrentSuperAdmin) {
-            return response()->json(['message' => 'Unauthorized. Only Super Admins can create new Super Admins.'], 403);
-        }
-
-        $isStudent = $request->input('role', 'Student') === 'Student';
 
         $rules = [
             'firstName' => ['required', 'string', 'max:255'],
             'lastName' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:50'],
-            'role' => ['required', 'string', 'in:Student,Admin,Super Admin,SuperAdmin'],
+            'gender' => ['required', 'string'],
+            'shift' => ['required', 'string'],
+            'skillId' => ['required', 'integer'],
+            'groupId' => ['required', 'integer'],
+            'enrolledMonth' => ['nullable', 'string'],
+            'enrolledYear' => ['nullable', 'string'],
+            'studentCode' => ['nullable', 'string'],
+            'photo' => ['nullable'],
         ];
 
-        if ($isStudent) {
-            $rules['gender'] = ['required', 'string'];
-            $rules['shift'] = ['required', 'string'];
-            $rules['skillId'] = ['required', 'integer'];
-            $rules['groupId'] = ['required', 'integer'];
-            $rules['enrolledMonth'] = ['nullable', 'string'];
-            $rules['enrolledYear'] = ['nullable', 'string'];
-            $rules['studentCode'] = ['nullable', 'string'];
-            $rules['photo'] = ['nullable'];
-        } else {
-            $rules['username'] = ['required', 'string', 'regex:/^\S+$/', 'unique:tbladmin,Username'];
-            $rules['password'] = ['required', 'string', 'min:6'];
-        }
-
-        $data = $request->validate($rules, [
-            'username.regex' => 'Username មិនអាចមានដកឃ្លាទេ (Username cannot contain spaces).',
-        ]);
-        $role = $request->input('role', 'Student');
+        $data = $request->validate($rules);
         $photoPath = $this->processUploadedPhoto($request->input('photo'), $request->file('photo'));
 
-        if ($isStudent) {
-            $year = $data['enrolledYear'] ?? date('Y');
-            $studentCode = $request->input('studentCode');
-            if (empty($studentCode)) {
-                for ($i = 0; $i < 100; $i++) {
-                    $randCode = 'RTC-' . $year . '-' . str_pad((string)random_int(10000, 99999), 5, '0', STR_PAD_LEFT);
-                    if (!Student::where('StudentCode', $randCode)->exists()) {
-                        $studentCode = $randCode;
-                        break;
-                    }
-                }
-                if (empty($studentCode)) {
-                    $studentCode = 'RTC-' . $year . '-' . str_pad((string)((Student::max('StudentId') ?? 0) + 1), 5, '0', STR_PAD_LEFT);
+        $year = $data['enrolledYear'] ?? date('Y');
+        $studentCode = $request->input('studentCode');
+        if (empty($studentCode)) {
+            for ($i = 0; $i < 100; $i++) {
+                $randCode = 'RTC-' . $year . '-' . str_pad((string)random_int(10000, 99999), 5, '0', STR_PAD_LEFT);
+                if (!Student::where('StudentCode', $randCode)->exists()) {
+                    $studentCode = $randCode;
+                    break;
                 }
             }
-
-            Student::create([
-                'StudentCode' => $studentCode,
-                'UserId' => null,
-                'SkillId' => $data['skillId'],
-                'GroupId' => $data['groupId'],
-                'FirstName' => $data['firstName'],
-                'LastName' => $data['lastName'],
-                'Gender' => $data['gender'],
-                'StudyShift' => $data['shift'],
-                'EnrolledMonth' => $data['enrolledMonth'] ?? now()->format('F'),
-                'EnrolledYear' => $data['enrolledYear'] ?? date('Y'),
-                'DurationMonths' => $this->parseDurationMonths($request->input('durationMonths', 1)),
-                'Phone' => $data['phone'],
-                'Photo' => $photoPath,
-            ]);
-
-            AuditLogger::log(
-                action: 'Created Student',
-                module: 'Students',
-                target: "@{$studentCode}",
-                details: "Created student {$data['firstName']} {$data['lastName']} (Code: {$studentCode})",
-                status: 'Success',
-                request: $request
-            );
-        } else {
-            Admin::create([
-                'UserId' => null,
-                'Username' => $data['username'],
-                'Password' => \Illuminate\Support\Facades\Hash::make($data['password']),
-                'Role' => $role,
-                'Status' => 'Active',
-                'FirstName' => $data['firstName'],
-                'LastName' => $data['lastName'],
-                'Phone' => $data['phone'],
-                'ProfileImage' => $photoPath,
-                'CreatedByUserId' => auth()->id() ?? 5,
-            ]);
-
-            AuditLogger::log(
-                action: 'Created Administrator',
-                module: 'Admins',
-                target: "@{$data['username']}",
-                details: "Created {$role} account: {$data['firstName']} {$data['lastName']} (@{$data['username']})",
-                status: 'Success',
-                request: $request
-            );
+            if (empty($studentCode)) {
+                $studentCode = 'RTC-' . $year . '-' . str_pad((string)((Student::max('StudentId') ?? 0) + 1), 5, '0', STR_PAD_LEFT);
+            }
         }
 
-        return response()->json(['message' => "$role created.", 'studentCode' => $studentCode ?? null]);
+        Student::create([
+            'StudentCode' => $studentCode,
+            'UserId' => null,
+            'SkillId' => $data['skillId'],
+            'GroupId' => $data['groupId'],
+            'FirstName' => $data['firstName'],
+            'LastName' => $data['lastName'],
+            'Gender' => $data['gender'],
+            'StudyShift' => $data['shift'],
+            'EnrolledMonth' => $data['enrolledMonth'] ?? now()->format('F'),
+            'EnrolledYear' => $data['enrolledYear'] ?? date('Y'),
+            'DurationMonths' => $this->parseDurationMonths($request->input('durationMonths', 1)),
+            'Phone' => $data['phone'],
+            'Photo' => $photoPath,
+        ]);
+
+        AuditLogger::log(
+            action: 'Created Student',
+            module: 'Students',
+            target: "@{$studentCode}",
+            details: "Created student {$data['firstName']} {$data['lastName']} (Code: {$studentCode})",
+            status: 'Success',
+            request: $request
+        );
+
+        return response()->json(['message' => 'Student created successfully.', 'studentCode' => $studentCode]);
     }
 
     public function liveMonitor(Request $request)
