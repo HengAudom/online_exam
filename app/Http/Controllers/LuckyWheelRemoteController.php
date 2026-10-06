@@ -456,32 +456,65 @@ class LuckyWheelRemoteController extends Controller
         $imageUrl = null;
         $userAgent = 'OnlineXam-LuckyWheel/1.0 (info@onlinexam.site; contact@onlinexam.site)';
 
-        // Step A: Wikipedia Generator Search
-        try {
-            $wikiSearchUrl = 'https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($keyword) . '&gsrlimit=5&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json';
-            $context = stream_context_create([
-                'http' => [
-                    'method' => 'GET',
-                    'header' => "User-Agent: {$userAgent}\r\n",
-                    'timeout' => 4
-                ]
-            ]);
-            $respJson = @file_get_contents($wikiSearchUrl, false, $context);
-            if ($respJson) {
-                $respData = json_decode($respJson, true);
-                $pages = $respData['query']['pages'] ?? [];
-                foreach ($pages as $p) {
-                    if (!empty($p['thumbnail']['source'])) {
-                        $src = $p['thumbnail']['source'];
-                        if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
-                            // CRITICAL: Strip tracking query parameters (?utm_source=...) so Brave Shields & adblockers do not block the image
-                            $imageUrl = explode('?', $src)[0];
-                            break;
+        // Step A0: If Khmer characters present, search Khmer Wikipedia (km.wikipedia.org)
+        if (preg_match('/[\x{1780}-\x{17FF}]/u', $rawWord)) {
+            $khmerSearchTerm = trim(preg_replace('/[^\x{1780}-\x{17FF}\s]/u', '', $rawWord));
+            if ($khmerSearchTerm) {
+                try {
+                    $kmWikiUrl = 'https://km.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($khmerSearchTerm) . '&gsrlimit=4&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json';
+                    $context = stream_context_create([
+                        'http' => [
+                            'method' => 'GET',
+                            'header' => "User-Agent: {$userAgent}\r\n",
+                            'timeout' => 3
+                        ]
+                    ]);
+                    $kmJson = @file_get_contents($kmWikiUrl, false, $context);
+                    if ($kmJson) {
+                        $kmData = json_decode($kmJson, true);
+                        $pages = $kmData['query']['pages'] ?? [];
+                        foreach ($pages as $p) {
+                            if (!empty($p['thumbnail']['source'])) {
+                                $src = $p['thumbnail']['source'];
+                                if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
+                                    $imageUrl = explode('?', $src)[0];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {}
+            }
+        }
+
+        // Step A: English Wikipedia Generator Search (handles English keywords and loanwords)
+        if (!$imageUrl && $keyword) {
+            try {
+                $wikiSearchUrl = 'https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($keyword) . '&gsrlimit=5&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json';
+                $context = stream_context_create([
+                    'http' => [
+                        'method' => 'GET',
+                        'header' => "User-Agent: {$userAgent}\r\n",
+                        'timeout' => 4
+                    ]
+                ]);
+                $respJson = @file_get_contents($wikiSearchUrl, false, $context);
+                if ($respJson) {
+                    $respData = json_decode($respJson, true);
+                    $pages = $respData['query']['pages'] ?? [];
+                    foreach ($pages as $p) {
+                        if (!empty($p['thumbnail']['source'])) {
+                            $src = $p['thumbnail']['source'];
+                            if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
+                                // CRITICAL: Strip tracking query parameters (?utm_source=...) so Brave Shields & adblockers do not block the image
+                                $imageUrl = explode('?', $src)[0];
+                                break;
+                            }
                         }
                     }
                 }
-            }
-        } catch (\Throwable $e) {}
+            } catch (\Throwable $e) {}
+        }
 
         // Step B: Wikimedia Commons search if Wikipedia had no suitable thumbnail
         if (!$imageUrl) {

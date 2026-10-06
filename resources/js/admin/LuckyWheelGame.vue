@@ -1821,7 +1821,28 @@ async function fetchImageForWord(rawWord) {
     // Backend API failed or timed out, fallback to client-side strategies
   }
 
-  // 3. Client-side Wikipedia Generator Search with origin=*
+  // 3. Client-side Khmer Wikipedia (km.wikipedia.org) if Khmer script detected
+  if (/[\u1780-\u17FF]/.test(rawWord)) {
+    const kmClean = rawWord.replace(/[^\u1780-\u17FF\s]/g, '').trim()
+    if (kmClean) {
+      try {
+        const kmWikiUrl = `https://km.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(kmClean)}&gsrlimit=3&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json&origin=*`
+        const kmRes = await axios.get(kmWikiUrl, { timeout: 3500 })
+        if (kmRes.data?.query?.pages) {
+          const kmPages = Object.values(kmRes.data.query.pages)
+          for (const p of kmPages) {
+            if (p.thumbnail?.source && !p.thumbnail.source.includes('Disambig') && !p.thumbnail.source.includes('.svg')) {
+              const cleanUrl = sanitizeImageUrl(p.thumbnail.source)
+              wordImageCache.value[rawWord] = cleanUrl
+              return cleanUrl
+            }
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
+  // 4. Client-side English Wikipedia Generator Search with origin=*
   try {
     const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=3&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json&origin=*`
     const res = await axios.get(wikiUrl, { timeout: 3500 })
