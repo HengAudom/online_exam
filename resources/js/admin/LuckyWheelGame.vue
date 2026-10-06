@@ -1629,7 +1629,128 @@ function switchView(viewName) {
   syncRemoteState()
 }
 
-/* ── Word Image Auto-Fetch Logic ── */
+/* ── Curated Word Image Dictionary & Auto-Fetch Logic ── */
+const BUILTIN_WORD_IMAGES = {
+  // IT & Tech Terms
+  'phone': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+  'smartphone': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+  'mobile': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+  'telephone': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+  'ទូរស័ព្ទ': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+
+  'source code': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+  'code': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+  'coding': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+  'programming': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+  'developer': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+  'កូដកម្មវិធី': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+
+  'computer': 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80',
+  'laptop': 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80',
+  'pc': 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80',
+  'កុំព្យូទ័រ': 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80',
+
+  'keyboard': 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=800&q=80',
+  'ក្តារចុច': 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=800&q=80',
+  'ក្ដារចុច': 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=800&q=80',
+
+  'mouse': 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80',
+  'computer mouse': 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80',
+  'កណ្ដុរ': 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80',
+  'កណ្តុរ': 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80',
+
+  'printer': 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&w=800&q=80',
+  'ម៉ាស៊ីនបោះពុម្ព': 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&w=800&q=80',
+
+  'internet': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+  'network': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+  'អ៊ីនធឺណិត': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+
+  'database': 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=800&q=80',
+  'server': 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=800&q=80',
+  'ទិន្នន័យ': 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=800&q=80',
+
+  'monitor': 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80',
+  'screen': 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80',
+  'display': 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80',
+  'អេក្រង់': 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80',
+
+  'web browser': 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80',
+  'browser': 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80',
+  'website': 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80',
+  'កម្មវិធីរុករក': 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80',
+
+  'social media': 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80',
+  'social': 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80',
+  'បណ្តាញសង្គម': 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80',
+  'បណ្ដាញសង្គម': 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80',
+
+  'cybersecurity': 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+  'security': 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+  'សន្តិសុខឌីជីថល': 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+
+  // General Classroom Terms
+  'robot': 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
+  'មនុស្សយន្ត': 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
+  'រ៉ូបូត': 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
+
+  'ai': 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
+  'artificial intelligence': 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
+  'បញ្ញាសិប្បនិម្មិត': 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
+
+  'camera': 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80',
+  'កាមេរ៉ា': 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80',
+
+  'headphones': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
+  'កាស': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
+
+  'wifi': 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80',
+  'វ៉ាយហ្វាយ': 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80',
+
+  'book': 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800&q=80',
+  'សៀវភៅ': 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800&q=80',
+
+  'school': 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80',
+  'សាលារៀន': 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80',
+
+  'teacher': 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&q=80',
+  'គ្រូបង្រៀន': 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&q=80',
+
+  'student': 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
+  'សិស្ស': 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
+
+  'car': 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+  'ឡាន': 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+  'រថយន្ត': 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+
+  'airplane': 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80',
+  'យន្តហោះ': 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80',
+
+  'clock': 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80',
+  'watch': 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80',
+  'នាឡិកា': 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80'
+}
+
+function findBuiltinImage(rawWord) {
+  if (!rawWord) return ''
+  const lower = rawWord.toLowerCase()
+  for (const [key, url] of Object.entries(BUILTIN_WORD_IMAGES)) {
+    if (lower.includes(key.toLowerCase())) {
+      return url
+    }
+  }
+  return ''
+}
+
+function sanitizeImageUrl(url) {
+  if (!url) return ''
+  // Strip tracking parameters (?utm_source=...) which Brave Shields and adblockers block
+  if (url.includes('?') && (url.includes('wikimedia.org') || url.includes('wikipedia.org') || url.includes('utm_'))) {
+    return url.split('?')[0]
+  }
+  return url
+}
+
 function extractSearchKeyword(rawWord) {
   if (!rawWord) return { keyword: '', directUrl: '' }
 
@@ -1668,6 +1789,13 @@ async function fetchImageForWord(rawWord) {
     return wordImageCache.value[rawWord]
   }
 
+  // 1. Instant check in Curated Builtin Dictionary (0ms, 100% relevant, perfectly unblocked)
+  const builtin = findBuiltinImage(rawWord)
+  if (builtin) {
+    wordImageCache.value[rawWord] = builtin
+    return builtin
+  }
+
   const { keyword, directUrl } = extractSearchKeyword(rawWord)
   if (directUrl) {
     wordImageCache.value[rawWord] = directUrl
@@ -1675,18 +1803,25 @@ async function fetchImageForWord(rawWord) {
   }
   if (!keyword) return ''
 
-  // 1. Try our Laravel backend API endpoint (Uses User-Agent, avoids CORS/adblocker, caches in DB)
+  const kwBuiltin = findBuiltinImage(keyword)
+  if (kwBuiltin) {
+    wordImageCache.value[rawWord] = kwBuiltin
+    return kwBuiltin
+  }
+
+  // 2. Try our Laravel backend API endpoint (Uses User-Agent, caches in DB, strips UTMs)
   try {
     const res = await axios.get(`/api/lucky-wheel/word-image?word=${encodeURIComponent(rawWord)}`, { timeout: 4500 })
     if (res.data && res.data.success && res.data.url) {
-      wordImageCache.value[rawWord] = res.data.url
-      return res.data.url
+      const cleanUrl = sanitizeImageUrl(res.data.url)
+      wordImageCache.value[rawWord] = cleanUrl
+      return cleanUrl
     }
   } catch (e) {
     // Backend API failed or timed out, fallback to client-side strategies
   }
 
-  // 2. Client-side Wikipedia Generator Search with origin=*
+  // 3. Client-side Wikipedia Generator Search with origin=*
   try {
     const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=3&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json&origin=*`
     const res = await axios.get(wikiUrl, { timeout: 3500 })
@@ -1694,14 +1829,15 @@ async function fetchImageForWord(rawWord) {
       const pages = Object.values(res.data.query.pages)
       for (const p of pages) {
         if (p.thumbnail?.source && !p.thumbnail.source.includes('Disambig') && !p.thumbnail.source.includes('.svg')) {
-          wordImageCache.value[rawWord] = p.thumbnail.source
-          return p.thumbnail.source
+          const cleanUrl = sanitizeImageUrl(p.thumbnail.source)
+          wordImageCache.value[rawWord] = cleanUrl
+          return cleanUrl
         }
       }
     }
   } catch (e) {}
 
-  // 3. Client-side Wikimedia Commons image search with origin=*
+  // 4. Client-side Wikimedia Commons image search with origin=*
   try {
     const commonsUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=3&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json&origin=*`
     const cRes = await axios.get(commonsUrl, { timeout: 3500 })
@@ -1709,14 +1845,15 @@ async function fetchImageForWord(rawWord) {
       const cPages = Object.values(cRes.data.query.pages)
       for (const cp of cPages) {
         if (cp.imageinfo?.[0]?.thumburl) {
-          wordImageCache.value[rawWord] = cp.imageinfo[0].thumburl
-          return cp.imageinfo[0].thumburl
+          const cleanUrl = sanitizeImageUrl(cp.imageinfo[0].thumburl)
+          wordImageCache.value[rawWord] = cleanUrl
+          return cleanUrl
         }
       }
     }
   } catch (e) {}
 
-  // 4. Pollinations AI high-definition photograph fallback
+  // 5. Pollinations AI high-definition photograph fallback
   const cleanPrompt = `${keyword} high quality photo, clear object, clean background`
   const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=640&height=480&nologo=true`
   wordImageCache.value[rawWord] = aiUrl
@@ -1724,15 +1861,14 @@ async function fetchImageForWord(rawWord) {
 }
 
 function handleImageError() {
-  const { keyword } = extractSearchKeyword(currentWord.value)
-  if (keyword) {
-    const unsplashUrl = `https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=640&q=80`
-    if (currentWordImage.value !== unsplashUrl) {
-      currentWordImage.value = unsplashUrl
-      wordImageCache.value[currentWord.value] = unsplashUrl
-      return
-    }
+  // If image fails, attempt builtin dictionary match first
+  const builtin = findBuiltinImage(currentWord.value)
+  if (builtin && currentWordImage.value !== builtin) {
+    currentWordImage.value = builtin
+    wordImageCache.value[currentWord.value] = builtin
+    return
   }
+  // Otherwise gracefully show empty state with 'ទាញម្តងទៀត' button instead of static circuit board
   wordImageError.value = true
 }
 

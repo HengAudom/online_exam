@@ -306,16 +306,123 @@ class LuckyWheelRemoteController extends Controller
             return response()->json(['success' => false, 'message' => 'Word required'], 422);
         }
 
+        $builtinMap = [
+            'phone' => 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+            'smartphone' => 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+            'mobile' => 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+            'telephone' => 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+            'ទូរស័ព្ទ' => 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+
+            'source code' => 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+            'code' => 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+            'programming' => 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+            'coding' => 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+            'developer' => 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+            'កូដកម្មវិធី' => 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+
+            'computer' => 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80',
+            'laptop' => 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80',
+            'pc' => 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80',
+            'កុំព្យូទ័រ' => 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80',
+
+            'keyboard' => 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=800&q=80',
+            'ក្តារចុច' => 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=800&q=80',
+            'ក្ដារចុច' => 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=800&q=80',
+
+            'mouse' => 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80',
+            'computer mouse' => 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80',
+            'កណ្ដុរ' => 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80',
+            'កណ្តុរ' => 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80',
+
+            'printer' => 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&w=800&q=80',
+            'ម៉ាស៊ីនបោះពុម្ព' => 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&w=800&q=80',
+
+            'internet' => 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+            'network' => 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+            'អ៊ីនធឺណិត' => 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+
+            'database' => 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=800&q=80',
+            'server' => 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=800&q=80',
+            'ទិន្នន័យ' => 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=800&q=80',
+
+            'monitor' => 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80',
+            'screen' => 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80',
+            'display' => 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80',
+            'អេក្រង់' => 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80',
+
+            'web browser' => 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80',
+            'browser' => 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80',
+            'website' => 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80',
+            'កម្មវិធីរុករក' => 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80',
+
+            'social media' => 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80',
+            'social' => 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80',
+            'បណ្តាញសង្គម' => 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80',
+            'បណ្ដាញសង្គម' => 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=800&q=80',
+
+            'cybersecurity' => 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+            'security' => 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+            'សន្តិសុខឌីជីថល' => 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+
+            'robot' => 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
+            'មនុស្សយន្ត' => 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
+            'រ៉ូបូត' => 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
+
+            'ai' => 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
+            'artificial intelligence' => 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
+            'បញ្ញាសិប្បនិម្មិត' => 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
+
+            'camera' => 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80',
+            'កាមេរ៉ា' => 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80',
+
+            'headphones' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
+            'កាស' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
+
+            'wifi' => 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80',
+            'វ៉ាយហ្វាយ' => 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80',
+
+            'book' => 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800&q=80',
+            'សៀវភៅ' => 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800&q=80',
+
+            'school' => 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80',
+            'សាលារៀន' => 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=800&q=80',
+
+            'teacher' => 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&q=80',
+            'គ្រូបង្រៀន' => 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&q=80',
+
+            'student' => 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
+            'សិស្ស' => 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=800&q=80',
+
+            'car' => 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+            'ឡាន' => 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+            'រថយន្ត' => 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80',
+
+            'airplane' => 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80',
+            'យន្តហោះ' => 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800&q=80',
+
+            'clock' => 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80',
+            'watch' => 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80',
+            'នាឡិកា' => 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80'
+        ];
+
         // 1. Direct URL check: "Word | https://..."
         if (str_contains($rawWord, '|')) {
             $parts = explode('|', $rawWord, 2);
             $possibleUrl = trim($parts[1]);
             if (filter_var($possibleUrl, FILTER_VALIDATE_URL)) {
-                return response()->json(['success' => true, 'url' => $possibleUrl]);
+                return response()->json(['success' => true, 'url' => $possibleUrl, 'source' => 'direct']);
             }
         }
 
-        // 2. Extract Keyword (check English in parentheses first)
+        // 2. Immediate check in Curated Builtin Dictionary (0ms, 100% relevant, no blocked requests)
+        $lowerRaw = mb_strtolower($rawWord, 'UTF-8');
+        foreach ($builtinMap as $term => $url) {
+            if (str_contains($lowerRaw, $term)) {
+                return response()->json(['success' => true, 'url' => $url, 'source' => 'builtin']);
+            }
+        }
+
+        // 3. Extract Keyword (check English in parentheses first)
         $keyword = '';
         if (preg_match('/[\(\[]([a-zA-Z0-9\s\-]+)[\)\]]/u', $rawWord, $matches)) {
             $keyword = trim($matches[1]);
@@ -330,16 +437,26 @@ class LuckyWheelRemoteController extends Controller
             $keyword = trim($rawWord);
         }
 
-        $cacheKey = 'wheel_img_' . md5(mb_strtolower($keyword, 'UTF-8'));
+        $lowerKw = mb_strtolower($keyword, 'UTF-8');
+        foreach ($builtinMap as $term => $url) {
+            if (str_contains($lowerKw, $term)) {
+                return response()->json(['success' => true, 'url' => $url, 'source' => 'builtin']);
+            }
+        }
+
+        $cacheKey = 'wheel_img_' . md5($lowerKw);
         $cached = $this->dbGet($cacheKey);
         if ($cached && is_string($cached) && filter_var($cached, FILTER_VALIDATE_URL)) {
-            return response()->json(['success' => true, 'url' => $cached, 'cached' => true]);
+            // Filter out old legacy circuit board if accidentally cached
+            if (!str_contains($cached, 'photo-1518770660439')) {
+                return response()->json(['success' => true, 'url' => $cached, 'cached' => true]);
+            }
         }
 
         $imageUrl = null;
         $userAgent = 'OnlineXam-LuckyWheel/1.0 (info@onlinexam.site; contact@onlinexam.site)';
 
-        // Step A: Wikipedia Generator Search (handles variations like "Computer monitor", "QWERTY keyboard", etc.)
+        // Step A: Wikipedia Generator Search
         try {
             $wikiSearchUrl = 'https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($keyword) . '&gsrlimit=5&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json';
             $context = stream_context_create([
@@ -357,7 +474,8 @@ class LuckyWheelRemoteController extends Controller
                     if (!empty($p['thumbnail']['source'])) {
                         $src = $p['thumbnail']['source'];
                         if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
-                            $imageUrl = $src;
+                            // CRITICAL: Strip tracking query parameters (?utm_source=...) so Brave Shields & adblockers do not block the image
+                            $imageUrl = explode('?', $src)[0];
                             break;
                         }
                     }
@@ -382,7 +500,8 @@ class LuckyWheelRemoteController extends Controller
                     $pages = $respData['query']['pages'] ?? [];
                     foreach ($pages as $p) {
                         if (!empty($p['imageinfo'][0]['thumburl'])) {
-                            $imageUrl = $p['imageinfo'][0]['thumburl'];
+                            $thumb = $p['imageinfo'][0]['thumburl'];
+                            $imageUrl = explode('?', $thumb)[0];
                             break;
                         }
                     }
@@ -403,3 +522,4 @@ class LuckyWheelRemoteController extends Controller
         return response()->json(['success' => false, 'message' => 'Image not found'], 404);
     }
 }
+
