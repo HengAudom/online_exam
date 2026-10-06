@@ -347,6 +347,11 @@
             </button>
           </div>
 
+          <!-- Word Thumbnail Preview on Phone -->
+          <div v-if="gameState.currentWordImage" class="secret-img-preview">
+            <img :src="gameState.currentWordImage" alt="Word Image" class="secret-thumb" />
+          </div>
+
           <div class="secret-word-text">
             {{ gameState.currentWord || '...' }}
           </div>
@@ -455,6 +460,7 @@ const errorMessage = ref('')
 const gameState = reactive({
   view: 'SETUP_VIEW',
   currentWord: '',
+  currentWordImage: '',
   currentExplainer: '',
   currentScore: 0,
   wordsPerRound: 5,
@@ -1403,6 +1409,24 @@ onUnmounted(() => {
   font-size: 10px;
   color: #64748b;
   margin: 0;
+}
+
+.secret-img-preview {
+  margin: 8px auto;
+  max-width: 140px;
+  height: 90px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1.5px solid rgba(99, 102, 241, 0.4);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  background: #020617;
+}
+
+.secret-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 /* Two Giant Clicker Buttons */

@@ -226,7 +226,10 @@
               placeholder="ពាក្យ ១ ក្នុង ១ ជួរ..."
             ></textarea>
             <div class="mt-1.5 flex justify-between items-center text-[10px] sm:text-[11px] text-slate-400">
-              <span>* នឹងចៃដន្យពាក្យពេលលេង</span>
+              <span class="flex items-center gap-1 text-emerald-400 font-medium">
+                <span class="material-symbols-outlined text-xs">auto_awesome</span>
+                <span>ទាញយករូបភាពស្វ័យប្រវត្តិ (Auto-fetch image)</span>
+              </span>
               <button
                 type="button"
                 class="text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
@@ -442,7 +445,7 @@
               type="button"
               class="w-full px-4 py-2.5 rounded-2xl bg-slate-800/95 hover:bg-slate-700 border-2 border-slate-700 text-slate-200 hover:text-white font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow cursor-pointer"
               :disabled="isSpinning"
-              @click="triggerSpin"
+              @click="handleRespin"
             >
               <span class="material-symbols-outlined text-amber-400 text-base">replay</span>
               <span>Re-spin (សិស្សអវត្តមាន)</span>
@@ -540,33 +543,97 @@
             </div>
           </div>
 
-          <!-- Secret Word Display with Adaptive Typography -->
-          <div class="py-1 sm:py-3 md:py-4 my-0.5 flex-1 flex flex-col justify-center">
-            <div class="text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-extrabold mb-1.5 sm:mb-2.5 flex items-center justify-center gap-2">
-              <span>ពាក្យសម្ងាត់ត្រូវទាយ (SECRET WORD)</span>
-              <button
-                type="button"
-                class="text-slate-400 hover:text-white transition cursor-pointer"
-                :title="isWordVisible ? 'បិទបាំងពាក្យ (Hide Word) [H]' : 'បង្ហាញពាក្យ (Peek Word) [H]'"
-                @click="isWordVisible = !isWordVisible"
+          <!-- Secret Word & Auto-fetched Image Display -->
+          <div class="py-1 sm:py-2 md:py-3 my-auto flex-1 flex flex-col lg:flex-row items-center justify-center gap-4 sm:gap-6 lg:gap-8 min-h-0 w-full px-2">
+            
+            <!-- ── AUTO-FETCHED IMAGE CARD ── -->
+            <div class="relative shrink-0 flex items-center justify-center">
+              <div
+                class="relative rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-indigo-500/50 shadow-2xl shadow-indigo-950/80 bg-slate-950 flex items-center justify-center transition-all duration-300 group cursor-pointer"
+                :class="[
+                  'w-52 h-36 sm:w-64 sm:h-44 md:w-80 md:h-52 lg:w-96 lg:h-56 xl:w-[440px] xl:h-[260px] 2xl:w-[480px] 2xl:h-[280px]',
+                  isWordVisible ? '' : 'blur-xl select-none brightness-75'
+                ]"
+                @click="isImageExpanded = true"
+                title="ចុចដើម្បីពង្រីករូបភាពធំ (Click to Zoom)"
               >
-                <span class="material-symbols-outlined text-base">{{ isWordVisible ? 'visibility_off' : 'visibility' }}</span>
-              </button>
+                <!-- Loading Shimmer -->
+                <div
+                  v-if="isWordImageLoading && !currentWordImage"
+                  class="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center gap-2 text-indigo-400 animate-pulse z-10"
+                >
+                  <span class="material-symbols-outlined text-3xl sm:text-4xl animate-spin text-emerald-400">sync</span>
+                  <span class="text-xs font-semibold text-slate-300">កំពុងទាញយករូបភាព...</span>
+                </div>
+
+                <!-- Displayed Image -->
+                <img
+                  v-if="currentWordImage && !wordImageError"
+                  :src="currentWordImage"
+                  :alt="currentWord"
+                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  @error="handleImageError"
+                />
+
+                <!-- Fallback if error -->
+                <div
+                  v-else-if="wordImageError || (!isWordImageLoading && !currentWordImage)"
+                  class="w-full h-full bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-4 text-center"
+                >
+                  <span class="material-symbols-outlined text-4xl text-indigo-400 mb-1">image_search</span>
+                  <span class="text-xs text-slate-400">គ្មានរូបភាព</span>
+                  <button
+                    type="button"
+                    class="mt-2 px-3 py-1 rounded-lg bg-indigo-600/80 hover:bg-indigo-500 text-xs text-white font-bold flex items-center gap-1 cursor-pointer transition shadow"
+                    @click.stop="loadCurrentImage(currentWord)"
+                  >
+                    <span class="material-symbols-outlined text-xs">refresh</span>
+                    <span>ទាញម្តងទៀត</span>
+                  </button>
+                </div>
+
+                <!-- Auto-Image Floating Badge -->
+                <div class="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-lg bg-slate-950/85 backdrop-blur-md border border-slate-700/60 text-[10px] font-bold text-slate-200 flex items-center gap-1 shadow-md pointer-events-none">
+                  <span class="material-symbols-outlined text-xs text-emerald-400">auto_awesome</span>
+                  <span>រូបភាពស្វ័យប្រវត្ត (Auto Image)</span>
+                </div>
+
+                <!-- Zoom Tooltip on hover -->
+                <div class="absolute top-2 right-2 w-7 h-7 rounded-lg bg-slate-950/70 border border-slate-700/60 text-slate-300 group-hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow">
+                  <span class="material-symbols-outlined text-sm">zoom_in</span>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <h2
-                class="font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-emerald-300 tracking-wide word-glow px-3 py-1 leading-tight break-words transition-all duration-200"
-                :class="[
-                  isWordVisible ? '' : 'blur-xl select-none',
-                  currentWord.length > 20
-                    ? 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl'
-                    : (currentWord.length > 12 ? 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl' : 'text-5xl sm:text-7xl md:text-8xl lg:text-9xl xl:text-[9.5rem]')
-                ]"
-              >
-                {{ currentWord || 'កុំព្យូទ័រ' }}
-              </h2>
+            <!-- ── SECRET WORD TEXT ── -->
+            <div class="flex-1 flex flex-col justify-center text-center lg:text-left min-w-0 max-w-2xl px-2">
+              <div class="text-xs sm:text-sm uppercase tracking-widest text-slate-400 font-extrabold mb-1.5 sm:mb-2 flex items-center justify-center lg:justify-start gap-2">
+                <span>ពាក្យសម្ងាត់ត្រូវទាយ (SECRET WORD)</span>
+                <button
+                  type="button"
+                  class="text-slate-400 hover:text-white transition cursor-pointer"
+                  :title="isWordVisible ? 'បិទបាំងពាក្យ (Hide Word) [H]' : 'បង្ហាញពាក្យ (Peek Word) [H]'"
+                  @click="isWordVisible = !isWordVisible"
+                >
+                  <span class="material-symbols-outlined text-base">{{ isWordVisible ? 'visibility_off' : 'visibility' }}</span>
+                </button>
+              </div>
+
+              <div>
+                <h2
+                  class="font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-emerald-300 tracking-wide word-glow py-1 leading-tight break-words transition-all duration-200"
+                  :class="[
+                    isWordVisible ? '' : 'blur-xl select-none',
+                    currentWord.length > 20
+                      ? 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl'
+                      : (currentWord.length > 12 ? 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl' : 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl')
+                  ]"
+                >
+                  {{ currentWord || 'កុំព្យូទ័រ' }}
+                </h2>
+              </div>
             </div>
+
           </div>
 
           <!-- Teacher Action Buttons -->
@@ -699,6 +766,12 @@
                     >
                       <span class="material-symbols-outlined text-xs sm:text-sm">{{ item.isCorrect ? 'check' : 'close' }}</span>
                     </span>
+                    <img
+                      v-if="item.image"
+                      :src="item.image"
+                      alt=""
+                      class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg object-cover border border-slate-700/80 shrink-0"
+                    />
                     <span class="font-extrabold text-white text-xs sm:text-sm">{{ item.word }}</span>
                   </div>
 
@@ -886,6 +959,29 @@
       </div>
     </div>
 
+    <!-- ── 6. IMAGE LIGHTBOX ZOOM MODAL ─────────────────────────────── -->
+    <div
+      v-if="isImageExpanded && currentWordImage"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 backdrop-blur-md cursor-pointer animate-fade-in"
+      @click="isImageExpanded = false"
+    >
+      <div class="relative max-w-4xl max-h-[90vh] bg-slate-900 border-2 border-indigo-500/60 rounded-3xl p-3 sm:p-4 shadow-2xl shadow-indigo-950 cursor-default" @click.stop>
+        <button
+          type="button"
+          class="absolute top-5 right-5 w-9 h-9 rounded-full bg-slate-950/80 hover:bg-slate-800 text-white flex items-center justify-center border border-slate-700 cursor-pointer shadow-lg transition z-10"
+          @click="isImageExpanded = false"
+        >
+          <span class="material-symbols-outlined text-xl">close</span>
+        </button>
+        <div class="rounded-2xl overflow-hidden max-h-[76vh] flex items-center justify-center bg-black/50">
+          <img :src="currentWordImage" :alt="currentWord" class="max-w-full max-h-[76vh] object-contain block mx-auto rounded-xl" />
+        </div>
+        <div class="pt-3 pb-1 text-center">
+          <span class="text-white font-black text-lg sm:text-xl">{{ currentWord }}</span>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -956,6 +1052,17 @@ const isLoadingOnlineStudents = ref(false)
 const rawOnlineStudents = ref([])
 const selectedFilterId = ref('')
 const currentLoadedSkillLabel = ref('')
+
+/* ── Word Image Auto-Fetch State ── */
+const wordImageCache = ref({})
+const currentWordImage = ref('')
+const isWordImageLoading = ref(false)
+const wordImageError = ref(false)
+const isImageExpanded = ref(false)
+
+/* ── Fair & No-Repeat Rotation Pools ── */
+const remainingWordsPool = ref([])
+const calledStudentsPool = ref([])
 
 /* ── Mobile Remote Controller State ── */
 function generateRandomPin() {
@@ -1388,14 +1495,29 @@ function triggerSpin() {
   initAudio()
   syncRemoteState()
 
-  // Pick target winner index (avoid immediate duplicate on re-spin if multiple students)
-  let targetIndex = Math.floor(Math.random() * total)
-  if (total > 1 && currentExplainer.value) {
+  // Find students who haven't been called yet for a fair, non-repeating cycle
+  let uncalledIndices = []
+  parsedStudents.value.forEach((student, idx) => {
+    if (!calledStudentsPool.value.includes(student)) {
+      uncalledIndices.push(idx)
+    }
+  })
+
+  // If every student in the class has had a turn, reset the pool to start a fresh cycle
+  if (uncalledIndices.length === 0) {
+    calledStudentsPool.value = []
+    uncalledIndices = parsedStudents.value.map((_, idx) => idx)
+  }
+
+  // Avoid immediate duplicate on re-spin if multiple students available
+  if (uncalledIndices.length > 1 && currentExplainer.value) {
     const prevIdx = parsedStudents.value.findIndex(s => s === currentExplainer.value)
-    if (prevIdx !== -1 && targetIndex === prevIdx) {
-      targetIndex = (targetIndex + 1 + Math.floor(Math.random() * (total - 1))) % total
+    if (prevIdx !== -1) {
+      uncalledIndices = uncalledIndices.filter(idx => idx !== prevIdx)
     }
   }
+
+  const targetIndex = uncalledIndices[Math.floor(Math.random() * uncalledIndices.length)]
   spinTargetWinnerIndex = targetIndex
 
   const arc = (2 * Math.PI) / total
@@ -1459,9 +1581,24 @@ function onSpinComplete(forcedIndex) {
   const winnerName = parsedStudents.value[winnerIndex] || 'សិស្សគ្មានឈ្មោះ'
   currentExplainer.value = winnerName
 
+  // Record student as called so they don't repeat in this round/cycle
+  if (!calledStudentsPool.value.includes(winnerName)) {
+    calledStudentsPool.value.push(winnerName)
+  }
+
   playWinnerFanfare()
   triggerFullScreenCelebration()
   syncRemoteState()
+}
+
+function handleRespin() {
+  if (isSpinning.value) return
+  // If re-spinning because student is absent, remove them from called pool so they can play later
+  if (currentExplainer.value) {
+    calledStudentsPool.value = calledStudentsPool.value.filter(s => s !== currentExplainer.value)
+    currentExplainer.value = ''
+  }
+  triggerSpin()
 }
 
 function handleWheelClick() {
@@ -1491,6 +1628,136 @@ function switchView(viewName) {
   syncRemoteState()
 }
 
+/* ── Word Image Auto-Fetch Logic ── */
+function extractSearchKeyword(rawWord) {
+  if (!rawWord) return { keyword: '', directUrl: '' }
+
+  // 1. If explicit URL provided: "Word | https://..."
+  if (rawWord.includes('|')) {
+    const parts = rawWord.split('|')
+    const possibleUrl = parts[1].trim()
+    if (/^https?:\/\//i.test(possibleUrl)) {
+      return { keyword: parts[0].trim(), directUrl: possibleUrl }
+    }
+  }
+
+  // 2. Extract content inside parentheses: (Computer) or [Computer]
+  const parenMatch = rawWord.match(/\(([^)]+)\)|\[([^\]]+)\]/)
+  if (parenMatch) {
+    const inside = (parenMatch[1] || parenMatch[2] || '').trim()
+    if (inside.length > 0) {
+      return { keyword: inside, directUrl: '' }
+    }
+  }
+
+  // 3. Extract English words if any
+  const englishMatch = rawWord.match(/[a-zA-Z\s]{2,}/)
+  if (englishMatch && englishMatch[0].trim().length > 1) {
+    return { keyword: englishMatch[0].trim(), directUrl: '' }
+  }
+
+  // 4. Fallback to clean Khmer/raw word
+  const clean = rawWord.replace(/[^\p{L}\p{N}\s]/gu, '').trim()
+  return { keyword: clean || rawWord.trim(), directUrl: '' }
+}
+
+async function fetchImageForWord(rawWord) {
+  if (!rawWord) return ''
+  if (wordImageCache.value[rawWord]) {
+    return wordImageCache.value[rawWord]
+  }
+
+  const { keyword, directUrl } = extractSearchKeyword(rawWord)
+  if (directUrl) {
+    wordImageCache.value[rawWord] = directUrl
+    return directUrl
+  }
+  if (!keyword) return ''
+
+  // 1. Try Wikipedia Summary API (High quality, free, fast, encyclopedic photo)
+  try {
+    const cleanTitle = keyword.trim().replace(/\s+/g, '_')
+    const res = await axios.get(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(cleanTitle)}`, { timeout: 3000 })
+    if (res.data) {
+      const src = res.data.thumbnail?.source || res.data.originalimage?.source
+      if (src && !src.includes('.svg') && !src.toLowerCase().includes('disambig')) {
+        wordImageCache.value[rawWord] = src
+        return src
+      }
+    }
+  } catch (e) {
+    // Wikipedia had no direct match, continue to fallback
+  }
+
+  // 2. Pollinations AI (High-definition photograph tailored to the concept)
+  const cleanPrompt = `${keyword} high quality photo, clear object, clean background`
+  const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=640&height=480&nologo=true`
+  wordImageCache.value[rawWord] = aiUrl
+  return aiUrl
+}
+
+function handleImageError() {
+  const { keyword } = extractSearchKeyword(currentWord.value)
+  if (keyword) {
+    const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(keyword + ' realistic photo')}?width=640&height=480&nologo=true`
+    if (currentWordImage.value !== fallbackUrl) {
+      currentWordImage.value = fallbackUrl
+      wordImageCache.value[currentWord.value] = fallbackUrl
+      return
+    }
+  }
+  wordImageError.value = true
+}
+
+async function loadCurrentImage(word) {
+  if (!word) {
+    currentWordImage.value = ''
+    return
+  }
+  wordImageError.value = false
+  if (wordImageCache.value[word]) {
+    currentWordImage.value = wordImageCache.value[word]
+    isWordImageLoading.value = false
+    syncRemoteState()
+    return
+  }
+  isWordImageLoading.value = true
+  try {
+    const img = await fetchImageForWord(word)
+    currentWordImage.value = img
+    syncRemoteState()
+  } catch (e) {
+    wordImageError.value = true
+  } finally {
+    isWordImageLoading.value = false
+  }
+}
+
+function prefetchImages() {
+  parsedWords.value.forEach(w => {
+    if (!wordImageCache.value[w]) {
+      fetchImageForWord(w).catch(() => {})
+    }
+  })
+}
+
+function shuffleArray(arr) {
+  const copy = [...arr]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}
+
+function resetWordsPool() {
+  remainingWordsPool.value = shuffleArray(parsedWords.value)
+}
+
+function resetStudentsPool() {
+  calledStudentsPool.value = []
+}
+
 function startSession() {
   if (parsedStudents.value.length < 2) {
     alert('សូមបញ្ចូលឈ្មោះសិស្សយ៉ាងតិច ២ នាក់ឡើងទៅ!')
@@ -1506,6 +1773,14 @@ function startSession() {
   roundWordsHistory.value = []
   currentExplainer.value = ''
   currentWord.value = ''
+  currentWordImage.value = ''
+
+  // Initialize fresh non-repeating pools
+  resetWordsPool()
+  resetStudentsPool()
+
+  // Prefetch images in background for instant display during gameplay
+  prefetchImages()
 
   switchView('WHEEL_VIEW')
 }
@@ -1515,11 +1790,17 @@ function startGuessingCurrentWord() {
 
   // Keep previous question/word if continuing from time-up or re-spin (រក្សាសំណួរមុនដដែល)
   if (!currentWord.value) {
-    const pool = parsedWords.value
-    const randomWord = pool[Math.floor(Math.random() * pool.length)]
-    currentWord.value = randomWord
+    if (remainingWordsPool.value.length === 0) {
+      resetWordsPool()
+    }
+    // Pull unique word without replacement from shuffled pool
+    const nextWord = remainingWordsPool.value.pop()
+    currentWord.value = nextWord || (parsedWords.value[0] || 'កុំព្យូទ័រ')
   }
   isWordVisible.value = true
+
+  // Load auto-fetched image for this word immediately
+  loadCurrentImage(currentWord.value)
 
   switchView('GUESSING_VIEW')
 }
@@ -1585,6 +1866,7 @@ function handleTeacherDecision(isCorrect) {
 
   roundWordsHistory.value.push({
     word: currentWord.value,
+    image: currentWordImage.value,
     explainer: currentExplainer.value,
     isCorrect: isCorrect
   })
@@ -1598,6 +1880,7 @@ function handleTeacherDecision(isCorrect) {
 
   currentWordIndex.value++
   currentWord.value = '' // Finished this word! Reset so next question picks a new word!
+  currentWordImage.value = ''
 
   if (currentWordIndex.value >= wordsPerRound.value) {
     setTimeout(() => {
@@ -1621,6 +1904,7 @@ function playNextRound() {
   roundWordsHistory.value = []
   currentExplainer.value = ''
   currentWord.value = ''
+  currentWordImage.value = ''
   switchView('WHEEL_VIEW')
 }
 
@@ -1718,7 +2002,13 @@ function handleIncomingRemoteCommand(action, payload) {
   switch (action) {
     case 'SPIN':
       if (currentView.value === 'WHEEL_VIEW') {
-        if (!isSpinning.value) triggerSpin()
+        if (!isSpinning.value) {
+          if (currentExplainer.value) {
+            handleRespin()
+          } else {
+            triggerSpin()
+          }
+        }
       } else if (currentView.value === 'SETUP_VIEW') {
         startSession()
         nextTick(() => {
@@ -1777,6 +2067,7 @@ function syncRemoteState() {
   const state = {
     view: currentView.value,
     currentWord: currentWord.value,
+    currentWordImage: currentWordImage.value,
     currentExplainer: currentExplainer.value,
     currentScore: currentScore.value,
     wordsPerRound: wordsPerRound.value,
