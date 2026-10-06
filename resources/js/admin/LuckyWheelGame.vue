@@ -1632,42 +1632,90 @@ function switchView(viewName) {
 /* ── Curated Word Image Dictionary & Auto-Fetch Logic ── */
 const BUILTIN_WORD_IMAGES = {
   // IT & Tech Terms
-  'phone': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
-  'smartphone': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
-  'mobile': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
-  'telephone': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
-  'ទូរស័ព្ទ': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
-  'ទូរស័ព្ទឆ្លាតវៃ': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+  'phone': '/images/lucky-wheel/phone.jpg',
+  'smartphone': '/images/lucky-wheel/phone.jpg',
+  'mobile': '/images/lucky-wheel/phone.jpg',
+  'telephone': '/images/lucky-wheel/phone.jpg',
+  'ទូរស័ព្ទ': '/images/lucky-wheel/phone.jpg',
+  'ទូរស័ព្ទឆ្លាតវៃ': '/images/lucky-wheel/phone.jpg',
 
-  // Hardware, Peripherals & Media
-  'dvd': 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80',
-  'cd': 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80',
-  'ស៊ីឌី': 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=800&q=80',
-  'hhd': 'https://images.unsplash.com/photo-1531492746076-161ca9bcad58?auto=format&fit=crop&w=800&q=80',
-  'hdd': 'https://images.unsplash.com/photo-1531492746076-161ca9bcad58?auto=format&fit=crop&w=800&q=80',
-  'hard disk': 'https://images.unsplash.com/photo-1531492746076-161ca9bcad58?auto=format&fit=crop&w=800&q=80',
-  'ssd': 'https://images.unsplash.com/photo-1597872200969-2b65d56bd16b?auto=format&fit=crop&w=800&q=80',
-  'ram': 'https://images.unsplash.com/photo-1562975079-6a6c4293f1d1?auto=format&fit=crop&w=800&q=80',
-  'matboard': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
-  'motherboard': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
-  'mainboard': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
-  'cpu': 'https://images.unsplash.com/photo-1555680202-c86f0e12f086?auto=format&fit=crop&w=800&q=80',
-  'processor': 'https://images.unsplash.com/photo-1555680202-c86f0e12f086?auto=format&fit=crop&w=800&q=80',
-  'រន្ធ usb': 'https://images.unsplash.com/photo-1618761714954-0b8cd0026356?auto=format&fit=crop&w=800&q=80',
-  'usb': 'https://images.unsplash.com/photo-1618761714954-0b8cd0026356?auto=format&fit=crop&w=800&q=80',
-  'ខ្សែ type-c': 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
-  'type-c': 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
-  'usb flash drive': 'https://images.unsplash.com/photo-1618761714954-0b8cd0026356?auto=format&fit=crop&w=800&q=80',
-  'flash drive': 'https://images.unsplash.com/photo-1618761714954-0b8cd0026356?auto=format&fit=crop&w=800&q=80',
-  'ups': 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
-  'windows': 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-  'ម៉ាស៊ីនហ្គេម': 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=800&q=80',
-  'ទូរទស្សន៍ឆ្លាតវៃ': 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?auto=format&fit=crop&w=800&q=80',
-  'ថេបប្លេត': 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=800&q=80',
-  'tablet': 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=800&q=80',
-  'ipad': 'https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=800&q=80',
-  'កុំព្យូទ័រលើតុ': 'https://images.unsplash.com/photo-1587831990711-23ca6441447b?auto=format&fit=crop&w=800&q=80',
-  'កុំព្យូទ័រយួរដៃ': 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=800&q=80',
+  // Hardware, Peripherals & Media (Verified high-res local images)
+  'usb flash drive': '/images/lucky-wheel/usb-flash-drive.jpg',
+  'មេម៉ូរី flash drive': '/images/lucky-wheel/usb-flash-drive.jpg',
+  'flash drive': '/images/lucky-wheel/usb-flash-drive.jpg',
+  'usb drive': '/images/lucky-wheel/usb-flash-drive.jpg',
+
+  'ខ្សែ type-c': '/images/lucky-wheel/type-c.jpg',
+  'ខ្សែសាក type-c': '/images/lucky-wheel/type-c.jpg',
+  'type-c': '/images/lucky-wheel/type-c.jpg',
+  'type c': '/images/lucky-wheel/type-c.jpg',
+  'usb-c': '/images/lucky-wheel/type-c.jpg',
+  'usb c': '/images/lucky-wheel/type-c.jpg',
+
+  'រន្ធ usb': '/images/lucky-wheel/usb-port.jpg',
+  'usb port': '/images/lucky-wheel/usb-port.jpg',
+  'usb ports': '/images/lucky-wheel/usb-port.jpg',
+  'usb': '/images/lucky-wheel/usb-flash-drive.jpg',
+
+  'solid state drive': '/images/lucky-wheel/ssd.jpg',
+  'ssd': '/images/lucky-wheel/ssd.jpg',
+
+  'hard disk': '/images/lucky-wheel/hhd.jpg',
+  'hard drive': '/images/lucky-wheel/hhd.jpg',
+  'hhd': '/images/lucky-wheel/hhd.jpg',
+  'hdd': '/images/lucky-wheel/hhd.jpg',
+  'ឌីសរឹង': '/images/lucky-wheel/hhd.jpg',
+  'ហាដឌីស': '/images/lucky-wheel/hhd.jpg',
+
+  'ram': '/images/lucky-wheel/ram.jpg',
+  'រ៉េម': '/images/lucky-wheel/ram.jpg',
+  'រ៉ាម': '/images/lucky-wheel/ram.jpg',
+
+  'compact disc': '/images/lucky-wheel/cd-dvd.jpg',
+  'ស៊ីឌី': '/images/lucky-wheel/cd-dvd.jpg',
+  'cd': '/images/lucky-wheel/cd-dvd.jpg',
+  'dvd': '/images/lucky-wheel/cd-dvd.jpg',
+  'ឌីវីឌី': '/images/lucky-wheel/cd-dvd.jpg',
+
+  'matboard': '/images/lucky-wheel/matboard.jpg',
+  'motherboard': '/images/lucky-wheel/matboard.jpg',
+  'mainboard': '/images/lucky-wheel/matboard.jpg',
+  'ម៉េដបត': '/images/lucky-wheel/matboard.jpg',
+
+  'processor': '/images/lucky-wheel/cpu.jpg',
+  'cpu': '/images/lucky-wheel/cpu.jpg',
+  'ស៊ីភីយូ': '/images/lucky-wheel/cpu.jpg',
+
+  'ups': '/images/lucky-wheel/ups.jpg',
+  'អាគុយជំនួយភ្លើង': '/images/lucky-wheel/ups.jpg',
+
+  'windows': '/images/lucky-wheel/windows.jpg',
+  'វីនដូ': '/images/lucky-wheel/windows.jpg',
+
+  'wi-fi': '/images/lucky-wheel/wifi.jpg',
+  'wifi': '/images/lucky-wheel/wifi.jpg',
+  'វ៉ាយហ្វាយ': '/images/lucky-wheel/wifi.jpg',
+  'router': '/images/lucky-wheel/wifi.jpg',
+
+  'ម៉ាស៊ីនហ្គេម': '/images/lucky-wheel/console.jpg',
+  'game console': '/images/lucky-wheel/console.jpg',
+  'ps5': '/images/lucky-wheel/console.jpg',
+
+  'ទូរទស្សន៍ឆ្លាតវៃ': '/images/lucky-wheel/tv.jpg',
+  'smart tv': '/images/lucky-wheel/tv.jpg',
+
+  'ថេបប្លេត': '/images/lucky-wheel/tablet.jpg',
+  'tablet': '/images/lucky-wheel/tablet.jpg',
+  'ipad': '/images/lucky-wheel/tablet.jpg',
+
+  'កុំព្យូទ័រលើតុ': '/images/lucky-wheel/desktop.jpg',
+  'desktop': '/images/lucky-wheel/desktop.jpg',
+
+  'កុំព្យូទ័រយួរដៃ': '/images/lucky-wheel/laptop.jpg',
+  'laptop': '/images/lucky-wheel/laptop.jpg',
+
+  'camera': '/images/lucky-wheel/camera.jpg',
+  'កាមេរ៉ា': '/images/lucky-wheel/camera.jpg',
 
   'source code': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
   'code': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
@@ -1765,9 +1813,10 @@ const BUILTIN_WORD_IMAGES = {
 function findBuiltinImage(rawWord) {
   if (!rawWord) return ''
   const lower = rawWord.toLowerCase()
-  for (const [key, url] of Object.entries(BUILTIN_WORD_IMAGES)) {
+  const sortedKeys = Object.keys(BUILTIN_WORD_IMAGES).sort((a, b) => b.length - a.length)
+  for (const key of sortedKeys) {
     if (lower.includes(key.toLowerCase())) {
-      return url
+      return BUILTIN_WORD_IMAGES[key]
     }
   }
   return ''
