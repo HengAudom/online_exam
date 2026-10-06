@@ -559,8 +559,8 @@
               >
                 <!-- Loading Shimmer -->
                 <div
-                  v-if="isWordImageLoading && !currentWordImage"
-                  class="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center gap-2 text-indigo-400 animate-pulse z-10"
+                  v-if="isWordImageLoading"
+                  class="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center gap-2 text-indigo-400 z-10"
                 >
                   <span class="material-symbols-outlined text-3xl sm:text-4xl animate-spin text-emerald-400">sync</span>
                   <span class="text-xs font-semibold text-slate-300">កំពុងទាញយករូបភាព...</span>
@@ -572,12 +572,13 @@
                   :src="currentWordImage"
                   :alt="currentWord"
                   class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  @load="isWordImageLoading = false"
                   @error="handleImageError"
                 />
 
                 <!-- Fallback if error -->
                 <div
-                  v-else-if="wordImageError || (!isWordImageLoading && !currentWordImage)"
+                  v-else-if="!isWordImageLoading && (wordImageError || !currentWordImage)"
                   class="w-full h-full bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-4 text-center"
                 >
                   <span class="material-symbols-outlined text-4xl text-indigo-400 mb-1">image_search</span>
@@ -1674,22 +1675,48 @@ async function fetchImageForWord(rawWord) {
   }
   if (!keyword) return ''
 
-  // 1. Try Wikipedia Summary API (High quality, free, fast, encyclopedic photo)
+  // 1. Try our Laravel backend API endpoint (Uses User-Agent, avoids CORS/adblocker, caches in DB)
   try {
-    const cleanTitle = keyword.trim().replace(/\s+/g, '_')
-    const res = await axios.get(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(cleanTitle)}`, { timeout: 3000 })
-    if (res.data) {
-      const src = res.data.thumbnail?.source || res.data.originalimage?.source
-      if (src && !src.includes('.svg') && !src.toLowerCase().includes('disambig')) {
-        wordImageCache.value[rawWord] = src
-        return src
-      }
+    const res = await axios.get(`/api/lucky-wheel/word-image?word=${encodeURIComponent(rawWord)}`, { timeout: 4500 })
+    if (res.data && res.data.success && res.data.url) {
+      wordImageCache.value[rawWord] = res.data.url
+      return res.data.url
     }
   } catch (e) {
-    // Wikipedia had no direct match, continue to fallback
+    // Backend API failed or timed out, fallback to client-side strategies
   }
 
-  // 2. Pollinations AI (High-definition photograph tailored to the concept)
+  // 2. Client-side Wikipedia Generator Search with origin=*
+  try {
+    const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=3&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json&origin=*`
+    const res = await axios.get(wikiUrl, { timeout: 3500 })
+    if (res.data?.query?.pages) {
+      const pages = Object.values(res.data.query.pages)
+      for (const p of pages) {
+        if (p.thumbnail?.source && !p.thumbnail.source.includes('Disambig') && !p.thumbnail.source.includes('.svg')) {
+          wordImageCache.value[rawWord] = p.thumbnail.source
+          return p.thumbnail.source
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 3. Client-side Wikimedia Commons image search with origin=*
+  try {
+    const commonsUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=3&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json&origin=*`
+    const cRes = await axios.get(commonsUrl, { timeout: 3500 })
+    if (cRes.data?.query?.pages) {
+      const cPages = Object.values(cRes.data.query.pages)
+      for (const cp of cPages) {
+        if (cp.imageinfo?.[0]?.thumburl) {
+          wordImageCache.value[rawWord] = cp.imageinfo[0].thumburl
+          return cp.imageinfo[0].thumburl
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 4. Pollinations AI high-definition photograph fallback
   const cleanPrompt = `${keyword} high quality photo, clear object, clean background`
   const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=640&height=480&nologo=true`
   wordImageCache.value[rawWord] = aiUrl
@@ -1699,10 +1726,10 @@ async function fetchImageForWord(rawWord) {
 function handleImageError() {
   const { keyword } = extractSearchKeyword(currentWord.value)
   if (keyword) {
-    const fallbackUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(keyword + ' realistic photo')}?width=640&height=480&nologo=true`
-    if (currentWordImage.value !== fallbackUrl) {
-      currentWordImage.value = fallbackUrl
-      wordImageCache.value[currentWord.value] = fallbackUrl
+    const unsplashUrl = `https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=640&q=80`
+    if (currentWordImage.value !== unsplashUrl) {
+      currentWordImage.value = unsplashUrl
+      wordImageCache.value[currentWord.value] = unsplashUrl
       return
     }
   }
@@ -1733,12 +1760,13 @@ async function loadCurrentImage(word) {
   }
 }
 
-function prefetchImages() {
-  parsedWords.value.forEach(w => {
+async function prefetchImages() {
+  for (const w of parsedWords.value) {
     if (!wordImageCache.value[w]) {
-      fetchImageForWord(w).catch(() => {})
+      await fetchImageForWord(w).catch(() => {})
+      await new Promise(r => setTimeout(r, 200))
     }
-  })
+  }
 }
 
 function shuffleArray(arr) {

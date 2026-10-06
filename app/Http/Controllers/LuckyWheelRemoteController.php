@@ -295,4 +295,111 @@ class LuckyWheelRemoteController extends Controller
             'hostActive' => $hostActive,
         ]);
     }
+
+    /**
+     * Fetch high-quality image URL for a given word using Wikipedia/Commons.
+     */
+    public function fetchWordImage(Request $request)
+    {
+        $rawWord = (string) ($request->input('word') ?: $request->query('word') ?: '');
+        if (!$rawWord) {
+            return response()->json(['success' => false, 'message' => 'Word required'], 422);
+        }
+
+        // 1. Direct URL check: "Word | https://..."
+        if (str_contains($rawWord, '|')) {
+            $parts = explode('|', $rawWord, 2);
+            $possibleUrl = trim($parts[1]);
+            if (filter_var($possibleUrl, FILTER_VALIDATE_URL)) {
+                return response()->json(['success' => true, 'url' => $possibleUrl]);
+            }
+        }
+
+        // 2. Extract Keyword (check English in parentheses first)
+        $keyword = '';
+        if (preg_match('/[\(\[]([a-zA-Z0-9\s\-]+)[\)\]]/u', $rawWord, $matches)) {
+            $keyword = trim($matches[1]);
+        } elseif (preg_match('/[a-zA-Z\s]{2,}/u', $rawWord, $matches)) {
+            $keyword = trim($matches[0]);
+        } else {
+            // Khmer or unicode word
+            $keyword = trim(preg_replace('/[^\p{L}\p{N}\s]/u', '', $rawWord));
+        }
+
+        if (!$keyword) {
+            $keyword = trim($rawWord);
+        }
+
+        $cacheKey = 'wheel_img_' . md5(mb_strtolower($keyword, 'UTF-8'));
+        $cached = $this->dbGet($cacheKey);
+        if ($cached && is_string($cached) && filter_var($cached, FILTER_VALIDATE_URL)) {
+            return response()->json(['success' => true, 'url' => $cached, 'cached' => true]);
+        }
+
+        $imageUrl = null;
+        $userAgent = 'OnlineXam-LuckyWheel/1.0 (info@onlinexam.site; contact@onlinexam.site)';
+
+        // Step A: Wikipedia Generator Search (handles variations like "Computer monitor", "QWERTY keyboard", etc.)
+        try {
+            $wikiSearchUrl = 'https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($keyword) . '&gsrlimit=5&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json';
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'header' => "User-Agent: {$userAgent}\r\n",
+                    'timeout' => 4
+                ]
+            ]);
+            $respJson = @file_get_contents($wikiSearchUrl, false, $context);
+            if ($respJson) {
+                $respData = json_decode($respJson, true);
+                $pages = $respData['query']['pages'] ?? [];
+                foreach ($pages as $p) {
+                    if (!empty($p['thumbnail']['source'])) {
+                        $src = $p['thumbnail']['source'];
+                        if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
+                            $imageUrl = $src;
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {}
+
+        // Step B: Wikimedia Commons search if Wikipedia had no suitable thumbnail
+        if (!$imageUrl) {
+            try {
+                $commonsUrl = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=' . urlencode($keyword) . '&gsrlimit=3&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json';
+                $context = stream_context_create([
+                    'http' => [
+                        'method' => 'GET',
+                        'header' => "User-Agent: {$userAgent}\r\n",
+                        'timeout' => 4
+                    ]
+                ]);
+                $respJson = @file_get_contents($commonsUrl, false, $context);
+                if ($respJson) {
+                    $respData = json_decode($respJson, true);
+                    $pages = $respData['query']['pages'] ?? [];
+                    foreach ($pages as $p) {
+                        if (!empty($p['imageinfo'][0]['thumburl'])) {
+                            $imageUrl = $p['imageinfo'][0]['thumburl'];
+                            break;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        // Step C: Fallback to Pollinations AI
+        if (!$imageUrl) {
+            $imageUrl = "https://image.pollinations.ai/prompt/" . urlencode($keyword . ' clean photo object') . "?width=640&height=480&nologo=true";
+        }
+
+        if ($imageUrl) {
+            $this->dbPut($cacheKey, $imageUrl, 86400 * 30); // Cache for 30 days
+            return response()->json(['success' => true, 'url' => $imageUrl]);
+        }
+
+        return response()->json(['success' => false, 'message' => 'Image not found'], 404);
+    }
 }

@@ -67,6 +67,7 @@ Route::middleware(['auth'])->group(function () {
     Route::match(['get', 'post'], '/api/lucky-wheel/remote/state', [LuckyWheelRemoteController::class, 'getState']);
     Route::match(['get', 'post'], '/api/lucky-wheel/remote/command', [LuckyWheelRemoteController::class, 'sendCommand']);
     Route::match(['get', 'post'], '/api/lucky-wheel/remote/ping', [LuckyWheelRemoteController::class, 'ping']);
+    Route::match(['get', 'post'], '/api/lucky-wheel/word-image', [LuckyWheelRemoteController::class, 'fetchWordImage']);
 
     // Telegram Results & Sync (Protected by Auth Session)
     Route::post('/api/telegram/sync-link', [TelegramBotController::class, 'syncLinkDirect']);
@@ -140,6 +141,7 @@ Route::middleware(['auth', 'admin'])->group(function () {
     Route::match(['get', 'post'], '/api/lucky-wheel/remote/room', [LuckyWheelRemoteController::class, 'createOrGetRoom']);
     Route::match(['get', 'post'], '/api/lucky-wheel/remote/sync', [LuckyWheelRemoteController::class, 'syncState']);
     Route::match(['get', 'post'], '/api/lucky-wheel/remote/poll', [LuckyWheelRemoteController::class, 'poll']);
+    Route::match(['get', 'post'], '/api/lucky-wheel/word-image', [LuckyWheelRemoteController::class, 'fetchWordImage']);
 
     // Telegram Bot Management
     Route::match(['get', 'post'], '/api/telegram/get-chat-id', [TelegramBotController::class, 'getChatId']);
