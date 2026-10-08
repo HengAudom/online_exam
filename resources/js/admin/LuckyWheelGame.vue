@@ -586,7 +586,7 @@
                   <button
                     type="button"
                     class="mt-2 px-3 py-1 rounded-lg bg-indigo-600/80 hover:bg-indigo-500 text-xs text-white font-bold flex items-center gap-1 cursor-pointer transition shadow"
-                    @click.stop="loadCurrentImage(currentWord)"
+                    @click.stop="loadCurrentImage(currentWord, true)"
                   >
                     <span class="material-symbols-outlined text-xs">refresh</span>
                     <span>ទាញម្តងទៀត</span>
@@ -1777,14 +1777,8 @@ const BUILTIN_WORD_IMAGES = {
   'artificial intelligence': 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
   'បញ្ញាសិប្បនិម្មិត': 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
 
-  'camera': 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80',
-  'កាមេរ៉ា': 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80',
-
   'headphones': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
   'កាស': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
-
-  'wifi': 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80',
-  'វ៉ាយហ្វាយ': 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80',
 
   'book': 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800&q=80',
   'សៀវភៅ': 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800&q=80',
@@ -1810,13 +1804,21 @@ const BUILTIN_WORD_IMAGES = {
   'នាឡិកា': 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80'
 }
 
+function getSafeImageUrl(url) {
+  if (!url) return ''
+  if (url.startsWith('/')) return url
+  if (url.includes('images.unsplash.com')) return url
+  // All external domains (Wikimedia, Wikipedia, etc.) routed via same-origin proxy to eliminate COEP/CORB blocks
+  return `/api/lucky-wheel/proxy-image?url=${encodeURIComponent(url)}`
+}
+
 function findBuiltinImage(rawWord) {
   if (!rawWord) return ''
   const lower = rawWord.toLowerCase()
   const sortedKeys = Object.keys(BUILTIN_WORD_IMAGES).sort((a, b) => b.length - a.length)
   for (const key of sortedKeys) {
     if (lower.includes(key.toLowerCase())) {
-      return BUILTIN_WORD_IMAGES[key]
+      return getSafeImageUrl(BUILTIN_WORD_IMAGES[key])
     }
   }
   return ''
@@ -1878,8 +1880,9 @@ async function fetchImageForWord(rawWord) {
 
   const { keyword, directUrl } = extractSearchKeyword(rawWord)
   if (directUrl) {
-    wordImageCache.value[rawWord] = directUrl
-    return directUrl
+    const safeDirect = getSafeImageUrl(directUrl)
+    wordImageCache.value[rawWord] = safeDirect
+    return safeDirect
   }
   if (!keyword) return ''
 
@@ -1889,13 +1892,13 @@ async function fetchImageForWord(rawWord) {
     return kwBuiltin
   }
 
-  // 2. Try our Laravel backend API endpoint (Uses User-Agent, caches in DB, strips UTMs)
+  // 2. Try our Laravel backend API endpoint (Uses User-Agent, caches in DB, proxies external images)
   try {
     const res = await axios.get(`/api/lucky-wheel/word-image?word=${encodeURIComponent(rawWord)}`, { timeout: 4500 })
     if (res.data && res.data.success && res.data.url) {
-      const cleanUrl = sanitizeImageUrl(res.data.url)
-      wordImageCache.value[rawWord] = cleanUrl
-      return cleanUrl
+      const safeUrl = getSafeImageUrl(sanitizeImageUrl(res.data.url))
+      wordImageCache.value[rawWord] = safeUrl
+      return safeUrl
     }
   } catch (e) {
     // Backend API failed or timed out, fallback to client-side strategies
@@ -1912,9 +1915,9 @@ async function fetchImageForWord(rawWord) {
           const kmPages = Object.values(kmRes.data.query.pages)
           for (const p of kmPages) {
             if (p.thumbnail?.source && !p.thumbnail.source.includes('Disambig') && !p.thumbnail.source.includes('.svg')) {
-              const cleanUrl = sanitizeImageUrl(p.thumbnail.source)
-              wordImageCache.value[rawWord] = cleanUrl
-              return cleanUrl
+              const safeUrl = getSafeImageUrl(sanitizeImageUrl(p.thumbnail.source))
+              wordImageCache.value[rawWord] = safeUrl
+              return safeUrl
             }
           }
         }
@@ -1930,15 +1933,15 @@ async function fetchImageForWord(rawWord) {
       const pages = Object.values(res.data.query.pages)
       for (const p of pages) {
         if (p.thumbnail?.source && !p.thumbnail.source.includes('Disambig') && !p.thumbnail.source.includes('.svg')) {
-          const cleanUrl = sanitizeImageUrl(p.thumbnail.source)
-          wordImageCache.value[rawWord] = cleanUrl
-          return cleanUrl
+          const safeUrl = getSafeImageUrl(sanitizeImageUrl(p.thumbnail.source))
+          wordImageCache.value[rawWord] = safeUrl
+          return safeUrl
         }
       }
     }
   } catch (e) {}
 
-  // 4. Client-side Wikimedia Commons image search with origin=*
+  // 5. Client-side Wikimedia Commons image search with origin=*
   try {
     const commonsUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=3&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json&origin=*`
     const cRes = await axios.get(commonsUrl, { timeout: 3500 })
@@ -1946,40 +1949,49 @@ async function fetchImageForWord(rawWord) {
       const cPages = Object.values(cRes.data.query.pages)
       for (const cp of cPages) {
         if (cp.imageinfo?.[0]?.thumburl) {
-          const cleanUrl = sanitizeImageUrl(cp.imageinfo[0].thumburl)
-          wordImageCache.value[rawWord] = cleanUrl
-          return cleanUrl
+          const safeUrl = getSafeImageUrl(sanitizeImageUrl(cp.imageinfo[0].thumburl))
+          wordImageCache.value[rawWord] = safeUrl
+          return safeUrl
         }
       }
     }
   } catch (e) {}
 
-  // 5. Pollinations AI high-definition photograph fallback
+  // 6. Pollinations AI high-definition photograph fallback
   const cleanPrompt = `${keyword} high quality photo, clear object, clean background`
   const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=640&height=480&nologo=true`
-  wordImageCache.value[rawWord] = aiUrl
-  return aiUrl
+  const safeAi = getSafeImageUrl(aiUrl)
+  wordImageCache.value[rawWord] = safeAi
+  return safeAi
 }
 
 function handleImageError() {
-  // If image fails, attempt builtin dictionary match first
+  // If image fails and was NOT proxied yet, immediately route it via our safe proxy!
+  if (currentWordImage.value && !currentWordImage.value.startsWith('/api/lucky-wheel/proxy-image')) {
+    const proxied = `/api/lucky-wheel/proxy-image?url=${encodeURIComponent(currentWordImage.value)}`
+    currentWordImage.value = proxied
+    wordImageCache.value[currentWord.value] = proxied
+    return
+  }
+  // If even proxy failed, attempt builtin match if different
   const builtin = findBuiltinImage(currentWord.value)
   if (builtin && currentWordImage.value !== builtin) {
     currentWordImage.value = builtin
     wordImageCache.value[currentWord.value] = builtin
     return
   }
-  // Otherwise gracefully show empty state with 'ទាញម្តងទៀត' button instead of static circuit board
   wordImageError.value = true
 }
 
-async function loadCurrentImage(word) {
+async function loadCurrentImage(word, forceRefresh = false) {
   if (!word) {
     currentWordImage.value = ''
     return
   }
   wordImageError.value = false
-  if (wordImageCache.value[word]) {
+  if (forceRefresh) {
+    delete wordImageCache.value[word]
+  } else if (wordImageCache.value[word]) {
     currentWordImage.value = wordImageCache.value[word]
     isWordImageLoading.value = false
     syncRemoteState()

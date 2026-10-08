@@ -451,14 +451,8 @@ class LuckyWheelRemoteController extends Controller
             'artificial intelligence' => 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
             'បញ្ញាសិប្បនិម្មិត' => 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80',
 
-            'camera' => 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80',
-            'កាមេរ៉ា' => 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80',
-
             'headphones' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
             'កាស' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
-
-            'wifi' => 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80',
-            'វ៉ាយហ្វាយ' => 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80',
 
             'book' => 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800&q=80',
             'សៀវភៅ' => 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=800&q=80',
@@ -489,7 +483,7 @@ class LuckyWheelRemoteController extends Controller
             $parts = explode('|', $rawWord, 2);
             $possibleUrl = trim($parts[1]);
             if (filter_var($possibleUrl, FILTER_VALIDATE_URL)) {
-                return response()->json(['success' => true, 'url' => $possibleUrl, 'source' => 'direct']);
+                return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($possibleUrl), 'source' => 'direct']);
             }
         }
 
@@ -499,7 +493,7 @@ class LuckyWheelRemoteController extends Controller
         $lowerRaw = mb_strtolower($rawWord, 'UTF-8');
         foreach ($builtinMap as $term => $url) {
             if (str_contains($lowerRaw, $term)) {
-                return response()->json(['success' => true, 'url' => $url, 'source' => 'builtin']);
+                return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
             }
         }
 
@@ -521,7 +515,7 @@ class LuckyWheelRemoteController extends Controller
         $lowerKw = mb_strtolower($keyword, 'UTF-8');
         foreach ($builtinMap as $term => $url) {
             if (str_contains($lowerKw, $term)) {
-                return response()->json(['success' => true, 'url' => $url, 'source' => 'builtin']);
+                return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
             }
         }
 
@@ -530,7 +524,7 @@ class LuckyWheelRemoteController extends Controller
         if ($cached && is_string($cached) && filter_var($cached, FILTER_VALIDATE_URL)) {
             // Filter out old legacy circuit board if accidentally cached
             if (!str_contains($cached, 'photo-1518770660439')) {
-                return response()->json(['success' => true, 'url' => $cached, 'cached' => true]);
+                return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($cached), 'cached' => true]);
             }
         }
 
@@ -630,10 +624,125 @@ class LuckyWheelRemoteController extends Controller
 
         if ($imageUrl) {
             $this->dbPut($cacheKey, $imageUrl, 86400 * 30); // Cache for 30 days
-            return response()->json(['success' => true, 'url' => $imageUrl]);
+            return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($imageUrl)]);
         }
 
         return response()->json(['success' => false, 'message' => 'Image not found'], 404);
+    }
+
+    /**
+     * Format an image URL to be safe from browser COEP/CORB blocks.
+     * Unsplash supports cross-origin natively; other sources (Wikimedia, etc.) are proxied.
+     */
+    protected function formatSafeImageUrl(?string $url): string
+    {
+        if (!$url) {
+            return '';
+        }
+        if (str_starts_with($url, '/') || str_contains($url, 'images.unsplash.com')) {
+            return $url;
+        }
+        return '/api/lucky-wheel/proxy-image?url=' . urlencode($url);
+    }
+
+    /**
+     * Proxy external images to bypass COEP/CORB and adblock restrictions.
+     */
+    public function proxyImage(Request $request)
+    {
+        $url = (string) ($request->query('url') ?: $request->input('url') ?: '');
+        if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) {
+            return response('Invalid URL', 400);
+        }
+
+        $parsed = parse_url($url);
+        $scheme = strtolower($parsed['scheme'] ?? '');
+        $host = strtolower($parsed['host'] ?? '');
+
+        // Security check: Only allow HTTP/HTTPS and disallow private IPs / localhost
+        if (!in_array($scheme, ['http', 'https'], true) || empty($host)) {
+            return response('Invalid scheme or host', 400);
+        }
+        if (in_array($host, ['localhost', '127.0.0.1', '::1', '0.0.0.0'], true) || str_ends_with($host, '.internal') || str_ends_with($host, '.local')) {
+            return response('Access denied', 403);
+        }
+
+        $cacheKey = 'wheel_img_proxy_' . md5($url);
+        $data = Cache::remember($cacheKey, 86400 * 14, function () use ($url) {
+            try {
+                $context = stream_context_create([
+                    'http' => [
+                        'method' => 'GET',
+                        'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\r\nAccept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8\r\nReferer: https://onlinexam.site/\r\n",
+                        'timeout' => 8,
+                        'follow_location' => 1,
+                        'max_redirects' => 5,
+                        'ignore_errors' => true,
+                    ],
+                    'ssl' => [
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                    ]
+                ]);
+
+                $stream = @fopen($url, 'r', false, $context);
+                if (!$stream) {
+                    return null;
+                }
+
+                $meta = stream_get_meta_data($stream);
+                $wrapperHeaders = $meta['wrapper_data'] ?? [];
+                $contentType = 'image/jpeg';
+                $statusOk = true;
+
+                foreach ($wrapperHeaders as $h) {
+                    if (is_string($h)) {
+                        if (preg_match('#^HTTP/\S+\s+(\d+)#i', $h, $m)) {
+                            $code = (int) $m[1];
+                            if ($code >= 400) {
+                                $statusOk = false;
+                            }
+                        } elseif (stripos($h, 'Content-Type:') === 0) {
+                            $contentType = trim(substr($h, 13));
+                        }
+                    }
+                }
+
+                if (!$statusOk) {
+                    @fclose($stream);
+                    return null;
+                }
+
+                $body = stream_get_contents($stream);
+                @fclose($stream);
+
+                if (!$body || strlen($body) < 50) {
+                    return null;
+                }
+
+                return [
+                    'body' => base64_encode($body),
+                    'type' => $contentType,
+                ];
+            } catch (\Throwable $e) {
+                return null;
+            }
+        });
+
+        if (!$data || empty($data['body'])) {
+            return redirect($url);
+        }
+
+        $binary = base64_decode($data['body']);
+        $mime = $data['type'] ?? 'image/jpeg';
+
+        return response($binary, 200, [
+            'Content-Type' => $mime,
+            'Content-Length' => strlen($binary),
+            'Cache-Control' => 'public, max-age=2592000, immutable',
+            'Cross-Origin-Resource-Policy' => 'cross-origin',
+            'Access-Control-Allow-Origin' => '*',
+        ]);
     }
 }
 

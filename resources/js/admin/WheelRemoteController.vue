@@ -349,7 +349,7 @@
 
           <!-- Word Thumbnail Preview on Phone -->
           <div v-if="gameState.currentWordImage" class="secret-img-preview">
-            <img :src="gameState.currentWordImage" alt="Word Image" class="secret-thumb" />
+            <img :src="gameState.currentWordImage" alt="Word Image" class="secret-thumb" @error="$event.target.style.display='none'" />
           </div>
 
           <div class="secret-word-text">
