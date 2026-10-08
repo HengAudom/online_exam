@@ -667,83 +667,66 @@ class LuckyWheelRemoteController extends Controller
             return response('Access denied', 403);
         }
 
-        $cacheKey = 'wheel_img_proxy_' . md5($url);
-        $data = Cache::remember($cacheKey, 86400 * 14, function () use ($url) {
-            try {
-                $context = stream_context_create([
-                    'http' => [
-                        'method' => 'GET',
-                        'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\r\nAccept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8\r\nReferer: https://onlinexam.site/\r\n",
-                        'timeout' => 8,
-                        'follow_location' => 1,
-                        'max_redirects' => 5,
-                        'ignore_errors' => true,
-                    ],
-                    'ssl' => [
-                        'verify_peer' => false,
-                        'verify_peer_name' => false,
-                    ]
-                ]);
+        try {
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'header' => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\r\nAccept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8\r\nReferer: https://onlinexam.site/\r\n",
+                    'timeout' => 8,
+                    'follow_location' => 1,
+                    'max_redirects' => 5,
+                    'ignore_errors' => true,
+                ],
+                'ssl' => [
+                    'verify_peer' => false,
+                    'verify_peer_name' => false,
+                ]
+            ]);
 
-                $stream = @fopen($url, 'r', false, $context);
-                if (!$stream) {
-                    return null;
-                }
+            $stream = @fopen($url, 'r', false, $context);
+            if (!$stream) {
+                return response('Image stream failed', 404);
+            }
 
-                $meta = stream_get_meta_data($stream);
-                $wrapperHeaders = $meta['wrapper_data'] ?? [];
-                $contentType = 'image/jpeg';
-                $statusOk = true;
+            $meta = stream_get_meta_data($stream);
+            $wrapperHeaders = $meta['wrapper_data'] ?? [];
+            $contentType = 'image/jpeg';
+            $statusOk = true;
 
-                foreach ($wrapperHeaders as $h) {
-                    if (is_string($h)) {
-                        if (preg_match('#^HTTP/\S+\s+(\d+)#i', $h, $m)) {
-                            $code = (int) $m[1];
-                            if ($code >= 400) {
-                                $statusOk = false;
-                            }
-                        } elseif (stripos($h, 'Content-Type:') === 0) {
-                            $contentType = trim(substr($h, 13));
+            foreach ($wrapperHeaders as $h) {
+                if (is_string($h)) {
+                    if (preg_match('#^HTTP/\S+\s+(\d+)#i', $h, $m)) {
+                        $code = (int) $m[1];
+                        if ($code >= 400) {
+                            $statusOk = false;
                         }
+                    } elseif (stripos($h, 'Content-Type:') === 0) {
+                        $contentType = trim(substr($h, 13));
                     }
                 }
-
-                if (!$statusOk) {
-                    @fclose($stream);
-                    return null;
-                }
-
-                $body = stream_get_contents($stream);
-                @fclose($stream);
-
-                if (!$body || strlen($body) < 50) {
-                    return null;
-                }
-
-                return [
-                    'body' => base64_encode($body),
-                    'type' => $contentType,
-                ];
-            } catch (\Throwable $e) {
-                return null;
             }
-        });
 
-        if (!$data || empty($data['body'])) {
-            return response('Image not found', 404);
+            if (!$statusOk) {
+                @fclose($stream);
+                return response('Upstream image error', 404);
+            }
+
+            $body = stream_get_contents($stream);
+            @fclose($stream);
+
+            if (!$body || strlen($body) < 50) {
+                return response('Image empty', 404);
+            }
+
+            return response($body, 200, [
+                'Content-Type' => $contentType,
+                'Content-Length' => strlen($body),
+                'Cache-Control' => 'public, max-age=2592000, immutable',
+                'Cross-Origin-Resource-Policy' => 'cross-origin',
+            ]);
+        } catch (\Throwable $e) {
+            return response('Proxy error', 500);
         }
-
-        $binary = base64_decode($data['body']);
-        $mime = $data['type'] ?? 'image/jpeg';
-
-        $headers = [
-            'Content-Type' => $mime,
-            'Content-Length' => strlen($binary),
-            'Cache-Control' => 'public, max-age=2592000, immutable',
-            'Cross-Origin-Resource-Policy' => 'cross-origin',
-        ];
-
-        return response($binary, 200, $headers);
     }
 }
 
