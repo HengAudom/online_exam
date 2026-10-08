@@ -348,13 +348,34 @@
           </div>
 
           <!-- Word Thumbnail Preview on Phone -->
-          <div v-if="gameState.currentWordImage" class="secret-img-preview">
-            <img :src="gameState.currentWordImage" alt="Word Image" class="secret-thumb" @error="$event.target.style.display='none'" />
+          <div v-if="gameState.currentWordImage" class="secret-img-preview-box">
+            <div class="secret-img-preview">
+              <img :src="gameState.currentWordImage" alt="Word Image" class="secret-thumb" @error="$event.target.style.display='none'" />
+            </div>
+            <button
+              type="button"
+              class="btn-switch-img-sm"
+              title="ប្តូររូបភាព (Switch Image)"
+              @click="sendCommand('CYCLE_IMAGE')"
+            >
+              <svg class="svg-icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+              <span>ប្តូររូបភាព</span>
+            </button>
           </div>
 
           <div class="secret-word-text">
             {{ gameState.currentWord || '...' }}
           </div>
+
+          <!-- Educational Clue on Mobile Remote for Teacher -->
+          <div v-if="gameState.currentWordClue" class="secret-clue-badge">
+            <span class="clue-icon">💡</span>
+            <span class="clue-text">{{ gameState.currentWordClue }}</span>
+          </div>
+
           <p class="secret-sub">ពាក្យនេះកំពុងបង្ហាញនៅលើអេក្រង់ធំ</p>
         </div>
 
@@ -1411,22 +1432,77 @@ onUnmounted(() => {
   margin: 0;
 }
 
+.secret-img-preview-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 6px auto;
+}
+
 .secret-img-preview {
-  margin: 8px auto;
-  max-width: 140px;
-  height: 90px;
+  max-width: 150px;
+  height: 95px;
   border-radius: 14px;
   overflow: hidden;
   border: 1.5px solid rgba(99, 102, 241, 0.4);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
   background: #020617;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .secret-thumb {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+}
+
+.btn-switch-img-sm {
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  background: rgba(79, 70, 229, 0.25);
+  color: #c7d2fe;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 3px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-switch-img-sm:active {
+  transform: scale(0.95);
+  background: rgba(79, 70, 229, 0.4);
+}
+
+.secret-clue-badge {
+  margin: 6px auto 8px;
+  padding: 6px 10px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  max-width: 95%;
+}
+
+.clue-icon {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.clue-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #fde68a;
+  line-height: 1.35;
 }
 
 /* Two Giant Clicker Buttons */

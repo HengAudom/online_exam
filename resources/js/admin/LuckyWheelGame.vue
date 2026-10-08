@@ -546,17 +546,25 @@
           <!-- Secret Word & Auto-fetched Image Display -->
           <div class="py-1 sm:py-2 md:py-3 my-auto flex-1 flex flex-col lg:flex-row items-center justify-center gap-4 sm:gap-6 lg:gap-8 min-h-0 w-full px-2">
             
-            <!-- ── AUTO-FETCHED IMAGE CARD ── -->
-            <div class="relative shrink-0 flex items-center justify-center">
+            <!-- ── AUTO-FETCHED IMAGE CARD & EDUCATIONAL CLUE ── -->
+            <div class="relative shrink-0 flex flex-col items-center justify-center max-w-full">
+              <!-- Image Card Container -->
               <div
                 class="relative rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-indigo-500/50 shadow-2xl shadow-indigo-950/80 bg-slate-950 flex items-center justify-center transition-all duration-300 group cursor-pointer"
                 :class="[
-                  'w-52 h-36 sm:w-64 sm:h-44 md:w-80 md:h-52 lg:w-96 lg:h-56 xl:w-[440px] xl:h-[260px] 2xl:w-[480px] 2xl:h-[280px]',
+                  'w-56 h-40 sm:w-72 sm:h-48 md:w-80 md:h-52 lg:w-96 lg:h-56 xl:w-[440px] xl:h-[260px] 2xl:w-[480px] 2xl:h-[280px]',
                   isWordVisible ? '' : 'blur-xl select-none brightness-75'
                 ]"
                 @click="isImageExpanded = true"
                 title="ចុចដើម្បីពង្រីករូបភាពធំ (Click to Zoom)"
               >
+                <!-- Blurred Background Ambient Glow Layer for stunning aspect blend -->
+                <div
+                  v-if="currentWordImage && !wordImageError"
+                  class="absolute inset-0 bg-cover bg-center filter blur-xl opacity-30 scale-110 pointer-events-none transition-all duration-700"
+                  :style="{ backgroundImage: 'url(' + currentWordImage + ')' }"
+                ></div>
+
                 <!-- Loading Shimmer -->
                 <div
                   v-if="isWordImageLoading"
@@ -566,12 +574,12 @@
                   <span class="text-xs font-semibold text-slate-300">កំពុងទាញយករូបភាព...</span>
                 </div>
 
-                <!-- Displayed Image -->
+                <!-- Displayed Image (OBJECT-CONTAIN: full device / connectors visible!) -->
                 <img
                   v-if="currentWordImage && !wordImageError"
                   :src="currentWordImage"
                   :alt="currentWord"
-                  class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  class="w-full h-full object-contain p-2.5 sm:p-3 relative z-0 transition-transform duration-500 group-hover:scale-105"
                   @load="isWordImageLoading = false"
                   @error="handleImageError"
                 />
@@ -579,7 +587,7 @@
                 <!-- Fallback if error -->
                 <div
                   v-else-if="!isWordImageLoading && (wordImageError || !currentWordImage)"
-                  class="w-full h-full bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-4 text-center"
+                  class="w-full h-full bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-4 text-center relative z-0"
                 >
                   <span class="material-symbols-outlined text-4xl text-indigo-400 mb-1">image_search</span>
                   <span class="text-xs text-slate-400">គ្មានរូបភាព</span>
@@ -593,16 +601,55 @@
                   </button>
                 </div>
 
-                <!-- Auto-Image Floating Badge -->
-                <div class="absolute bottom-2 left-2 px-2.5 py-0.5 rounded-lg bg-slate-950/85 backdrop-blur-md border border-slate-700/60 text-[10px] font-bold text-slate-200 flex items-center gap-1 shadow-md pointer-events-none">
-                  <span class="material-symbols-outlined text-xs text-emerald-400">auto_awesome</span>
-                  <span>រូបភាពស្វ័យប្រវត្ត (Auto Image)</span>
+                <!-- Floating Bottom Bar: Visual Badge & Switch Image Button -->
+                <div class="absolute bottom-2 inset-x-2 flex items-center justify-between pointer-events-none z-10 px-1">
+                  <div class="px-2.5 py-0.5 rounded-lg bg-slate-950/85 backdrop-blur-md border border-slate-700/60 text-[10px] font-bold text-slate-200 flex items-center gap-1 shadow-md">
+                    <span class="material-symbols-outlined text-xs text-emerald-400">auto_awesome</span>
+                    <span>រូបភាពជំនួយ (Visual)</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="pointer-events-auto px-2.5 py-1 rounded-lg bg-indigo-600/90 hover:bg-indigo-500 border border-indigo-400/40 text-[10px] sm:text-[11px] font-bold text-white flex items-center gap-1 shadow-lg cursor-pointer transition hover:scale-105 active:scale-95"
+                    @click.stop="cycleNextImage"
+                    title="ប្តូរយករូបភាពមួយទៀត (Switch Image)"
+                  >
+                    <span class="material-symbols-outlined text-xs">sync</span>
+                    <span>ប្តូររូបភាព</span>
+                  </button>
                 </div>
 
                 <!-- Zoom Tooltip on hover -->
-                <div class="absolute top-2 right-2 w-7 h-7 rounded-lg bg-slate-950/70 border border-slate-700/60 text-slate-300 group-hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow">
+                <div class="absolute top-2 right-2 w-7 h-7 rounded-lg bg-slate-950/70 border border-slate-700/60 text-slate-300 group-hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow z-10">
                   <span class="material-symbols-outlined text-sm">zoom_in</span>
                 </div>
+              </div>
+
+              <!-- Dedicated Clue / Explanation Strip Under the Image -->
+              <div
+                v-if="currentWordClue"
+                class="w-full mt-2 sm:mt-2.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-amber-500/15 via-slate-900/90 to-indigo-950/80 border border-amber-500/30 shadow-lg backdrop-blur-md flex items-center justify-between gap-2 transition-all"
+                :class="isClueVisible ? 'opacity-100' : 'opacity-60'"
+              >
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                  <span class="w-6 h-6 rounded-lg bg-amber-500/25 text-amber-300 border border-amber-500/40 flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined text-sm">lightbulb</span>
+                  </span>
+                  <div class="text-[11px] sm:text-xs md:text-sm text-slate-200 leading-snug">
+                    <span class="text-amber-300 font-black">តម្រុយ៖</span>
+                    <span v-if="isClueVisible" class="font-medium text-slate-100 ml-1">{{ currentWordClue }}</span>
+                    <span v-else class="text-slate-400 italic ml-1">បានបិទបាំងតម្រុយ</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  class="shrink-0 p-1 text-slate-400 hover:text-white transition cursor-pointer"
+                  :title="isClueVisible ? 'បិទបាំងតម្រុយ [C]' : 'បង្ហាញតម្រុយ [C]'"
+                  @click="isClueVisible = !isClueVisible"
+                >
+                  <span class="material-symbols-outlined text-base">{{ isClueVisible ? 'visibility_off' : 'visibility' }}</span>
+                </button>
               </div>
             </div>
 
@@ -632,6 +679,16 @@
                 >
                   {{ currentWord || 'កុំព្យូទ័រ' }}
                 </h2>
+              </div>
+
+              <!-- Context Clue Pill below Secret Word -->
+              <div
+                v-if="currentWordClue && isClueVisible"
+                class="mt-2.5 sm:mt-3 px-3.5 py-1.5 rounded-xl bg-slate-900/80 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm font-semibold inline-flex items-center justify-center lg:justify-start gap-2 max-w-xl transition-all"
+                :class="isWordVisible ? '' : 'blur-lg select-none'"
+              >
+                <span class="material-symbols-outlined text-amber-400 text-sm sm:text-base shrink-0">help_outline</span>
+                <span>{{ currentWordClue }}</span>
               </div>
             </div>
 
@@ -663,12 +720,15 @@
             </div>
 
             <!-- Hotkeys Hint -->
-            <div class="mt-3 flex items-center justify-center gap-6 text-xs text-slate-400 font-semibold">
+            <div class="mt-3 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs text-slate-400 font-semibold">
               <span class="flex items-center gap-1.5">
                 <kbd class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-xs">1</kbd> / <kbd class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-xs">Enter</kbd> : <span class="text-emerald-400 font-bold">ត្រូវ</span>
               </span>
               <span class="flex items-center gap-1.5">
                 <kbd class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-xs">2</kbd> / <kbd class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-xs">Space</kbd> : <span class="text-rose-400 font-bold">ខុស</span>
+              </span>
+              <span class="flex items-center gap-1.5">
+                <kbd class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-xs">C</kbd> : <span class="text-amber-300 font-bold">បិទ/បង្ហាញតម្រុយ</span>
               </span>
             </div>
 
@@ -974,11 +1034,14 @@
         >
           <span class="material-symbols-outlined text-xl">close</span>
         </button>
-        <div class="rounded-2xl overflow-hidden max-h-[76vh] flex items-center justify-center bg-black/50">
-          <img :src="currentWordImage" :alt="currentWord" class="max-w-full max-h-[76vh] object-contain block mx-auto rounded-xl" />
+        <div class="rounded-2xl overflow-hidden max-h-[72vh] flex items-center justify-center bg-black/60 p-2">
+          <img :src="currentWordImage" :alt="currentWord" class="max-w-full max-h-[72vh] object-contain block mx-auto rounded-xl" />
         </div>
-        <div class="pt-3 pb-1 text-center">
-          <span class="text-white font-black text-lg sm:text-xl">{{ currentWord }}</span>
+        <div class="pt-3 pb-1 text-center w-full">
+          <span class="text-white font-black text-xl sm:text-2xl">{{ currentWord }}</span>
+          <div v-if="currentWordClue" class="text-xs sm:text-sm text-amber-300 font-semibold mt-1">
+            💡 {{ currentWordClue }}
+          </div>
         </div>
       </div>
     </div>
@@ -1054,12 +1117,17 @@ const rawOnlineStudents = ref([])
 const selectedFilterId = ref('')
 const currentLoadedSkillLabel = ref('')
 
-/* ── Word Image Auto-Fetch State ── */
+/* ── Word Image Auto-Fetch State & Clues ── */
 const wordImageCache = ref({})
 const currentWordImage = ref('')
 const isWordImageLoading = ref(false)
 const wordImageError = ref(false)
 const isImageExpanded = ref(false)
+const isClueVisible = ref(true)
+
+const currentWordClue = computed(() => {
+  return findWordClue(currentWord.value)
+})
 
 /* ── Fair & No-Repeat Rotation Pools ── */
 const remainingWordsPool = ref([])
@@ -1804,6 +1872,133 @@ const BUILTIN_WORD_IMAGES = {
   'នាឡិកា': 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80'
 }
 
+/* ── Educational Khmer Clues & Definitions (ជួយសិស្សយល់ច្បាស់ពីរូបភាព & ពាក្យ) ── */
+const WORD_CLUES = {
+  'ssd': 'ឧបករណ៍ផ្ទុកទិន្នន័យជំនាន់ថ្មីល្បឿនលឿន (Solid State Drive) ដើរលឿនជាង Hard Disk',
+  'solid state drive': 'ឧបករណ៍ផ្ទុកទិន្នន័យជំនាន់ថ្មីល្បឿនលឿន (Solid State Drive) ដើរលឿនជាង Hard Disk',
+  'hhd': 'ឧបករណ៍ផ្ទុកទិន្នន័យចានដែកវិល (Hard Disk Drive) សម្រាប់រក្សាទុកឯកសារធំៗ',
+  'hdd': 'ឧបករណ៍ផ្ទុកទិន្នន័យចានដែកវិល (Hard Disk Drive) សម្រាប់រក្សាទុកឯកសារធំៗ',
+  'hard disk': 'ឧបករណ៍ផ្ទុកទិន្នន័យចានដែកវិល (Hard Disk Drive) សម្រាប់រក្សាទុកឯកសារធំៗ',
+  'hard drive': 'ឧបករណ៍ផ្ទុកទិន្នន័យចានដែកវិល (Hard Disk Drive) សម្រាប់រក្សាទុកឯកសារធំៗ',
+  'ឌីសរឹង': 'ឧបករណ៍ផ្ទុកទិន្នន័យចានដែកវិល (Hard Disk Drive) សម្រាប់រក្សាទុកឯកសារធំៗ',
+  'ហាដឌីស': 'ឧបករណ៍ផ្ទុកទិន្នន័យចានដែកវិល (Hard Disk Drive) សម្រាប់រក្សាទុកឯកសារធំៗ',
+  'ram': 'អង្គចងចាំបណ្តោះអាសន្នរបស់កុំព្យូទ័រ (បើបិទភ្លើងទិន្នន័យនឹងបាត់)',
+  'រ៉េម': 'អង្គចងចាំបណ្តោះអាសន្នរបស់កុំព្យូទ័រ (បើបិទភ្លើងទិន្នន័យនឹងបាត់)',
+  'រ៉ាម': 'អង្គចងចាំបណ្តោះអាសន្នរបស់កុំព្យូទ័រ (បើបិទភ្លើងទិន្នន័យនឹងបាត់)',
+  'cpu': 'ខួរក្បាលកណ្តាលរបស់កុំព្យូទ័រ ទទួលបន្ទុកគិត និងដំណើរការទិន្នន័យ (Processor)',
+  'processor': 'ខួរក្បាលកណ្តាលរបស់កុំព្យូទ័រ ទទួលបន្ទុកគិត និងដំណើរការទិន្នន័យ (Processor)',
+  'ស៊ីភីយូ': 'ខួរក្បាលកណ្តាលរបស់កុំព្យូទ័រ ទទួលបន្ទុកគិត និងដំណើរការទិន្នន័យ (Processor)',
+  'matboard': 'បន្ទះសៀគ្វីមេធំជាងគេ ភ្ជាប់គ្រប់គ្រឿងបន្លាស់កុំព្យូទ័រទាំងអស់ (Motherboard)',
+  'motherboard': 'បន្ទះសៀគ្វីមេធំជាងគេ ភ្ជាប់គ្រប់គ្រឿងបន្លាស់កុំព្យូទ័រទាំងអស់ (Motherboard)',
+  'mainboard': 'បន្ទះសៀគ្វីមេធំជាងគេ ភ្ជាប់គ្រប់គ្រឿងបន្លាស់កុំព្យូទ័រទាំងអស់ (Motherboard)',
+  'ម៉េដបត': 'បន្ទះសៀគ្វីមេធំជាងគេ ភ្ជាប់គ្រប់គ្រឿងបន្លាស់កុំព្យូទ័រទាំងអស់ (Motherboard)',
+  'រន្ធ usb': 'រន្ធដោតតភ្ជាប់ជាសកលសម្រាប់ Flash Drive, Mouse, ក្តារចុច... (USB Port)',
+  'usb port': 'រន្ធដោតតភ្ជាប់ជាសកលសម្រាប់ Flash Drive, Mouse, ក្តារចុច... (USB Port)',
+  'usb': 'រន្ធដោតតភ្ជាប់ ឬឧបករណ៍ផ្ទុកទិន្នន័យចល័ត (Universal Serial Bus)',
+  'usb flash drive': 'ឧបករណ៍ផ្ទុកទិន្នន័យចល័តតូចមួយ ដោតតាមរន្ធ USB យកតាមខ្លួនបាន',
+  'flash drive': 'ឧបករណ៍ផ្ទុកទិន្នន័យចល័តតូចមួយ ដោតតាមរន្ធ USB យកតាមខ្លួនបាន',
+  'ខ្សែ type-c': 'ខ្សែតភ្ជាប់ជំនាន់ថ្មីក្បាលរាងទ្រវែង អាចដោតផ្កាប់ឬផ្ងារបាន និងសាកថ្មលឿន',
+  'type-c': 'ខ្សែតភ្ជាប់ជំនាន់ថ្មីក្បាលរាងទ្រវែង អាចដោតផ្កាប់ឬផ្ងារបាន និងសាកថ្មលឿន',
+  'ខ្សែសាក type-c': 'ខ្សែតភ្ជាប់ជំនាន់ថ្មីក្បាលរាងទ្រវែង អាចដោតផ្កាប់ឬផ្ងារបាន និងសាកថ្មលឿន',
+  'ups': 'ឧបករណ៍រក្សាថាមពលអគ្គិសនីបម្រុង កុំឱ្យកុំព្យូទ័ររលត់ភ្លាមៗពេលដាច់ភ្លើង',
+  'អាគុយជំនួយភ្លើង': 'ឧបករណ៍រក្សាថាមពលអគ្គិសនីបម្រុង កុំឱ្យកុំព្យូទ័ររលត់ភ្លាមៗពេលដាច់ភ្លើង',
+  'wi-fi': 'បច្ចេកវិទ្យាតភ្ជាប់បណ្តាញអ៊ីនធឺណិតឥតខ្សែ (Wireless Network)',
+  'wifi': 'បច្ចេកវិទ្យាតភ្ជាប់បណ្តាញអ៊ីនធឺណិតឥតខ្សែ (Wireless Network)',
+  'វ៉ាយហ្វាយ': 'បច្ចេកវិទ្យាតភ្ជាប់បណ្តាញអ៊ីនធឺណិតឥតខ្សែ (Wireless Network)',
+  'windows': 'ប្រព័ន្ធប្រតិបត្តិការកុំព្យូទ័រពេញនិយមបំផុតរបស់ក្រុមហ៊ុន Microsoft',
+  'វីនដូ': 'ប្រព័ន្ធប្រតិបត្តិការកុំព្យូទ័រពេញនិយមបំផុតរបស់ក្រុមហ៊ុន Microsoft',
+  'ស៊ីឌី': 'បន្ទះថាសមូលស្តើងប្រើពន្លឺឡាស៊ែរអាន/កត់ត្រាទិន្នន័យ (Compact Disc)',
+  'cd': 'បន្ទះថាសមូលស្តើងប្រើពន្លឺឡាស៊ែរអាន/កត់ត្រាទិន្នន័យ (Compact Disc)',
+  'dvd': 'បន្ទះថាសមូលស្តើងផ្ទុកទិន្នន័យ ឬខ្សែភាពយន្តច្បាស់ៗបានច្រើនជាង CD',
+  'ឌីវីឌី': 'បន្ទះថាសមូលស្តើងផ្ទុកទិន្នន័យ ឬខ្សែភាពយន្តច្បាស់ៗបានច្រើនជាង CD',
+  'កុំព្យូទ័រលើតុ': 'កុំព្យូទ័រធំសម្រាប់ប្រើប្រាស់លើតុ ត្រូវការដោតភ្លើងជាប់ជានិច្ច (Desktop PC)',
+  'desktop': 'កុំព្យូទ័រធំសម្រាប់ប្រើប្រាស់លើតុ ត្រូវការដោតភ្លើងជាប់ជានិច្ច (Desktop PC)',
+  'កុំព្យូទ័រយួរដៃ': 'កុំព្យូទ័រខ្នាតតូចមានថ្ម និងអេក្រង់ភ្ជាប់ជាមួយ អាចបត់ដាក់កាតាបបាន (Laptop)',
+  'laptop': 'កុំព្យូទ័រខ្នាតតូចមានថ្ម និងអេក្រង់ភ្ជាប់ជាមួយ អាចបត់ដាក់កាតាបបាន (Laptop)',
+  'ទូរស័ព្ទឆ្លាតវៃ': 'ទូរស័ព្ទដៃទំនើបមាន Touch Screen អាចលេង Facebook, YouTube និងដំឡើង App បាន',
+  'smartphone': 'ទូរស័ព្ទដៃទំនើបមាន Touch Screen អាចលេង Facebook, YouTube និងដំឡើង App បាន',
+  'ទូរស័ព្ទ': 'ឧបករណ៍ទាក់ទងគ្នាពីចម្ងាយ អាចខលផ្ញើសារ និងលេងអ៊ីនធឺណិតបាន',
+  'phone': 'ឧបករណ៍ទាក់ទងគ្នាពីចម្ងាយ អាចខលផ្ញើសារ និងលេងអ៊ីនធឺណិតបាន',
+  'ថេបប្លេត': 'ឧបករណ៍ឆ្លាតវៃអេក្រង់ធំជាងទូរស័ព្ទ ប៉ុន្តែតូចជាង Laptop ប្រើ Touch Screen',
+  'tablet': 'ឧបករណ៍ឆ្លាតវៃអេក្រង់ធំជាងទូរស័ព្ទ ប៉ុន្តែតូចជាង Laptop ប្រើ Touch Screen',
+  'ipad': 'ថេបប្លេតរបស់ក្រុមហ៊ុន Apple មានអេក្រង់ថាច់ស្គ្រីនធំទូលាយ',
+  'កាមេរ៉ា': 'ឧបករណ៍សម្រាប់ថតរូបភាព និងថតវីដេអូទុកជាអនុស្សាវរីយ៍',
+  'camera': 'ឧបករណ៍សម្រាប់ថតរូបភាព និងថតវីដេអូទុកជាអនុស្សាវរីយ៍',
+  'ម៉ាស៊ីនហ្គេម': 'ឧបករណ៍អេឡិចត្រូនិកផលិតឡើងសម្រាប់តភ្ជាប់ទូរទស្សន៍លេងហ្គេម (Game Console)',
+  'game console': 'ឧបករណ៍អេឡិចត្រូនិកផលិតឡើងសម្រាប់តភ្ជាប់ទូរទស្សន៍លេងហ្គេម (Game Console)',
+  'ទូរទស្សន៍ឆ្លាតវៃ': 'ទូរទស្សន៍ដែលអាចភ្ជាប់ Wi-Fi មើល YouTube, Netflix និងប្រើអ៊ីនធឺណិតបាន (Smart TV)',
+  'smart tv': 'ទូរទស្សន៍ដែលអាចភ្ជាប់ Wi-Fi មើល YouTube, Netflix និងប្រើអ៊ីនធឺណិតបាន (Smart TV)',
+  'កុំព្យូទ័រ': 'ម៉ាស៊ីនអេឡិចត្រូនិកគិតលេខ និងដំណើរការទិន្នន័យ (Computer)',
+  'computer': 'ម៉ាស៊ីនអេឡិចត្រូនិកគិតលេខ និងដំណើរការទិន្នន័យ (Computer)',
+  'ក្តារចុច': 'ឧបករណ៍សម្រាប់វាយបញ្ចូលអក្សរ លេខ និងបញ្ជាទៅកាន់កុំព្យូទ័រ (Keyboard)',
+  'ក្ដារចុច': 'ឧបករណ៍សម្រាប់វាយបញ្ចូលអក្សរ លេខ និងបញ្ជាទៅកាន់កុំព្យូទ័រ (Keyboard)',
+  'keyboard': 'ឧបករណ៍សម្រាប់វាយបញ្ចូលអក្សរ លេខ និងបញ្ជាទៅកាន់កុំព្យូទ័រ (Keyboard)',
+  'កណ្ដុរ': 'ឧបករណ៍ចង្អុលបង្ហាញ និងចុច Click បញ្ជាលើអេក្រង់កុំព្យូទ័រ (Mouse)',
+  'កណ្តុរ': 'ឧបករណ៍ចង្អុលបង្ហាញ និងចុច Click បញ្ជាលើអេក្រង់កុំព្យូទ័រ (Mouse)',
+  'mouse': 'ឧបករណ៍ចង្អុលបង្ហាញ និងចុច Click បញ្ជាលើអេក្រង់កុំព្យូទ័រ (Mouse)',
+  'ម៉ាស៊ីនបោះពុម្ព': 'ឧបករណ៍សម្រាប់ព្រីនឯកសារ និងរូបភាពចេញពីកុំព្យូទ័រមកលើក្រដាស (Printer)',
+  'printer': 'ឧបករណ៍សម្រាប់ព្រីនឯកសារ និងរូបភាពចេញពីកុំព្យូទ័រមកលើក្រដាស (Printer)',
+  'អ៊ីនធឺណិត': 'បណ្តាញតភ្ជាប់សកលលោកអនុញ្ញាតឱ្យកុំព្យូទ័រចែករំលែកព័ត៌មានគ្នា',
+  'internet': 'បណ្តាញតភ្ជាប់សកលលោកអនុញ្ញាតឱ្យកុំព្យូទ័រចែករំលែកព័ត៌មានគ្នា',
+  'កូដកម្មវិធី': 'សំណុំបញ្ជាសរសេរដោយអ្នកបង្កើតកម្មវិធីដើម្បីបញ្ជាកុំព្យូទ័រ (Source Code)',
+  'source code': 'សំណុំបញ្ជាសរសេរដោយអ្នកបង្កើតកម្មវិធីដើម្បីបញ្ជាកុំព្យូទ័រ (Source Code)',
+  'ទិន្នន័យ': 'ព័ត៌មានដែលផ្ទុកក្នុងកុំព្យូទ័រ ឬប្រព័ន្ធមូលដ្ឋានទិន្នន័យ (Database)',
+  'database': 'ប្រព័ន្ធរក្សាទុក និងរៀបចំទិន្នន័យយ៉ាងមានសណ្ដាប់ធ្នាប់',
+  'អេក្រង់': 'ផ្ទាំងសម្រាប់បង្ហាញរូបភាព អក្សរ និងវីដេអូឱ្យអ្នកប្រើប្រាស់មើលឃើញ (Monitor)',
+  'monitor': 'ផ្ទាំងសម្រាប់បង្ហាញរូបភាព អក្សរ និងវីដេអូឱ្យអ្នកប្រើប្រាស់មើលឃើញ (Monitor)',
+  'បណ្តាញសង្គម': 'កម្មវិធីសម្រាប់មនុស្សទំនាក់ទំនង ចែករំលែកព័ត៌មាន និងរូបភាព (Social Media)',
+  'បណ្ដាញសង្គម': 'កម្មវិធីសម្រាប់មនុស្សទំនាក់ទំនង ចែករំលែកព័ត៌មាន និងរូបភាព (Social Media)',
+  'social media': 'កម្មវិធីសម្រាប់មនុស្សទំនាក់ទំនង ចែករំលែកព័ត៌មាន និងរូបភាព (Social Media)',
+  'សន្តិសុខឌីជីថល': 'វិធានការការពារកុំព្យូទ័រ បណ្តាញ និងទិន្នន័យពីការលួចចូល (Cybersecurity)',
+  'cybersecurity': 'វិធានការការពារកុំព្យូទ័រ បណ្តាញ និងទិន្នន័យពីការលួចចូល (Cybersecurity)',
+  'មនុស្សយន្ត': 'ម៉ាស៊ីនស្វ័យប្រវត្តិដែលអាចបំពេញការងារជំនួសមនុស្ស (Robot)',
+  'robot': 'ម៉ាស៊ីនស្វ័យប្រវត្តិដែលអាចបំពេញការងារជំនួសមនុស្ស (Robot)',
+  'ai': 'បញ្ញាសិប្បនិម្មិត កុំព្យូទ័រឆ្លាតវៃអាចគិត និងរៀនសូត្រដូចមនុស្ស (Artificial Intelligence)',
+  'កាស': 'ឧបករណ៍ពាក់ត្រចៀកសម្រាប់ស្តាប់សំឡេង ឬតន្ត្រីផ្ទាល់ខ្លួន (Headphones)',
+  'headphones': 'ឧបករណ៍ពាក់ត្រចៀកសម្រាប់ស្តាប់សំឡេង ឬតន្ត្រីផ្ទាល់ខ្លួន (Headphones)',
+  'សៀវភៅ': 'សំណុំទំព័រក្រដាសចងក្រងសម្រាប់អាន និងកត់ត្រាចំណេះដឹង (Book)',
+  'book': 'សំណុំទំព័រក្រដាសចងក្រងសម្រាប់អាន និងកត់ត្រាចំណេះដឹង (Book)',
+  'សាលារៀន': 'កន្លែងផ្តល់ការអប់រំ និងបណ្តុះបណ្តាលដល់សិស្សានុសិស្ស (School)',
+  'school': 'កន្លែងផ្តល់ការអប់រំ និងបណ្តុះបណ្តាលដល់សិស្សានុសិស្ស (School)',
+  'គ្រូបង្រៀន': 'អ្នកផ្ទេរចំណេះដឹង និងណែនាំសិស្សានុសិស្សនៅក្នុងថ្នាក់រៀន (Teacher)',
+  'teacher': 'អ្នកផ្ទេរចំណេះដឹង និងណែនាំសិស្សានុសិស្សនៅក្នុងថ្នាក់រៀន (Teacher)',
+  'សិស្ស': 'អ្នកកំពុងសិក្សា និងក្រេបជញ្ជក់យកចំណេះដឹង (Student)',
+  'student': 'អ្នកកំពុងសិក្សា និងក្រេបជញ្ជក់យកចំណេះដឹង (Student)'
+}
+
+function findWordClue(rawWord) {
+  if (!rawWord) return ''
+  
+  // 1. If user typed custom clue via separator: "Word | តម្រុយ..."
+  if (rawWord.includes('|')) {
+    const parts = rawWord.split('|')
+    const possibleClue = parts[1].trim()
+    if (possibleClue && !/^https?:\/\//i.test(possibleClue)) {
+      return possibleClue
+    }
+  }
+
+  // 2. If parenthesized hint provided: "SSD (ឧបករណ៍ផ្ទុកទិន្នន័យ)"
+  const parenMatch = rawWord.match(/\(([^)]+)\)|\[([^\]]+)\]/)
+  if (parenMatch) {
+    const inside = (parenMatch[1] || parenMatch[2] || '').trim()
+    if (inside.length > 8 && /[\u1780-\u17FF]/.test(inside)) {
+      return inside
+    }
+  }
+
+  // 3. Match against curated WORD_CLUES
+  const lower = rawWord.toLowerCase()
+  const sortedKeys = Object.keys(WORD_CLUES).sort((a, b) => b.length - a.length)
+  for (const key of sortedKeys) {
+    if (lower.includes(key.toLowerCase())) {
+      return WORD_CLUES[key]
+    }
+  }
+
+  return ''
+}
+
 function getSafeImageUrl(url) {
   if (!url) return ''
   if (url.startsWith('/')) return url
@@ -2019,6 +2214,47 @@ async function loadCurrentImage(word, forceRefresh = false) {
     syncRemoteState()
   } catch (e) {
     wordImageError.value = true
+  } finally {
+    isWordImageLoading.value = false
+  }
+}
+
+let cycleImageIndex = 0
+
+async function cycleNextImage() {
+  if (!currentWord.value) return
+  isWordImageLoading.value = true
+  wordImageError.value = false
+  cycleImageIndex++
+
+  const { keyword } = extractSearchKeyword(currentWord.value)
+  const kw = keyword || currentWord.value
+
+  try {
+    const mode = cycleImageIndex % 3
+    let nextUrl = ''
+
+    if (mode === 1) {
+      // Clear 3D product render with full device view
+      const prompt = `${kw} 3d isolated clean product render studio shot full view white background high quality`
+      nextUrl = getSafeImageUrl(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=480&nologo=true&seed=${Math.floor(Math.random() * 9999)}`)
+    } else if (mode === 2) {
+      // In-context real life photo
+      const prompt = `${kw} in real life context high resolution photography natural lighting clear object`
+      nextUrl = getSafeImageUrl(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=480&nologo=true&seed=${Math.floor(Math.random() * 9999)}`)
+    } else {
+      // Reset back to original curated or backend image
+      delete wordImageCache.value[currentWord.value]
+      nextUrl = await fetchImageForWord(currentWord.value)
+    }
+
+    if (nextUrl) {
+      currentWordImage.value = nextUrl
+      wordImageCache.value[currentWord.value] = nextUrl
+      syncRemoteState()
+    }
+  } catch (err) {
+    console.error('Failed to cycle image:', err)
   } finally {
     isWordImageLoading.value = false
   }
@@ -2351,6 +2587,15 @@ function handleIncomingRemoteCommand(action, payload) {
         playNextRound()
       }
       break
+
+    case 'CYCLE_IMAGE':
+      cycleNextImage()
+      break
+
+    case 'TOGGLE_CLUE':
+      isClueVisible.value = !isClueVisible.value
+      syncRemoteState()
+      break
   }
 }
 
@@ -2360,6 +2605,8 @@ function syncRemoteState() {
     view: currentView.value,
     currentWord: currentWord.value,
     currentWordImage: currentWordImage.value,
+    currentWordClue: currentWordClue.value,
+    isClueVisible: isClueVisible.value,
     currentExplainer: currentExplainer.value,
     currentScore: currentScore.value,
     wordsPerRound: wordsPerRound.value,
@@ -2566,6 +2813,10 @@ function onGlobalKeyDown(e) {
     } else if (e.key.toLowerCase() === 'h') {
       e.preventDefault()
       isWordVisible.value = !isWordVisible.value
+    } else if (e.key.toLowerCase() === 'c') {
+      e.preventDefault()
+      isClueVisible.value = !isClueVisible.value
+      syncRemoteState()
     }
   }
 }
