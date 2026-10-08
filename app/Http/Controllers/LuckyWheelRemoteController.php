@@ -306,7 +306,77 @@ class LuckyWheelRemoteController extends Controller
             return response()->json(['success' => false, 'message' => 'Word required'], 422);
         }
 
+        $builtinMultiMap = [
+            'vr headset' => [
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+                'https://images.unsplash.com/photo-1622979135225-d2ba269bc1df?auto=format&fit=crop&w=800&q=80',
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Apple_Vision_Pro_with_Solo_Knit_Band.jpg/960px-Apple_Vision_Pro_with_Solo_Knit_Band.jpg',
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Samsung_Unpacked_2017_Gear_VR.jpg/960px-Samsung_Unpacked_2017_Gear_VR.jpg',
+            ],
+            'vr' => [
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+                'https://images.unsplash.com/photo-1622979135225-d2ba269bc1df?auto=format&fit=crop&w=800&q=80',
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Apple_Vision_Pro_with_Solo_Knit_Band.jpg/960px-Apple_Vision_Pro_with_Solo_Knit_Band.jpg',
+            ],
+            'virtual reality' => [
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+                'https://images.unsplash.com/photo-1622979135225-d2ba269bc1df?auto=format&fit=crop&w=800&q=80',
+            ],
+            'វ៉ែនតា vr' => [
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+                'https://images.unsplash.com/photo-1622979135225-d2ba269bc1df?auto=format&fit=crop&w=800&q=80',
+            ],
+
+            'audio jack' => [
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Audio-TRS-Mini-Plug.jpg/960px-Audio-TRS-Mini-Plug.jpg',
+                'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=800&q=80',
+            ],
+            'audio jack (3.5mm)' => [
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Audio-TRS-Mini-Plug.jpg/960px-Audio-TRS-Mini-Plug.jpg',
+                'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=800&q=80',
+            ],
+            '3.5mm' => [
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Audio-TRS-Mini-Plug.jpg/960px-Audio-TRS-Mini-Plug.jpg',
+            ],
+            'jack' => [
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Audio-TRS-Mini-Plug.jpg/960px-Audio-TRS-Mini-Plug.jpg',
+            ],
+            'ក្បាលដោតកាស' => [
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Audio-TRS-Mini-Plug.jpg/960px-Audio-TRS-Mini-Plug.jpg',
+            ],
+            'រន្ធដោតកាស' => [
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Audio-TRS-Mini-Plug.jpg/960px-Audio-TRS-Mini-Plug.jpg',
+            ],
+
+            'drone' => [
+                'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80',
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/DJI_Phantom_3_Advanced_quadcopter_drone_front_left_view.jpg/960px-DJI_Phantom_3_Advanced_quadcopter_drone_front_left_view.jpg',
+            ],
+            'ដ្រូន' => [
+                'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80',
+                'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/DJI_Phantom_3_Advanced_quadcopter_drone_front_left_view.jpg/960px-DJI_Phantom_3_Advanced_quadcopter_drone_front_left_view.jpg',
+            ],
+        ];
+
         $builtinMap = [
+            'vr headset' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+            'vr' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+            'virtual reality' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+            'វ៉ែនតា vr' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+
+            'audio jack' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+            'audio jack (3.5mm)' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+            '3.5mm' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+            'jack' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+            'ក្បាលដោតកាស' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+            'រន្ធដោតកាស' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+
             'phone' => 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
             'smartphone' => 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
             'mobile' => 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
@@ -584,28 +654,67 @@ class LuckyWheelRemoteController extends Controller
             'តុ' => 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=800&q=80'
         ];
 
+        $cycle = max(0, (int) ($request->input('cycle') ?: $request->query('cycle') ?: 0));
+        $refresh = (bool) ($request->input('refresh') ?: $request->query('refresh') ?: false);
+
         // 1. Direct URL check: "Word | https://..."
         if (str_contains($rawWord, '|')) {
             $parts = explode('|', $rawWord, 2);
             $possibleUrl = trim($parts[1]);
             if (filter_var($possibleUrl, FILTER_VALIDATE_URL)) {
-                return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($possibleUrl), 'source' => 'direct']);
+                $safe = $this->formatSafeImageUrl($possibleUrl);
+                return response()->json([
+                    'success' => true,
+                    'url' => $safe,
+                    'images' => [$safe],
+                    'cycle' => 0,
+                    'total' => 1,
+                    'source' => 'direct'
+                ]);
             }
         }
 
-        // 2. Immediate check in Curated Builtin Dictionary (0ms, 100% relevant, no blocked requests)
-        uksort($builtinMap, fn($a, $b) => mb_strlen($b) <=> mb_strlen($a));
-        $lowerRaw = mb_strtolower($rawWord, 'UTF-8');
-        foreach ($builtinMap as $term => $url) {
-            if (preg_match('/^[a-z0-9\s\-]+$/i', $term)) {
-                if (preg_match('/(?:\b|^)' . preg_quote($term, '/') . '(?:\b|$)/i', $lowerRaw)) {
-                    return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
-                }
-            } else {
-                if (str_contains($lowerRaw, $term)) {
-                    return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
+        // Helper to resolve candidates from builtinMultiMap or builtinMap
+        $findBuiltinCandidates = function (string $text) use ($builtinMultiMap, $builtinMap): ?array {
+            $lower = mb_strtolower($text, 'UTF-8');
+            // Try multi map first (sorted by length descending)
+            uksort($builtinMultiMap, fn($a, $b) => mb_strlen($b) <=> mb_strlen($a));
+            foreach ($builtinMultiMap as $term => $list) {
+                if (preg_match('/^[a-z0-9\s\-]+$/i', $term)) {
+                    if (preg_match('/(?:\b|^)' . preg_quote($term, '/') . '(?:\b|$)/i', $lower)) {
+                        return $list;
+                    }
+                } elseif (str_contains($lower, $term)) {
+                    return $list;
                 }
             }
+            // Try single map next
+            uksort($builtinMap, fn($a, $b) => mb_strlen($b) <=> mb_strlen($a));
+            foreach ($builtinMap as $term => $single) {
+                if (preg_match('/^[a-z0-9\s\-]+$/i', $term)) {
+                    if (preg_match('/(?:\b|^)' . preg_quote($term, '/') . '(?:\b|$)/i', $lower)) {
+                        return [$single];
+                    }
+                } elseif (str_contains($lower, $term)) {
+                    return [$single];
+                }
+            }
+            return null;
+        };
+
+        // 2. Check builtin dictionary on raw word
+        $builtinCands = $findBuiltinCandidates($rawWord);
+        if ($builtinCands && !empty($builtinCands)) {
+            $selected = $builtinCands[$cycle % count($builtinCands)];
+            $safeCandidates = array_values(array_unique(array_map([$this, 'formatSafeImageUrl'], $builtinCands)));
+            return response()->json([
+                'success' => true,
+                'url' => $this->formatSafeImageUrl($selected),
+                'images' => $safeCandidates,
+                'cycle' => $cycle,
+                'total' => count($safeCandidates),
+                'source' => 'builtin'
+            ]);
         }
 
         // Khmer-to-English translation mapping for high-accuracy dictionary lookup
@@ -655,10 +764,21 @@ class LuckyWheelRemoteController extends Controller
             'សៀវភៅ' => 'book',
         ];
 
+        $lowerRaw = mb_strtolower($rawWord, 'UTF-8');
         foreach ($khmerToEng as $km => $en) {
             if (str_contains($lowerRaw, $km)) {
-                if (isset($builtinMap[$en])) {
-                    return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($builtinMap[$en]), 'source' => 'builtin_translated']);
+                $matchedCands = $findBuiltinCandidates($en);
+                if ($matchedCands && !empty($matchedCands)) {
+                    $selected = $matchedCands[$cycle % count($matchedCands)];
+                    $safeCandidates = array_values(array_unique(array_map([$this, 'formatSafeImageUrl'], $matchedCands)));
+                    return response()->json([
+                        'success' => true,
+                        'url' => $this->formatSafeImageUrl($selected),
+                        'images' => $safeCandidates,
+                        'cycle' => $cycle,
+                        'total' => count($safeCandidates),
+                        'source' => 'builtin_translated'
+                    ]);
                 }
             }
         }
@@ -694,39 +814,77 @@ class LuckyWheelRemoteController extends Controller
             $keyword = trim($rawWord);
         }
 
+        $kwCands = $findBuiltinCandidates($keyword);
+        if ($kwCands && !empty($kwCands)) {
+            $selected = $kwCands[$cycle % count($kwCands)];
+            $safeCandidates = array_values(array_unique(array_map([$this, 'formatSafeImageUrl'], $kwCands)));
+            return response()->json([
+                'success' => true,
+                'url' => $this->formatSafeImageUrl($selected),
+                'images' => $safeCandidates,
+                'cycle' => $cycle,
+                'total' => count($safeCandidates),
+                'source' => 'builtin'
+            ]);
+        }
+
         $lowerKw = mb_strtolower($keyword, 'UTF-8');
-        foreach ($builtinMap as $term => $url) {
-            if (preg_match('/^[a-z0-9\s\-]+$/i', $term)) {
-                if (preg_match('/(?:\b|^)' . preg_quote($term, '/') . '(?:\b|$)/i', $lowerKw)) {
-                    return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
-                }
-            } else {
-                if (str_contains($lowerKw, $term)) {
-                    return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
+        $candsCacheKey = 'wheel_cands_' . md5($lowerKw);
+        $cachedList = null;
+
+        if (!$refresh) {
+            $cachedJson = $this->dbGet($candsCacheKey);
+            if ($cachedJson && is_string($cachedJson)) {
+                $decoded = json_decode($cachedJson, true);
+                if (is_array($decoded) && !empty($decoded)) {
+                    // Filter out bad images like Realtek or tanks
+                    $cleanList = array_filter($decoded, function ($u) {
+                        return is_string($u) && filter_var($u, FILTER_VALIDATE_URL)
+                            && !str_contains($u, 'Realtek_ALC882')
+                            && !str_contains($u, 'photo-1518770660439')
+                            && !str_contains($u, 'SBU_Alpha')
+                            && !str_contains($u, 'T-80U');
+                    });
+                    if (!empty($cleanList)) {
+                        $cachedList = array_values($cleanList);
+                    }
                 }
             }
         }
 
-        $cacheKey = 'wheel_img_' . md5($lowerKw);
-        $cached = $this->dbGet($cacheKey);
-        if ($cached && is_string($cached) && filter_var($cached, FILTER_VALIDATE_URL)) {
-            // Filter out old legacy bad images if accidentally cached
-            if (!str_contains($cached, 'photo-1518770660439') && !str_contains($cached, 'SBU_Alpha') && !str_contains($cached, 'T-80U')) {
-                return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($cached), 'cached' => true]);
-            }
+        if ($cachedList && !empty($cachedList)) {
+            $selected = $cachedList[$cycle % count($cachedList)];
+            $safeCandidates = array_values(array_unique(array_map([$this, 'formatSafeImageUrl'], $cachedList)));
+            return response()->json([
+                'success' => true,
+                'url' => $this->formatSafeImageUrl($selected),
+                'images' => $safeCandidates,
+                'cycle' => $cycle,
+                'total' => count($safeCandidates),
+                'cached' => true,
+            ]);
         }
 
-        // Live Internet Search (Tier 1: Wiki Title, Tier 2: Wiki Search, Tier 3: Commons, Tier 4: Openverse)
-        $imageUrl = $this->searchInternetImage($keyword);
+        // Live Internet Multi-Tier Search (Tier 1: Wiki Direct, Tier 2: Wiki Search, Tier 3: Commons, Tier 4: Openverse)
+        $candidates = $this->searchInternetImages($keyword);
 
-        // Fallback: If still not found and keyword differed from raw word, try searching with rawWord
-        if (!$imageUrl && $keyword !== $rawWord) {
-            $imageUrl = $this->searchInternetImage($rawWord);
+        // Fallback: If still empty and keyword differed from raw word, try searching with rawWord
+        if (empty($candidates) && $keyword !== $rawWord) {
+            $candidates = $this->searchInternetImages($rawWord);
         }
 
-        if ($imageUrl) {
-            $this->dbPut($cacheKey, $imageUrl, 86400 * 30); // Cache for 30 days
-            return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($imageUrl), 'source' => 'internet']);
+        if (!empty($candidates)) {
+            $this->dbPut($candsCacheKey, json_encode($candidates), 86400 * 30); // Cache for 30 days
+            $selected = $candidates[$cycle % count($candidates)];
+            $safeCandidates = array_values(array_unique(array_map([$this, 'formatSafeImageUrl'], $candidates)));
+            return response()->json([
+                'success' => true,
+                'url' => $this->formatSafeImageUrl($selected),
+                'images' => $safeCandidates,
+                'cycle' => $cycle,
+                'total' => count($safeCandidates),
+                'source' => 'internet'
+            ]);
         }
 
         return response()->json(['success' => false, 'message' => 'Image not found'], 404);
@@ -776,33 +934,54 @@ class LuckyWheelRemoteController extends Controller
     }
 
     /**
-     * Search the Internet across multiple open APIs (Wikipedia Direct, Wiki Search, Commons, Openverse).
+     * Search the Internet across multiple open APIs and return a list of high-quality image URLs.
      */
-    protected function searchInternetImage(string $keyword): ?string
+    protected function searchInternetImages(string $keyword): array
     {
-        if (!$keyword) return null;
+        if (!$keyword) return [];
 
         $cleanKw = trim(preg_replace('/[^\p{L}\p{N}\s\-]/u', '', $keyword));
         if (!$cleanKw) $cleanKw = trim($keyword);
+        $kwLower = strtolower($cleanKw);
 
-        // Tier 1: English Wikipedia Direct Article Title (fastest & most accurate noun photograph)
-        $url1 = "https://en.wikipedia.org/w/api.php?action=query&titles=" . urlencode(ucwords($cleanKw)) . "&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json";
+        $isAudioJack = str_contains($kwLower, 'jack') || str_contains($kwLower, 'audio') || str_contains($kwLower, '3.5mm');
+        $candidates = [];
+
+        $isValidImage = function (?string $url) use ($isAudioJack): bool {
+            if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) return false;
+            $lower = strtolower($url);
+            if (str_contains($lower, '.svg') || str_contains($lower, 'disambig')) return false;
+            // Filter bad microchips if searching audio jack / connectors
+            if ($isAudioJack) {
+                if (str_contains($lower, 'codec') || str_contains($lower, 'realtek') || str_contains($lower, 'alc882') || str_contains($lower, 'chip')) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        $cleanUrl = function (string $url): string {
+            $noQuery = explode('?', $url)[0];
+            return str_replace('thumb.wikimedia.org', 'upload.wikimedia.org', $noQuery);
+        };
+
+        // Tier 1: English Wikipedia Direct Article Title
+        $url1 = "https://en.wikipedia.org/w/api.php?action=query&titles=" . urlencode(ucwords($cleanKw)) . "&prop=pageimages&pithumbsize=960&piprop=thumbnail&format=json";
         $res1 = $this->httpGet($url1, 3);
         if ($res1) {
             $data1 = json_decode($res1, true);
             foreach ($data1['query']['pages'] ?? [] as $p) {
                 if (!empty($p['thumbnail']['source'])) {
-                    $src = $p['thumbnail']['source'];
-                    if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
-                        $cleanSrc = explode('?', $src)[0];
-                        return str_replace('thumb.wikimedia.org', 'upload.wikimedia.org', $cleanSrc);
+                    $src = $cleanUrl($p['thumbnail']['source']);
+                    if ($isValidImage($src)) {
+                        $candidates[] = $src;
                     }
                 }
             }
         }
 
         // Tier 2: English Wikipedia Generator Search (topic filtered)
-        $url2 = "https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=" . urlencode($cleanKw) . "&gsrlimit=6&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json";
+        $url2 = "https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=" . urlencode($cleanKw) . "&gsrlimit=8&prop=pageimages&pithumbsize=960&piprop=thumbnail&format=json";
         $res2 = $this->httpGet($url2, 3);
         if ($res2) {
             $data2 = json_decode($res2, true);
@@ -819,42 +998,51 @@ class LuckyWheelRemoteController extends Controller
                 if ($isIrrelevant) continue;
 
                 if (!empty($p['thumbnail']['source'])) {
-                    $src = $p['thumbnail']['source'];
-                    if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
-                        $cleanSrc = explode('?', $src)[0];
-                        return str_replace('thumb.wikimedia.org', 'upload.wikimedia.org', $cleanSrc);
+                    $src = $cleanUrl($p['thumbnail']['source']);
+                    if ($isValidImage($src)) {
+                        $candidates[] = $src;
                     }
                 }
             }
         }
 
         // Tier 3: Wikimedia Commons File Search
-        $url3 = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=" . urlencode($cleanKw . ' photo') . "&gsrlimit=4&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json";
+        $url3 = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=" . urlencode($cleanKw . ' photo') . "&gsrlimit=6&prop=imageinfo&iiprop=url&iiurlwidth=960&format=json";
         $res3 = $this->httpGet($url3, 3);
         if ($res3) {
             $data3 = json_decode($res3, true);
             foreach ($data3['query']['pages'] ?? [] as $p) {
                 if (!empty($p['imageinfo'][0]['thumburl'])) {
-                    $thumb = $p['imageinfo'][0]['thumburl'];
-                    $cleanThumb = explode('?', $thumb)[0];
-                    return str_replace('thumb.wikimedia.org', 'upload.wikimedia.org', $cleanThumb);
+                    $thumb = $cleanUrl($p['imageinfo'][0]['thumburl']);
+                    if ($isValidImage($thumb)) {
+                        $candidates[] = $thumb;
+                    }
                 }
             }
         }
 
-        // Tier 4: Openverse Public Creative Commons Search (Flickr / Wikimedia / Open library)
-        $url4 = "https://api.openverse.org/v1/images/?q=" . urlencode($cleanKw) . "&page_size=4";
+        // Tier 4: Openverse Public Creative Commons Search
+        $url4 = "https://api.openverse.org/v1/images/?q=" . urlencode($cleanKw) . "&page_size=6";
         $res4 = $this->httpGet($url4, 3);
         if ($res4) {
             $data4 = json_decode($res4, true);
             foreach ($data4['results'] ?? [] as $item) {
-                if (!empty($item['url']) && filter_var($item['url'], FILTER_VALIDATE_URL)) {
-                    return $item['url'];
+                if (!empty($item['url']) && $isValidImage($item['url'])) {
+                    $candidates[] = $item['url'];
                 }
             }
         }
 
-        return null;
+        return array_values(array_unique($candidates));
+    }
+
+    /**
+     * Backward-compatible helper for single image fetch.
+     */
+    protected function searchInternetImage(string $keyword): ?string
+    {
+        $list = $this->searchInternetImages($keyword);
+        return $list[0] ?? null;
     }
 
     /**

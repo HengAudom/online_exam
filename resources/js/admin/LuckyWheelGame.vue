@@ -1119,6 +1119,7 @@ const currentLoadedSkillLabel = ref('')
 
 /* ── Word Image Auto-Fetch State & Clues ── */
 const wordImageCache = ref({})
+const wordImageCandidates = ref({})
 const currentWordImage = ref('')
 const isWordImageLoading = ref(false)
 const wordImageError = ref(false)
@@ -1699,6 +1700,19 @@ function switchView(viewName) {
 
 /* ── Curated Word Image Dictionary & Auto-Fetch Logic ── */
 const BUILTIN_WORD_IMAGES = {
+  // VR & Audio Connectors
+  'vr headset': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+  'vr': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+  'virtual reality': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+  'វ៉ែនតា vr': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/81/Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg/960px-Sony-PlayStation-4-PSVR-Headset-Mk1-FL.jpg',
+
+  'audio jack': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+  'audio jack (3.5mm)': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+  '3.5mm': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+  'jack': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+  'ក្បាលដោតកាស': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+  'រន្ធដោតកាស': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Phone-connectors-labeled.jpg/960px-Phone-connectors-labeled.jpg',
+
   // IT & Tech Terms
   'phone': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
   'smartphone': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
@@ -1985,6 +1999,18 @@ const BUILTIN_WORD_IMAGES = {
 
 /* ── Educational Khmer Clues & Definitions (ជួយសិស្សយល់ច្បាស់ពីរូបភាព & ពាក្យ) ── */
 const WORD_CLUES = {
+  'audio jack': 'រន្ធដោត ឬក្បាលដោតកាសទំហំ 3.5mm សម្រាប់បញ្ជូនសញ្ញាសំឡេងទៅកាន់កាស ឬធុងបាស (Audio Jack / 3.5mm)',
+  'audio jack (3.5mm)': 'រន្ធដោត ឬក្បាលដោតកាសទំហំ 3.5mm សម្រាប់បញ្ជូនសញ្ញាសំឡេងទៅកាន់កាស ឬធុងបាស (Audio Jack / 3.5mm)',
+  '3.5mm': 'រន្ធដោត ឬក្បាលដោតកាសទំហំ 3.5mm សម្រាប់បញ្ជូនសញ្ញាសំឡេង (Audio Jack / Headphone Jack)',
+  'jack': 'រន្ធដោត ឬក្បាលដោតកាសទំហំ 3.5mm សម្រាប់បញ្ជូនសញ្ញាសំឡេង (Audio Jack)',
+  'ក្បាលដោតកាស': 'ក្បាលដោតកាសទំហំ 3.5mm សម្រាប់បញ្ជូនសញ្ញាសំឡេង (Audio Jack / 3.5mm)',
+  'រន្ធដោតកាស': 'រន្ធដោតកាសទំហំ 3.5mm សម្រាប់ដោតខ្សែបញ្ជូនសំឡេង (Audio Jack / 3.5mm Port)',
+
+  'vr headset': 'វ៉ែនតាឆ្លាតវៃពាក់លើក្បាលដើម្បីមើល និងចូលរួមក្នុងពិភពនិម្មិត 3D ដូចពិតៗ (Virtual Reality Headset)',
+  'vr': 'បច្ចេកវិទ្យាពិភពនិម្មិត 3D មើលតាមរយៈវ៉ែនតាពាក់លើភ្នែក (Virtual Reality)',
+  'virtual reality': 'បច្ចេកវិទ្យាពិភពនិម្មិត 3D មើលតាមរយៈវ៉ែនតាពាក់លើភ្នែក (Virtual Reality)',
+  'វ៉ែនតា vr': 'វ៉ែនតាឆ្លាតវៃពាក់លើក្បាលដើម្បីមើល និងចូលរួមក្នុងពិភពនិម្មិត 3D ដូចពិតៗ (VR Headset)',
+
   'ssd': 'ឧបករណ៍ផ្ទុកទិន្នន័យជំនាន់ថ្មីល្បឿនលឿន (Solid State Drive) ដើរលឿនជាង Hard Disk',
   'solid state drive': 'ឧបករណ៍ផ្ទុកទិន្នន័យជំនាន់ថ្មីល្បឿនលឿន (Solid State Drive) ដើរលឿនជាង Hard Disk',
   'hhd': 'ឧបករណ៍ផ្ទុកទិន្នន័យចានដែកវិល (Hard Disk Drive) សម្រាប់រក្សាទុកឯកសារធំៗ',
@@ -2253,7 +2279,13 @@ function findWordClue(rawWord) {
   const lower = rawWord.toLowerCase()
   const sortedKeys = Object.keys(WORD_CLUES).sort((a, b) => b.length - a.length)
   for (const key of sortedKeys) {
-    if (lower.includes(key.toLowerCase())) {
+    if (/^[a-z0-9\s\-]+$/i.test(key)) {
+      const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const regex = new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i')
+      if (regex.test(lower)) {
+        return WORD_CLUES[key]
+      }
+    } else if (lower.includes(key.toLowerCase())) {
       return WORD_CLUES[key]
     }
   }
@@ -2351,15 +2383,15 @@ function extractSearchKeyword(rawWord) {
   return { keyword: clean || rawWord.trim(), directUrl: '' }
 }
 
-async function fetchImageForWord(rawWord) {
+async function fetchImageForWord(rawWord, cycleIndex = 0) {
   if (!rawWord) return ''
-  if (wordImageCache.value[rawWord]) {
+  if (!cycleIndex && wordImageCache.value[rawWord]) {
     return wordImageCache.value[rawWord]
   }
 
   // 1. Instant check in Curated Builtin Dictionary (0ms, 100% relevant, perfectly unblocked)
   const builtin = findBuiltinImage(rawWord)
-  if (builtin) {
+  if (builtin && !cycleIndex) {
     wordImageCache.value[rawWord] = builtin
     return builtin
   }
@@ -2368,20 +2400,24 @@ async function fetchImageForWord(rawWord) {
   if (directUrl) {
     const safeDirect = getSafeImageUrl(directUrl)
     wordImageCache.value[rawWord] = safeDirect
+    wordImageCandidates.value[rawWord] = [safeDirect]
     return safeDirect
   }
   if (!keyword) return ''
 
   const kwBuiltin = findBuiltinImage(keyword)
-  if (kwBuiltin) {
+  if (kwBuiltin && !cycleIndex) {
     wordImageCache.value[rawWord] = kwBuiltin
     return kwBuiltin
   }
 
-  // 2. Try our Laravel backend API endpoint (Uses User-Agent, caches in DB, proxies external images)
+  // 2. Try our Laravel backend API endpoint (Uses User-Agent, caches candidates in DB, proxies external images)
   try {
-    const res = await axios.get(`/api/lucky-wheel/word-image?word=${encodeURIComponent(rawWord)}`, { timeout: 7000 })
+    const res = await axios.get(`/api/lucky-wheel/word-image?word=${encodeURIComponent(rawWord)}&cycle=${cycleIndex}`, { timeout: 7000 })
     if (res.data && res.data.success && res.data.url) {
+      if (res.data.images && Array.isArray(res.data.images) && res.data.images.length > 0) {
+        wordImageCandidates.value[rawWord] = res.data.images
+      }
       const safeUrl = getSafeImageUrl(sanitizeImageUrl(res.data.url))
       wordImageCache.value[rawWord] = safeUrl
       return safeUrl
@@ -2479,20 +2515,34 @@ async function fetchImageForWord(rawWord) {
 
 function handleImageError() {
   const current = currentWordImage.value || ''
+  const word = currentWord.value
 
   // 1. If currently a raw external URL not yet proxied, try routing via our safe proxy
   if (current && !current.startsWith('/api/lucky-wheel/proxy-image')) {
     const proxied = `/api/lucky-wheel/proxy-image?url=${encodeURIComponent(current)}`
     currentWordImage.value = proxied
-    wordImageCache.value[currentWord.value] = proxied
+    wordImageCache.value[word] = proxied
     return
   }
 
-  // 2. Try builtin dictionary if different from current
-  const builtin = findBuiltinImage(currentWord.value)
+  // 2. If alternative candidates exist for this word, cycle to the next candidate automatically
+  const candidates = wordImageCandidates.value[word] || []
+  if (candidates.length > 1) {
+    const currIdx = candidates.indexOf(current)
+    const nextIdx = (currIdx + 1) % candidates.length
+    const alt = candidates[nextIdx]
+    if (alt && alt !== current) {
+      currentWordImage.value = alt
+      wordImageCache.value[word] = alt
+      return
+    }
+  }
+
+  // 3. Try builtin dictionary if different from current
+  const builtin = findBuiltinImage(word)
   if (builtin && current !== builtin) {
     currentWordImage.value = builtin
-    wordImageCache.value[currentWord.value] = builtin
+    wordImageCache.value[word] = builtin
     return
   }
 
@@ -2507,6 +2557,7 @@ async function loadCurrentImage(word, forceRefresh = false) {
   wordImageError.value = false
   if (forceRefresh) {
     delete wordImageCache.value[word]
+    delete wordImageCandidates.value[word]
   } else if (wordImageCache.value[word]) {
     currentWordImage.value = wordImageCache.value[word]
     isWordImageLoading.value = false
@@ -2515,7 +2566,7 @@ async function loadCurrentImage(word, forceRefresh = false) {
   }
   isWordImageLoading.value = true
   try {
-    const img = await fetchImageForWord(word)
+    const img = await fetchImageForWord(word, 0)
     currentWordImage.value = img
     syncRemoteState()
   } catch (e) {
@@ -2529,41 +2580,60 @@ let cycleImageIndex = 0
 
 async function cycleNextImage() {
   if (!currentWord.value) return
+  const word = currentWord.value
   isWordImageLoading.value = true
   wordImageError.value = false
   cycleImageIndex++
 
-  const { keyword } = extractSearchKeyword(currentWord.value)
-  const kw = keyword || currentWord.value
+  // 1. If we already have multiple candidates loaded, cycle locally with ZERO delay!
+  const candidates = wordImageCandidates.value[word] || []
+  if (candidates.length > 1) {
+    const nextUrl = candidates[cycleImageIndex % candidates.length]
+    currentWordImage.value = nextUrl
+    wordImageCache.value[word] = nextUrl
+    isWordImageLoading.value = false
+    syncRemoteState()
+    return
+  }
 
+  // 2. Request next image from Laravel backend via live internet search cycle
   try {
-    const mode = cycleImageIndex % 3
-    let nextUrl = ''
-
-    if (mode === 1) {
-      // Clear 3D product render with full device view
-      const prompt = `${kw} 3d isolated clean product render studio shot full view white background high quality`
-      nextUrl = getSafeImageUrl(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=480&nologo=true&seed=${Math.floor(Math.random() * 9999)}`)
-    } else if (mode === 2) {
-      // In-context real life photo
-      const prompt = `${kw} in real life context high resolution photography natural lighting clear object`
-      nextUrl = getSafeImageUrl(`https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=640&height=480&nologo=true&seed=${Math.floor(Math.random() * 9999)}`)
-    } else {
-      // Reset back to original curated or backend image
-      delete wordImageCache.value[currentWord.value]
-      nextUrl = await fetchImageForWord(currentWord.value)
-    }
-
-    if (nextUrl) {
-      currentWordImage.value = nextUrl
-      wordImageCache.value[currentWord.value] = nextUrl
+    const res = await axios.get(`/api/lucky-wheel/word-image?word=${encodeURIComponent(word)}&cycle=${cycleImageIndex}&refresh=1`, { timeout: 6000 })
+    if (res.data?.success && res.data.url) {
+      if (res.data.images && Array.isArray(res.data.images) && res.data.images.length > 0) {
+        wordImageCandidates.value[word] = res.data.images
+      }
+      const safeUrl = getSafeImageUrl(sanitizeImageUrl(res.data.url))
+      currentWordImage.value = safeUrl
+      wordImageCache.value[word] = safeUrl
       syncRemoteState()
+      return
     }
   } catch (err) {
-    console.error('Failed to cycle image:', err)
-  } finally {
-    isWordImageLoading.value = false
+    console.warn('Backend cycle failed, trying client fallback:', err)
   }
+
+  // 3. Fallback: Client-side Wikimedia Commons search with offset
+  try {
+    const { keyword } = extractSearchKeyword(word)
+    const kw = keyword || word
+    const commonsUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(kw + ' photo')}&gsroffset=${cycleImageIndex}&gsrlimit=3&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json&origin=*`
+    const cRes = await axios.get(commonsUrl, { timeout: 3500 })
+    const pages = Object.values(cRes.data?.query?.pages || {})
+    for (const p of pages) {
+      if (p.imageinfo?.[0]?.thumburl) {
+        const safeUrl = getSafeImageUrl(sanitizeImageUrl(p.imageinfo[0].thumburl))
+        if (safeUrl !== currentWordImage.value) {
+          currentWordImage.value = safeUrl
+          wordImageCache.value[word] = safeUrl
+          syncRemoteState()
+          return
+        }
+      }
+    }
+  } catch (err) {}
+
+  isWordImageLoading.value = false
 }
 
 async function prefetchImages() {
