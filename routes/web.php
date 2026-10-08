@@ -18,13 +18,7 @@ Route::get('/api/public-settings', [AdminController::class, 'publicSettings']);
 // ─── Lucky Wheel Game & Remote Control Endpoints (Room PIN Protected, Public) ─
 Route::prefix('api/lucky-wheel')->group(function () {
     Route::match(['get', 'post'], '/word-image', [LuckyWheelRemoteController::class, 'fetchWordImage']);
-    Route::match(['get', 'head'], '/proxy-image', [LuckyWheelRemoteController::class, 'proxyImage'])
-        ->withoutMiddleware([
-            \Illuminate\Session\Middleware\StartSession::class,
-            \Illuminate\View\Middleware\ShareErrorsFromSession::class,
-            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
-            \Illuminate\Cookie\Middleware\EncryptCookies::class,
-        ]);
+    Route::match(['get', 'head'], '/proxy-image', [LuckyWheelRemoteController::class, 'proxyImage']);
     Route::match(['get', 'post'], '/remote/room', [LuckyWheelRemoteController::class, 'createOrGetRoom']);
     Route::match(['get', 'post'], '/remote/sync', [LuckyWheelRemoteController::class, 'syncState']);
     Route::match(['get', 'post'], '/remote/poll', [LuckyWheelRemoteController::class, 'poll']);
