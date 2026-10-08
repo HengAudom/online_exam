@@ -475,7 +475,113 @@ class LuckyWheelRemoteController extends Controller
 
             'clock' => 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80',
             'watch' => 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80',
-            'នាឡិកា' => 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80'
+            'នាឡិកា' => 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80',
+
+            // Expanded Everyday Classroom & Modern Objects
+            'drone' => 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80',
+            'uav' => 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80',
+            'ដ្រូន' => 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80',
+
+            'microphone' => 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&q=80',
+            'mic' => 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&q=80',
+            'មីក្រូហ្វូន' => 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&q=80',
+            'មេក្រូ' => 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&q=80',
+
+            'speaker' => 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80',
+            'speakers' => 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80',
+            'បំពងសំឡេង' => 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80',
+            'ធុងបាស' => 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80',
+
+            'electric fan' => 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
+            'fan' => 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
+            'កង្ហារ' => 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
+
+            'air conditioner' => 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=800&q=80',
+            'ac' => 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=800&q=80',
+            'ម៉ាស៊ីនត្រជាក់' => 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=800&q=80',
+
+            'refrigerator' => 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=800&q=80',
+            'fridge' => 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=800&q=80',
+            'ទូទឹកកក' => 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=800&q=80',
+
+            'washing machine' => 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=800&q=80',
+            'ម៉ាស៊ីនបោកខោអាវ' => 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=800&q=80',
+            'ម៉ាស៊ីនបោកគក់' => 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=800&q=80',
+
+            'smartwatch' => 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80',
+            'smart watch' => 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80',
+            'នាឡិកាឆ្លាតវៃ' => 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80',
+
+            'bicycle' => 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80',
+            'bike' => 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80',
+            'កង់' => 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80',
+
+            'motorcycle' => 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+            'motorbike' => 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+            'ម៉ូតូ' => 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+
+            'helicopter' => 'https://images.unsplash.com/photo-1519074069444-1ba4e339b611?auto=format&fit=crop&w=800&q=80',
+            'ឧទ្ធម្ភាគចក្រ' => 'https://images.unsplash.com/photo-1519074069444-1ba4e339b611?auto=format&fit=crop&w=800&q=80',
+
+            'train' => 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=800&q=80',
+            'រថភ្លើង' => 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=800&q=80',
+
+            'bus' => 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80',
+            'ឡានក្រុង' => 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80',
+            'រថយន្តក្រុង' => 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80',
+
+            'telescope' => 'https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&w=800&q=80',
+            'កែវយឹត' => 'https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&w=800&q=80',
+
+            'satellite' => 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+            'ផ្កាយរណប' => 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+
+            'solar panel' => 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
+            'ផ្ទាំងសូឡា' => 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
+
+            'battery' => 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=800&q=80',
+            'ថ្ម' => 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=800&q=80',
+            'អាគុយ' => 'https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?auto=format&fit=crop&w=800&q=80',
+
+            'calculator' => 'https://images.unsplash.com/photo-1587145820266-a5951ee6f620?auto=format&fit=crop&w=800&q=80',
+            'ម៉ាស៊ីនគិតលេខ' => 'https://images.unsplash.com/photo-1587145820266-a5951ee6f620?auto=format&fit=crop&w=800&q=80',
+
+            'projector' => 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=800&q=80',
+            'ម៉ាស៊ីនបញ្ចាំង' => 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=800&q=80',
+
+            'scanner' => 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&w=800&q=80',
+            'ម៉ាស៊ីនស្កេន' => 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&w=800&q=80',
+
+            'apple' => 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=800&q=80',
+            'ផ្លែប៉ោម' => 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=800&q=80',
+
+            'banana' => 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=800&q=80',
+            'ផ្លែចេក' => 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=800&q=80',
+
+            'dog' => 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80',
+            'ឆ្កែ' => 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80',
+
+            'cat' => 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80',
+            'ឆ្មា' => 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80',
+
+            'tiger' => 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?auto=format&fit=crop&w=800&q=80',
+            'ខ្លា' => 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?auto=format&fit=crop&w=800&q=80',
+
+            'elephant' => 'https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?auto=format&fit=crop&w=800&q=80',
+            'ដំរី' => 'https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?auto=format&fit=crop&w=800&q=80',
+
+            'pen' => 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=800&q=80',
+            'ប៊ិច' => 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=800&q=80',
+
+            'pencil' => 'https://images.unsplash.com/photo-1585336261026-70e285a7bb91?auto=format&fit=crop&w=800&q=80',
+            'ខ្មៅដៃ' => 'https://images.unsplash.com/photo-1585336261026-70e285a7bb91?auto=format&fit=crop&w=800&q=80',
+
+            'chair' => 'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=800&q=80',
+            'កៅអី' => 'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=800&q=80',
+
+            'desk' => 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=800&q=80',
+            'table' => 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=800&q=80',
+            'តុ' => 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=800&q=80'
         ];
 
         // 1. Direct URL check: "Word | https://..."
@@ -488,12 +594,66 @@ class LuckyWheelRemoteController extends Controller
         }
 
         // 2. Immediate check in Curated Builtin Dictionary (0ms, 100% relevant, no blocked requests)
-        // Sort keys by descending length so "usb flash drive" matches before "usb", "ខ្សែ type-c" matches before "type-c"
         uksort($builtinMap, fn($a, $b) => mb_strlen($b) <=> mb_strlen($a));
         $lowerRaw = mb_strtolower($rawWord, 'UTF-8');
         foreach ($builtinMap as $term => $url) {
             if (str_contains($lowerRaw, $term)) {
                 return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
+            }
+        }
+
+        // Khmer-to-English translation mapping for high-accuracy dictionary lookup
+        $khmerToEng = [
+            'ដ្រូន' => 'drone',
+            'កង្ហារ' => 'electric fan',
+            'ម៉ាស៊ីនត្រជាក់' => 'air conditioner',
+            'ទូទឹកកក' => 'refrigerator',
+            'ម៉ាស៊ីនបោកខោអាវ' => 'washing machine',
+            'ម៉ាស៊ីនបោកគក់' => 'washing machine',
+            'ម៉ាស៊ីនគិតលេខ' => 'calculator',
+            'មីក្រូហ្វូន' => 'microphone',
+            'មេក្រូ' => 'microphone',
+            'បំពងសំឡេង' => 'loudspeaker',
+            'ធុងបាស' => 'speaker',
+            'ម៉ាស៊ីនបញ្ចាំង' => 'projector',
+            'ម៉ាស៊ីនស្កេន' => 'scanner',
+            'នាឡិកាឆ្លាតវៃ' => 'smartwatch',
+            'កង់' => 'bicycle',
+            'ម៉ូតូ' => 'motorcycle',
+            'ឡាន' => 'car',
+            'រថយន្ត' => 'car',
+            'ឡានក្រុង' => 'bus',
+            'រថយន្តក្រុង' => 'bus',
+            'យន្តហោះ' => 'airplane',
+            'ឧទ្ធម្ភាគចក្រ' => 'helicopter',
+            'រថភ្លើង' => 'train',
+            'ទូក' => 'boat',
+            'កប៉ាល់' => 'ship',
+            'កែវយឹត' => 'telescope',
+            'ផ្កាយរណប' => 'satellite',
+            'ផ្ទាំងសូឡា' => 'solar panel',
+            'ថ្ម' => 'battery',
+            'អាគុយ' => 'battery',
+            'ផ្លែប៉ោម' => 'apple fruit',
+            'ផ្លែចេក' => 'banana fruit',
+            'ផ្លែក្រូច' => 'orange fruit',
+            'ឆ្កែ' => 'dog',
+            'ឆ្មា' => 'cat',
+            'ខ្លា' => 'tiger',
+            'ដំរី' => 'elephant',
+            'សេះ' => 'horse',
+            'ប៊ិច' => 'pen',
+            'ខ្មៅដៃ' => 'pencil',
+            'តុ' => 'desk',
+            'កៅអី' => 'chair',
+            'សៀវភៅ' => 'book',
+        ];
+
+        foreach ($khmerToEng as $km => $en) {
+            if (str_contains($lowerRaw, $km)) {
+                if (isset($builtinMap[$en])) {
+                    return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($builtinMap[$en]), 'source' => 'builtin_translated']);
+                }
             }
         }
 
@@ -504,8 +664,17 @@ class LuckyWheelRemoteController extends Controller
         } elseif (preg_match('/[a-zA-Z\s]{2,}/u', $rawWord, $matches)) {
             $keyword = trim($matches[0]);
         } else {
-            // Khmer or unicode word
-            $keyword = trim(preg_replace('/[^\p{L}\p{N}\s]/u', '', $rawWord));
+            // Check if Khmer matches translation mapping
+            $cleanKm = trim(preg_replace('/[^\p{L}\p{N}\s]/u', '', $rawWord));
+            foreach ($khmerToEng as $km => $en) {
+                if (str_contains($cleanKm, $km)) {
+                    $keyword = $en;
+                    break;
+                }
+            }
+            if (!$keyword) {
+                $keyword = $cleanKm;
+            }
         }
 
         if (!$keyword) {
@@ -522,8 +691,8 @@ class LuckyWheelRemoteController extends Controller
         $cacheKey = 'wheel_img_' . md5($lowerKw);
         $cached = $this->dbGet($cacheKey);
         if ($cached && is_string($cached) && filter_var($cached, FILTER_VALIDATE_URL)) {
-            // Filter out old legacy circuit board if accidentally cached
-            if (!str_contains($cached, 'photo-1518770660439')) {
+            // Filter out old legacy bad images if accidentally cached
+            if (!str_contains($cached, 'photo-1518770660439') && !str_contains($cached, 'SBU_Alpha') && !str_contains($cached, 'T-80U')) {
                 return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($cached), 'cached' => true]);
             }
         }
@@ -531,41 +700,10 @@ class LuckyWheelRemoteController extends Controller
         $imageUrl = null;
         $userAgent = 'OnlineXam-LuckyWheel/1.0 (info@onlinexam.site; contact@onlinexam.site)';
 
-        // Step A0: If Khmer characters present, search Khmer Wikipedia (km.wikipedia.org)
-        if (preg_match('/[\x{1780}-\x{17FF}]/u', $rawWord)) {
-            $khmerSearchTerm = trim(preg_replace('/[^\x{1780}-\x{17FF}\s]/u', '', $rawWord));
-            if ($khmerSearchTerm) {
-                try {
-                    $kmWikiUrl = 'https://km.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($khmerSearchTerm) . '&gsrlimit=4&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json';
-                    $context = stream_context_create([
-                        'http' => [
-                            'method' => 'GET',
-                            'header' => "User-Agent: {$userAgent}\r\n",
-                            'timeout' => 3
-                        ]
-                    ]);
-                    $kmJson = @file_get_contents($kmWikiUrl, false, $context);
-                    if ($kmJson) {
-                        $kmData = json_decode($kmJson, true);
-                        $pages = $kmData['query']['pages'] ?? [];
-                        foreach ($pages as $p) {
-                            if (!empty($p['thumbnail']['source'])) {
-                                $src = $p['thumbnail']['source'];
-                                if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
-                                    $imageUrl = explode('?', $src)[0];
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                } catch (\Throwable $e) {}
-            }
-        }
-
-        // Step A: English Wikipedia Generator Search (handles English keywords and loanwords)
-        if (!$imageUrl && $keyword) {
+        // Step A: English Wikipedia Search (with article topic filter)
+        if ($keyword) {
             try {
-                $wikiSearchUrl = 'https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($keyword) . '&gsrlimit=5&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json';
+                $wikiSearchUrl = 'https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($keyword) . '&gsrlimit=6&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json';
                 $context = stream_context_create([
                     'http' => [
                         'method' => 'GET',
@@ -577,12 +715,23 @@ class LuckyWheelRemoteController extends Controller
                 if ($respJson) {
                     $respData = json_decode($respJson, true);
                     $pages = $respData['query']['pages'] ?? [];
+                    $badKeywords = ['warfare', 'military', 'conflict', 'battle', 'army', 'music', 'album', 'song', 'film', 'disambiguation', 'district', 'county'];
                     foreach ($pages as $p) {
+                        $pTitle = strtolower($p['title'] ?? '');
+                        $isIrrelevant = false;
+                        foreach ($badKeywords as $bad) {
+                            if (str_contains($pTitle, $bad)) {
+                                $isIrrelevant = true;
+                                break;
+                            }
+                        }
+                        if ($isIrrelevant) continue;
+
                         if (!empty($p['thumbnail']['source'])) {
                             $src = $p['thumbnail']['source'];
                             if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
-                                // CRITICAL: Strip tracking query parameters (?utm_source=...) so Brave Shields & adblockers do not block the image
-                                $imageUrl = explode('?', $src)[0];
+                                $cleanSrc = explode('?', $src)[0];
+                                $imageUrl = str_replace('thumb.wikimedia.org', 'upload.wikimedia.org', $cleanSrc);
                                 break;
                             }
                         }
@@ -591,10 +740,10 @@ class LuckyWheelRemoteController extends Controller
             } catch (\Throwable $e) {}
         }
 
-        // Step B: Wikimedia Commons search if Wikipedia had no suitable thumbnail
-        if (!$imageUrl) {
+        // Step B: Wikimedia Commons image search (File namespace = 6)
+        if (!$imageUrl && $keyword) {
             try {
-                $commonsUrl = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=' . urlencode($keyword) . '&gsrlimit=3&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json';
+                $commonsUrl = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=' . urlencode($keyword) . '&gsrlimit=4&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json';
                 $context = stream_context_create([
                     'http' => [
                         'method' => 'GET',
@@ -609,7 +758,8 @@ class LuckyWheelRemoteController extends Controller
                     foreach ($pages as $p) {
                         if (!empty($p['imageinfo'][0]['thumburl'])) {
                             $thumb = $p['imageinfo'][0]['thumburl'];
-                            $imageUrl = explode('?', $thumb)[0];
+                            $cleanThumb = explode('?', $thumb)[0];
+                            $imageUrl = str_replace('thumb.wikimedia.org', 'upload.wikimedia.org', $cleanThumb);
                             break;
                         }
                     }
@@ -617,9 +767,9 @@ class LuckyWheelRemoteController extends Controller
             } catch (\Throwable $e) {}
         }
 
-        // Step C: Fallback to Pollinations AI
+        // Step C: Reliable High-Resolution AI Product Photograph via Pollinations AI
         if (!$imageUrl) {
-            $imageUrl = "https://image.pollinations.ai/prompt/" . urlencode($keyword . ' clean photo object') . "?width=640&height=480&nologo=true";
+            $imageUrl = "https://image.pollinations.ai/prompt/" . urlencode($keyword . ' high quality realistic photo clear object isolated') . "?width=640&height=480&nologo=true";
         }
 
         if ($imageUrl) {

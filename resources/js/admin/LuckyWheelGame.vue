@@ -624,33 +624,6 @@
                   <span class="material-symbols-outlined text-sm">zoom_in</span>
                 </div>
               </div>
-
-              <!-- Dedicated Clue / Explanation Strip Under the Image -->
-              <div
-                v-if="currentWordClue"
-                class="w-full mt-2 sm:mt-2.5 px-3 py-2 rounded-2xl bg-gradient-to-r from-amber-500/15 via-slate-900/90 to-indigo-950/80 border border-amber-500/30 shadow-lg backdrop-blur-md flex items-center justify-between gap-2 transition-all"
-                :class="isClueVisible ? 'opacity-100' : 'opacity-60'"
-              >
-                <div class="flex items-center gap-2 min-w-0 flex-1">
-                  <span class="w-6 h-6 rounded-lg bg-amber-500/25 text-amber-300 border border-amber-500/40 flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-sm">lightbulb</span>
-                  </span>
-                  <div class="text-[11px] sm:text-xs md:text-sm text-slate-200 leading-snug">
-                    <span class="text-amber-300 font-black">តម្រុយ៖</span>
-                    <span v-if="isClueVisible" class="font-medium text-slate-100 ml-1">{{ currentWordClue }}</span>
-                    <span v-else class="text-slate-400 italic ml-1">បានបិទបាំងតម្រុយ</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  class="shrink-0 p-1 text-slate-400 hover:text-white transition cursor-pointer"
-                  :title="isClueVisible ? 'បិទបាំងតម្រុយ [C]' : 'បង្ហាញតម្រុយ [C]'"
-                  @click="isClueVisible = !isClueVisible"
-                >
-                  <span class="material-symbols-outlined text-base">{{ isClueVisible ? 'visibility_off' : 'visibility' }}</span>
-                </button>
-              </div>
             </div>
 
             <!-- ── SECRET WORD TEXT ── -->
@@ -681,14 +654,41 @@
                 </h2>
               </div>
 
-              <!-- Context Clue Pill below Secret Word -->
+              <!-- ── EDUCATIONAL HINT / CLUE CARD (Beneath Secret Word) ── -->
               <div
-                v-if="currentWordClue && isClueVisible"
-                class="mt-2.5 sm:mt-3 px-3.5 py-1.5 rounded-xl bg-slate-900/80 border border-indigo-500/30 text-indigo-200 text-xs sm:text-sm font-semibold inline-flex items-center justify-center lg:justify-start gap-2 max-w-xl transition-all"
-                :class="isWordVisible ? '' : 'blur-lg select-none'"
+                v-if="currentWordClue"
+                class="mt-3 sm:mt-4 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900/90 to-amber-950/20 border border-amber-500/35 shadow-xl shadow-amber-950/20 backdrop-blur-md transition-all duration-200 max-w-xl text-left"
+                :class="[
+                  isClueVisible ? 'opacity-100 ring-1 ring-amber-500/25' : 'opacity-70',
+                  isWordVisible ? '' : 'blur-md select-none'
+                ]"
               >
-                <span class="material-symbols-outlined text-amber-400 text-sm sm:text-base shrink-0">help_outline</span>
-                <span>{{ currentWordClue }}</span>
+                <div class="flex items-start sm:items-center justify-between gap-3">
+                  <div class="flex items-start sm:items-center gap-2.5 min-w-0 flex-1">
+                    <span class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/20">
+                      <span class="material-symbols-outlined text-lg">lightbulb</span>
+                    </span>
+                    <div class="min-w-0 flex-1">
+                      <div class="text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-400/90 flex items-center gap-1.5">
+                        <span>តម្រុយជំនួយ (EDUCATIONAL HINT)</span>
+                      </div>
+                      <div class="text-xs sm:text-sm md:text-base text-slate-100 font-medium leading-relaxed mt-0.5 break-words">
+                        <span v-if="isClueVisible">{{ currentWordClue }}</span>
+                        <span v-else class="text-slate-400 italic">តម្រុយត្រូវបានបិទបាំង (ចុចរូបភ្នែក ឬចុច [C] ដើម្បីបង្ហាញ)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Visibility Toggle Button -->
+                  <button
+                    type="button"
+                    class="shrink-0 p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 text-slate-300 hover:text-white transition cursor-pointer flex items-center justify-center"
+                    :title="isClueVisible ? 'បិទបាំងតម្រុយ [C]' : 'បង្ហាញតម្រុយ [C]'"
+                    @click="isClueVisible = !isClueVisible"
+                  >
+                    <span class="material-symbols-outlined text-base sm:text-lg">{{ isClueVisible ? 'visibility_off' : 'visibility' }}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1869,7 +1869,118 @@ const BUILTIN_WORD_IMAGES = {
 
   'clock': 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80',
   'watch': 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80',
-  'នាឡិកា': 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80'
+  'នាឡិកា': 'https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=800&q=80',
+
+  // Expanded Everyday Objects, Tech, Appliances & Animals
+  'drone': 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80',
+  'uav': 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80',
+  'ដ្រូន': 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80',
+
+  'microphone': 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&q=80',
+  'mic': 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&q=80',
+  'មីក្រូហ្វូន': 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&q=80',
+  'មេក្រូ': 'https://images.unsplash.com/photo-1590602847861-f357a9332bbc?auto=format&fit=crop&w=800&q=80',
+
+  'speaker': 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80',
+  'speakers': 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80',
+  'បំពងសំឡេង': 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80',
+  'ធុងបាស': 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=800&q=80',
+
+  'electric fan': 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
+  'fan': 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
+  'កង្ហារ': 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&w=800&q=80',
+
+  'air conditioner': 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=800&q=80',
+  'ac': 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=800&q=80',
+  'ម៉ាស៊ីនត្រជាក់': 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=800&q=80',
+
+  'refrigerator': 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=800&q=80',
+  'fridge': 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=800&q=80',
+  'ទូទឹកកក': 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=800&q=80',
+
+  'washing machine': 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=800&q=80',
+  'ម៉ាស៊ីនបោកខោអាវ': 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=800&q=80',
+  'ម៉ាស៊ីនបោកគក់': 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=800&q=80',
+
+  'smartwatch': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80',
+  'smart watch': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80',
+  'នាឡិកាឆ្លាតវៃ': 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80',
+
+  'bicycle': 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80',
+  'bike': 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80',
+  'កង់': 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80',
+
+  'motorcycle': 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+  'motorbike': 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+  'ម៉ូតូ': 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+
+  'bus': 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80',
+  'ឡានក្រុង': 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80',
+  'រថយន្តក្រុង': 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=800&q=80',
+
+  'train': 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=800&q=80',
+  'រថភ្លើង': 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=800&q=80',
+
+  'helicopter': 'https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=800&q=80',
+  'ឧទ្ធម្ភាគចក្រ': 'https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=800&q=80',
+
+  'boat': 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=800&q=80',
+  'ship': 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=800&q=80',
+  'ទូក': 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=800&q=80',
+  'កប៉ាល់': 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?auto=format&fit=crop&w=800&q=80',
+
+  'telescope': 'https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&w=800&q=80',
+  'កែវយឹត': 'https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&w=800&q=80',
+
+  'satellite': 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&q=80',
+  'ផ្កាយរណប': 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&q=80',
+
+  'solar panel': 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
+  'ផ្ទាំងសូឡា': 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
+
+  'battery': 'https://images.unsplash.com/photo-1619725002198-6a689b72f41d?auto=format&fit=crop&w=800&q=80',
+  'ថ្ម': 'https://images.unsplash.com/photo-1619725002198-6a689b72f41d?auto=format&fit=crop&w=800&q=80',
+  'អាគុយ': 'https://images.unsplash.com/photo-1619725002198-6a689b72f41d?auto=format&fit=crop&w=800&q=80',
+
+  'calculator': 'https://images.unsplash.com/photo-1587145820266-a5951ee6f620?auto=format&fit=crop&w=800&q=80',
+  'ម៉ាស៊ីនគិតលេខ': 'https://images.unsplash.com/photo-1587145820266-a5951ee6f620?auto=format&fit=crop&w=800&q=80',
+
+  'projector': 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=800&q=80',
+  'ម៉ាស៊ីនបញ្ចាំង': 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=800&q=80',
+
+  'scanner': 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&w=800&q=80',
+  'ម៉ាស៊ីនស្កេន': 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?auto=format&fit=crop&w=800&q=80',
+
+  'apple': 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=800&q=80',
+  'ផ្លែប៉ោម': 'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&w=800&q=80',
+
+  'banana': 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=800&q=80',
+  'ផ្លែចេក': 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?auto=format&fit=crop&w=800&q=80',
+
+  'dog': 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80',
+  'ឆ្កែ': 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=800&q=80',
+
+  'cat': 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80',
+  'ឆ្មា': 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80',
+
+  'tiger': 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?auto=format&fit=crop&w=800&q=80',
+  'ខ្លា': 'https://images.unsplash.com/photo-1561731216-c3a4d99437d5?auto=format&fit=crop&w=800&q=80',
+
+  'elephant': 'https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?auto=format&fit=crop&w=800&q=80',
+  'ដំរី': 'https://images.unsplash.com/photo-1557050543-4d5f4e07ef46?auto=format&fit=crop&w=800&q=80',
+
+  'pen': 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=800&q=80',
+  'ប៊ិច': 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=800&q=80',
+
+  'pencil': 'https://images.unsplash.com/photo-1585336261026-70e285a7bb91?auto=format&fit=crop&w=800&q=80',
+  'ខ្មៅដៃ': 'https://images.unsplash.com/photo-1585336261026-70e285a7bb91?auto=format&fit=crop&w=800&q=80',
+
+  'chair': 'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=800&q=80',
+  'កៅអី': 'https://images.unsplash.com/photo-1503602642458-232111445657?auto=format&fit=crop&w=800&q=80',
+
+  'desk': 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=800&q=80',
+  'table': 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=800&q=80',
+  'តុ': 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=800&q=80'
 }
 
 /* ── Educational Khmer Clues & Definitions (ជួយសិស្សយល់ច្បាស់ពីរូបភាព & ពាក្យ) ── */
@@ -1963,7 +2074,158 @@ const WORD_CLUES = {
   'គ្រូបង្រៀន': 'អ្នកផ្ទេរចំណេះដឹង និងណែនាំសិស្សានុសិស្សនៅក្នុងថ្នាក់រៀន (Teacher)',
   'teacher': 'អ្នកផ្ទេរចំណេះដឹង និងណែនាំសិស្សានុសិស្សនៅក្នុងថ្នាក់រៀន (Teacher)',
   'សិស្ស': 'អ្នកកំពុងសិក្សា និងក្រេបជញ្ជក់យកចំណេះដឹង (Student)',
-  'student': 'អ្នកកំពុងសិក្សា និងក្រេបជញ្ជក់យកចំណេះដឹង (Student)'
+  'student': 'អ្នកកំពុងសិក្សា និងក្រេបជញ្ជក់យកចំណេះដឹង (Student)',
+
+  // Everyday & Technology Clues
+  'drone': 'យន្តហោះបញ្ជាគ្មានមនុស្សបើក មានស្លាបចក្រច្រើន និងបំពាក់កាមេរ៉ាថតពីលើអាកាស (Drone / UAV)',
+  'uav': 'យន្តហោះបញ្ជាគ្មានមនុស្សបើក មានស្លាបចក្រច្រើន និងបំពាក់កាមេរ៉ាថតពីលើអាកាស (Drone / UAV)',
+  'ដ្រូន': 'យន្តហោះបញ្ជាគ្មានមនុស្សបើក មានស្លាបចក្រច្រើន និងបំពាក់កាមេរ៉ាថតពីលើអាកាស (Drone / UAV)',
+
+  'microphone': 'ឧបករណ៍បំពង ឬថតចាប់សំឡេងសម្រាប់និយាយ និងច្រៀង (Microphone)',
+  'mic': 'ឧបករណ៍បំពង ឬថតចាប់សំឡេងសម្រាប់និយាយ និងច្រៀង (Microphone)',
+  'មីក្រូហ្វូន': 'ឧបករណ៍បំពង ឬថតចាប់សំឡេងសម្រាប់និយាយ និងច្រៀង (Microphone)',
+  'មេក្រូ': 'ឧបករណ៍បំពង ឬថតចាប់សំឡេងសម្រាប់និយាយ និងច្រៀង (Microphone)',
+
+  'speaker': 'ឧបករណ៍បន្លឺសំឡេង ឬបំពងសំឡេងតន្ត្រីឱ្យឮលាន់ឮខ្លាំង (Loudspeaker)',
+  'speakers': 'ឧបករណ៍បន្លឺសំឡេង ឬបំពងសំឡេងតន្ត្រីឱ្យឮលាន់ឮខ្លាំង (Loudspeaker)',
+  'បំពងសំឡេង': 'ឧបករណ៍បន្លឺសំឡេង ឬបំពងសំឡេងតន្ត្រីឱ្យឮលាន់ឮខ្លាំង (Loudspeaker)',
+  'ធុងបាស': 'ឧបករណ៍បន្លឺសំឡេង ឬបំពងសំឡេងតន្ត្រីឱ្យឮលាន់ឮខ្លាំង (Loudspeaker)',
+
+  'electric fan': 'ឧបករណ៍ប្រើអគ្គិសនីវិលស្លាបបង្កើតកម្លាំងខ្យល់ត្រជាក់ (Fan)',
+  'fan': 'ឧបករណ៍ប្រើអគ្គិសនីវិលស្លាបបង្កើតកម្លាំងខ្យល់ត្រជាក់ (Fan)',
+  'កង្ហារ': 'ឧបករណ៍ប្រើអគ្គិសនីវិលស្លាបបង្កើតកម្លាំងខ្យល់ត្រជាក់ (Fan)',
+
+  'air conditioner': 'ម៉ាស៊ីនបញ្ចេញខ្យល់ត្រជាក់បន្សុទ្ធខ្យល់ក្នុងបន្ទប់ឱ្យត្រជាក់ស្រួល (Air Conditioner)',
+  'ac': 'ម៉ាស៊ីនបញ្ចេញខ្យល់ត្រជាក់បន្សុទ្ធខ្យល់ក្នុងបន្ទប់ឱ្យត្រជាក់ស្រួល (Air Conditioner)',
+  'ម៉ាស៊ីនត្រជាក់': 'ម៉ាស៊ីនបញ្ចេញខ្យល់ត្រជាក់បន្សុទ្ធខ្យល់ក្នុងបន្ទប់ឱ្យត្រជាក់ស្រួល (Air Conditioner)',
+
+  'refrigerator': 'ទូសម្រាប់រក្សាទុកម្ហូបអាហារ បន្លែ ផ្លែឈើឱ្យនៅស្រស់មិនខូច (Refrigerator)',
+  'fridge': 'ទូសម្រាប់រក្សាទុកម្ហូបអាហារ បន្លែ ផ្លែឈើឱ្យនៅស្រស់មិនខូច (Refrigerator)',
+  'ទូទឹកកក': 'ទូសម្រាប់រក្សាទុកម្ហូបអាហារ បន្លែ ផ្លែឈើឱ្យនៅស្រស់មិនខូច (Refrigerator)',
+
+  'washing machine': 'ម៉ាស៊ីនស្វ័យប្រវត្តសម្រាប់បោកគក់ និងសម្អាតសម្លៀកបំពាក់ (Washing Machine)',
+  'ម៉ាស៊ីនបោកខោអាវ': 'ម៉ាស៊ីនស្វ័យប្រវត្តសម្រាប់បោកគក់ និងសម្អាតសម្លៀកបំពាក់ (Washing Machine)',
+  'ម៉ាស៊ីនបោកគក់': 'ម៉ាស៊ីនស្វ័យប្រវត្តសម្រាប់បោកគក់ និងសម្អាតសម្លៀកបំពាក់ (Washing Machine)',
+
+  'smartwatch': 'នាឡិកាដៃឆ្លាតវៃអាចវាស់ចង្វាក់បេះដូង រាប់ជំហាន និងភ្ជាប់ជាមួយទូរស័ព្ទ (Smartwatch)',
+  'smart watch': 'នាឡិកាដៃឆ្លាតវៃអាចវាស់ចង្វាក់បេះដូង រាប់ជំហាន និងភ្ជាប់ជាមួយទូរស័ព្ទ (Smartwatch)',
+  'នាឡិកាឆ្លាតវៃ': 'នាឡិកាដៃឆ្លាតវៃអាចវាស់ចង្វាក់បេះដូង រាប់ជំហាន និងភ្ជាប់ជាមួយទូរស័ព្ទ (Smartwatch)',
+
+  'bicycle': 'យានជំនិះកង់ពីរ ជិះដោយការធាក់ដោយកម្លាំងជើង (Bicycle)',
+  'bike': 'យានជំនិះកង់ពីរ ជិះដោយការធាក់ដោយកម្លាំងជើង (Bicycle)',
+  'កង់': 'យានជំនិះកង់ពីរ ជិះដោយការធាក់ដោយកម្លាំងជើង (Bicycle)',
+
+  'motorcycle': 'យានជំនិះកង់ពីរដំណើរការដោយម៉ាស៊ីនសាំង ឬអគ្គិសនី (Motorcycle)',
+  'motorbike': 'យានជំនិះកង់ពីរដំណើរការដោយម៉ាស៊ីនសាំង ឬអគ្គិសនី (Motorcycle)',
+  'ម៉ូតូ': 'យានជំនិះកង់ពីរដំណើរការដោយម៉ាស៊ីនសាំង ឬអគ្គិសនី (Motorcycle)',
+
+  'bus': 'រថយន្តធំសម្រាប់ដឹកអ្នកដំណើរជាសាធារណៈបានច្រើននាក់ (Bus)',
+  'ឡានក្រុង': 'រថយន្តធំសម្រាប់ដឹកអ្នកដំណើរជាសាធារណៈបានច្រើននាក់ (Bus)',
+  'រថយន្តក្រុង': 'រថយន្តធំសម្រាប់ដឹកអ្នកដំណើរជាសាធារណៈបានច្រើននាក់ (Bus)',
+
+  'train': 'យានជំនិះមានក្បាលម៉ាស៊ីនទាញរទេះរត់លើផ្លូវដែក (Train)',
+  'រថភ្លើង': 'យានជំនិះមានក្បាលម៉ាស៊ីនទាញរទេះរត់លើផ្លូវដែក (Train)',
+
+  'helicopter': 'យានជំនិះហោះហើរលើអាកាសមានស្លាបចក្រវិលធំនៅពីលើ (Helicopter)',
+  'ឧទ្ធម្ភាគចក្រ': 'យានជំនិះហោះហើរលើអាកាសមានស្លាបចក្រវិលធំនៅពីលើ (Helicopter)',
+
+  'telescope': 'ឧបករណ៍អុបទិកសម្រាប់ឆ្លុះមើលវត្ថុឆ្ងាយៗ ដូចជាព្រះចន្ទ និងផ្កាយលើមេឃ (Telescope)',
+  'កែវយឹត': 'ឧបករណ៍អុបទិកសម្រាប់ឆ្លុះមើលវត្ថុឆ្ងាយៗ ដូចជាព្រះចន្ទ និងផ្កាយលើមេឃ (Telescope)',
+
+  'satellite': 'ឧបករណ៍បាញ់បង្ហោះទៅក្នុងលំហអាកាសសម្រាប់ផ្សាយសញ្ញា និងទូរគមនាគមន៍ (Satellite)',
+  'ផ្កាយរណប': 'ឧបករណ៍បាញ់បង្ហោះទៅក្នុងលំហអាកាសសម្រាប់ផ្សាយសញ្ញា និងទូរគមនាគមន៍ (Satellite)',
+
+  'solar panel': 'ផ្ទាំងស្រូបយកពន្លឺព្រះអាទិត្យបំលែងជាថាមពលអគ្គិសនី (Solar Panel)',
+  'ផ្ទាំងសូឡា': 'ផ្ទាំងស្រូបយកពន្លឺព្រះអាទិត្យបំលែងជាថាមពលអគ្គិសនី (Solar Panel)',
+
+  'battery': 'ឧបករណ៍ស្តុកទុកថាមពលគីមីដើម្បីផ្គត់ផ្គង់ចរន្តអគ្គិសនី (Battery)',
+  'ថ្ម': 'ឧបករណ៍ស្តុកទុកថាមពលគីមីដើម្បីផ្គត់ផ្គង់ចរន្តអគ្គិសនី (Battery)',
+  'អាគុយ': 'ឧបករណ៍ស្តុកទុកថាមពលគីមីដើម្បីផ្គត់ផ្គង់ចរន្តអគ្គិសនី (Battery)',
+
+  'calculator': 'ឧបករណ៍អេឡិចត្រូនិកខ្នាតតូចសម្រាប់គណនាលេខ និងរូបមន្តគណិតវិទ្យា (Calculator)',
+  'ម៉ាស៊ីនគិតលេខ': 'ឧបករណ៍អេឡិចត្រូនិកខ្នាតតូចសម្រាប់គណនាលេខ និងរូបមន្តគណិតវិទ្យា (Calculator)',
+
+  'projector': 'ឧបករណ៍បញ្ចាំងពន្លឺ និងរូបភាពពីកុំព្យូទ័រឡើងទៅលើផ្ទាំងសំពត់ស (Projector)',
+  'ម៉ាស៊ីនបញ្ចាំង': 'ឧបករណ៍បញ្ចាំងពន្លឺ និងរូបភាពពីកុំព្យូទ័រឡើងទៅលើផ្ទាំងសំពត់ស (Projector)',
+
+  'scanner': 'ឧបករណ៍ផ្តិតយកឯកសារ ឬរូបភាពលើក្រដាសបញ្ចូលទៅក្នុងកុំព្យូទ័រ (Scanner)',
+  'ម៉ាស៊ីនស្កេន': 'ឧបករណ៍ផ្តិតយកឯកសារ ឬរូបភាពលើក្រដាសបញ្ចូលទៅក្នុងកុំព្យូទ័រ (Scanner)',
+
+  'apple': 'ផ្លែឈើស្រួយផ្អែម មានពណ៌ក្រហម ឬបៃតង (Apple)',
+  'ផ្លែប៉ោម': 'ផ្លែឈើស្រួយផ្អែម មានពណ៌ក្រហម ឬបៃតង (Apple)',
+
+  'banana': 'ផ្លែឈើវែងកោង សំបកពណ៌លឿង សាច់ទន់ផ្អែមឆ្ងាញ់ (Banana)',
+  'ផ្លែចេក': 'ផ្លែឈើវែងកោង សំបកពណ៌លឿង សាច់ទន់ផ្អែមឆ្ងាញ់ (Banana)',
+
+  'dog': 'សត្វចិញ្ចឹមស្មោះត្រង់ ជួយយាមផ្ទះ និងស្រឡាញ់ម្ចាស់ (Dog)',
+  'ឆ្កែ': 'សត្វចិញ្ចឹមស្មោះត្រង់ ជួយយាមផ្ទះ និងស្រឡាញ់ម្ចាស់ (Dog)',
+
+  'cat': 'សត្វចិញ្ចឹមគួរឱ្យស្រឡាញ់ ចូលចិត្តចាប់កណ្តុរ (Cat)',
+  'ឆ្មា': 'សត្វចិញ្ចឹមគួរឱ្យស្រឡាញ់ ចូលចិត្តចាប់កណ្តុរ (Cat)',
+
+  'tiger': 'សត្វព្រៃកាចសាហាវ មានឆ្នូតពណ៌ខ្មៅលើរោមពណ៌លឿងទុំ (Tiger)',
+  'ខ្លា': 'សត្វព្រៃកាចសាហាវ មានឆ្នូតពណ៌ខ្មៅលើរោមពណ៌លឿងទុំ (Tiger)',
+
+  'elephant': 'សត្វលើគោកធំជាងគេ មានប្រមោយវែង និងភ្លុកសស្អាត (Elephant)',
+  'ដំរី': 'សត្វលើគោកធំជាងគេ មានប្រមោយវែង និងភ្លុកសស្អាត (Elephant)',
+
+  'pen': 'ឧបករណ៍សម្រាប់សរសេរអក្សរដោយប្រើទឹកថ្នាំ (Pen)',
+  'ប៊ិច': 'ឧបករណ៍សម្រាប់សរសេរអក្សរដោយប្រើទឹកថ្នាំ (Pen)',
+
+  'pencil': 'ឧបករណ៍សម្រាប់សរសេរ ឬគូររូប មានបណ្តូលធ្វើពីក្រាហ្វិត (Pencil)',
+  'ខ្មៅដៃ': 'ឧបករណ៍សម្រាប់សរសេរ ឬគូររូប មានបណ្តូលធ្វើពីក្រាហ្វិត (Pencil)',
+
+  'chair': 'គ្រឿងសង្ហារិមសម្រាប់មនុស្សអង្គុយសម្រាក ឬធ្វើការងារ (Chair)',
+  'កៅអី': 'គ្រឿងសង្ហារិមសម្រាប់មនុស្សអង្គុយសម្រាក ឬធ្វើការងារ (Chair)',
+
+  'desk': 'គ្រឿងសង្ហារិមរាបស្មើសម្រាប់ដាក់កុំព្យូទ័រ សៀវភៅ ឬធ្វើការងារ (Desk / Table)',
+  'table': 'គ្រឿងសង្ហារិមរាបស្មើសម្រាប់ដាក់កុំព្យូទ័រ សៀវភៅ ឬធ្វើការងារ (Desk / Table)',
+  'តុ': 'គ្រឿងសង្ហារិមរាបស្មើសម្រាប់ដាក់កុំព្យូទ័រ សៀវភៅ ឬធ្វើការងារ (Desk / Table)'
+}
+
+/* ── Khmer-to-English Mapping for Fast Cross-Language Lookup ── */
+const KHMER_TO_ENG = {
+  'ដ្រូន': 'drone',
+  'កង្ហារ': 'electric fan',
+  'ម៉ាស៊ីនត្រជាក់': 'air conditioner',
+  'ទូទឹកកក': 'refrigerator',
+  'ម៉ាស៊ីនបោកខោអាវ': 'washing machine',
+  'ម៉ាស៊ីនបោកគក់': 'washing machine',
+  'ម៉ាស៊ីនគិតលេខ': 'calculator',
+  'មីក្រូហ្វូន': 'microphone',
+  'មេក្រូ': 'microphone',
+  'បំពងសំឡេង': 'loudspeaker',
+  'ធុងបាស': 'speaker',
+  'ម៉ាស៊ីនបញ្ចាំង': 'projector',
+  'ម៉ាស៊ីនស្កេន': 'scanner',
+  'នាឡិកាឆ្លាតវៃ': 'smartwatch',
+  'កង់': 'bicycle',
+  'ម៉ូតូ': 'motorcycle',
+  'ឡាន': 'car',
+  'រថយន្ត': 'car',
+  'ឡានក្រុង': 'bus',
+  'រថយន្តក្រុង': 'bus',
+  'យន្តហោះ': 'airplane',
+  'ឧទ្ធម្ភាគចក្រ': 'helicopter',
+  'រថភ្លើង': 'train',
+  'ទូក': 'boat',
+  'កប៉ាល់': 'ship',
+  'កែវយឹត': 'telescope',
+  'ផ្កាយរណប': 'satellite',
+  'ផ្ទាំងសូឡា': 'solar panel',
+  'ថ្ម': 'battery',
+  'អាគុយ': 'battery',
+  'ផ្លែប៉ោម': 'apple fruit',
+  'ផ្លែចេក': 'banana fruit',
+  'ឆ្កែ': 'dog',
+  'ឆ្មា': 'cat',
+  'ខ្លា': 'tiger',
+  'ដំរី': 'elephant',
+  'ប៊ិច': 'pen',
+  'ខ្មៅដៃ': 'pencil',
+  'តុ': 'desk',
+  'កៅអី': 'chair',
+  'សៀវភៅ': 'book',
 }
 
 function findWordClue(rawWord) {
@@ -1996,6 +2258,13 @@ function findWordClue(rawWord) {
     }
   }
 
+  // 4. Try Khmer translated key
+  for (const [km, en] of Object.entries(KHMER_TO_ENG)) {
+    if (lower.includes(km.toLowerCase()) && WORD_CLUES[en]) {
+      return WORD_CLUES[en]
+    }
+  }
+
   return ''
 }
 
@@ -2017,6 +2286,14 @@ function findBuiltinImage(rawWord) {
       return getSafeImageUrl(BUILTIN_WORD_IMAGES[key])
     }
   }
+
+  // Try Khmer translated term
+  for (const [km, en] of Object.entries(KHMER_TO_ENG)) {
+    if (lower.includes(km.toLowerCase()) && BUILTIN_WORD_IMAGES[en]) {
+      return getSafeImageUrl(BUILTIN_WORD_IMAGES[en])
+    }
+  }
+
   return ''
 }
 
@@ -2056,7 +2333,15 @@ function extractSearchKeyword(rawWord) {
     return { keyword: englishMatch[0].trim(), directUrl: '' }
   }
 
-  // 4. Fallback to clean Khmer/raw word
+  // 4. Check Khmer translation dictionary
+  const lower = rawWord.toLowerCase()
+  for (const [km, en] of Object.entries(KHMER_TO_ENG)) {
+    if (lower.includes(km.toLowerCase())) {
+      return { keyword: en, directUrl: '' }
+    }
+  }
+
+  // 5. Fallback to clean Khmer/raw word
   const clean = rawWord.replace(/[^\p{L}\p{N}\s]/gu, '').trim()
   return { keyword: clean || rawWord.trim(), directUrl: '' }
 }
@@ -2090,7 +2375,7 @@ async function fetchImageForWord(rawWord) {
 
   // 2. Try our Laravel backend API endpoint (Uses User-Agent, caches in DB, proxies external images)
   try {
-    const res = await axios.get(`/api/lucky-wheel/word-image?word=${encodeURIComponent(rawWord)}`, { timeout: 4500 })
+    const res = await axios.get(`/api/lucky-wheel/word-image?word=${encodeURIComponent(rawWord)}`, { timeout: 7000 })
     if (res.data && res.data.success && res.data.url) {
       const safeUrl = getSafeImageUrl(sanitizeImageUrl(res.data.url))
       wordImageCache.value[rawWord] = safeUrl
