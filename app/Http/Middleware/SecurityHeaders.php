@@ -38,8 +38,13 @@ class SecurityHeaders
 
         // Cross-Origin Isolation & Permitted Policies (Addressing Findings #2 & #4 in README (1).md)
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
-        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
-        $response->headers->set('Cross-Origin-Embedder-Policy', 'credentialless');
+        if ($request->is('api/lucky-wheel/proxy-image*') || str_starts_with((string)$response->headers->get('Content-Type'), 'image/')) {
+            $response->headers->set('Cross-Origin-Resource-Policy', 'cross-origin');
+            $response->headers->remove('Cross-Origin-Embedder-Policy');
+        } else {
+            $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+            $response->headers->set('Cross-Origin-Embedder-Policy', 'credentialless');
+        }
         $response->headers->set('X-Permitted-Cross-Domain-Policies', 'none');
 
         if (!$response->headers->has('Content-Security-Policy')) {

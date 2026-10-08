@@ -571,6 +571,7 @@
                   v-if="currentWordImage && !wordImageError"
                   :src="currentWordImage"
                   :alt="currentWord"
+                  crossorigin="anonymous"
                   class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   @load="isWordImageLoading = false"
                   @error="handleImageError"
@@ -975,7 +976,7 @@
           <span class="material-symbols-outlined text-xl">close</span>
         </button>
         <div class="rounded-2xl overflow-hidden max-h-[76vh] flex items-center justify-center bg-black/50">
-          <img :src="currentWordImage" :alt="currentWord" class="max-w-full max-h-[76vh] object-contain block mx-auto rounded-xl" />
+          <img :src="currentWordImage" :alt="currentWord" crossorigin="anonymous" class="max-w-full max-h-[76vh] object-contain block mx-auto rounded-xl" />
         </div>
         <div class="pt-3 pb-1 text-center">
           <span class="text-white font-black text-lg sm:text-xl">{{ currentWord }}</span>
@@ -1978,6 +1979,13 @@ function handleImageError() {
   if (builtin && currentWordImage.value !== builtin) {
     currentWordImage.value = builtin
     wordImageCache.value[currentWord.value] = builtin
+    return
+  }
+  // If still fails, fetch fresh illustration directly from online AI
+  if (currentWord.value && !currentWordImage.value.includes('pollinations.ai')) {
+    const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(currentWord.value + ' photo clean background')}?width=640&height=480&nologo=true`
+    currentWordImage.value = aiUrl
+    wordImageCache.value[currentWord.value] = aiUrl
     return
   }
   wordImageError.value = true
