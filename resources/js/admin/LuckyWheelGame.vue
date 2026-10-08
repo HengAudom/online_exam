@@ -537,7 +537,7 @@
                   class="font-black text-white leading-tight mt-0.5 whitespace-nowrap truncate text-sm sm:text-lg md:text-xl"
                   :title="currentExplainer"
                 >
-                  {{ currentExplainer || '--' }}
+                  {{ currentExplainer }}
                 </div>
               </div>
             </div>
@@ -677,7 +677,7 @@
                       : (currentWord.length > 12 ? 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl' : 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl')
                   ]"
                 >
-                  {{ currentWord || 'កុំព្យូទ័រ' }}
+                  {{ currentWord }}
                 </h2>
               </div>
 
@@ -2390,6 +2390,7 @@ function toggleTimerPause() {
 
 /* ── Teacher Actions ── */
 function handleTeacherDecision(isCorrect) {
+  if (currentView.value !== 'GUESSING_VIEW') return
   stopTimer()
 
   roundWordsHistory.value.push({
@@ -2407,23 +2408,22 @@ function handleTeacherDecision(isCorrect) {
   }
 
   currentWordIndex.value++
-  currentWord.value = '' // Finished this word! Reset so next question picks a new word!
-  currentWordImage.value = ''
 
   if (currentWordIndex.value >= wordsPerRound.value) {
-    setTimeout(() => {
-      switchView('ROUND_SUMMARY_VIEW')
-      if (currentScore.value === wordsPerRound.value) {
-        triggerFullScreenCelebration()
-      }
-    }, 300)
-  } else {
+    currentWord.value = ''
+    currentWordImage.value = ''
     currentExplainer.value = ''
-    setTimeout(() => {
-      switchView('WHEEL_VIEW')
-    }, 300)
+    switchView('ROUND_SUMMARY_VIEW')
+    if (currentScore.value === wordsPerRound.value) {
+      triggerFullScreenCelebration()
+    }
+  } else {
+    // Switch directly to WHEEL_VIEW without any delay or flashing of empty card
+    currentExplainer.value = ''
+    currentWord.value = ''
+    currentWordImage.value = ''
+    switchView('WHEEL_VIEW')
   }
-  syncRemoteState()
 }
 
 function playNextRound() {
