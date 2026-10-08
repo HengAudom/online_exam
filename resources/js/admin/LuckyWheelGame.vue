@@ -121,19 +121,19 @@
       <!-- ═══════════════════════════════════════════════════════════════ -->
       <section
         v-if="currentView === 'SETUP_VIEW'"
-        class="w-full max-w-4xl bg-slate-900/90 border border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-2xl backdrop-blur-xl my-auto transition-all"
+        class="w-full max-w-6xl bg-slate-900/90 border border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-2xl backdrop-blur-xl my-auto transition-all"
       >
         <!-- Header -->
-        <div class="text-center max-w-xl mx-auto mb-2.5 sm:mb-3">
+        <div class="text-center max-w-2xl mx-auto mb-2.5 sm:mb-3">
           <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider mb-1">
             <span class="material-symbols-outlined text-xs">tune</span> រៀបចំបញ្ជីឈ្មោះ និងពាក្យទាយ (Setup Session)
           </div>
           <h2 class="text-base sm:text-xl font-extrabold text-white mb-0.5">ចាប់ផ្តើមល្បែងកងវិលទាយពាក្យក្នុងថ្នាក់រៀន</h2>
-          <p class="text-[11px] sm:text-xs text-slate-400">បញ្ចូលឈ្មោះសិស្ស និងពាក្យត្រូវទាយ ឬទាញយកឈ្មោះសិស្សពីប្រព័ន្ធ OnlineXam ផ្ទាល់</p>
+          <p class="text-[11px] sm:text-xs text-slate-400">បញ្ចូលឈ្មោះសិស្ស ពាក្យត្រូវទាយ និង Link រូបភាព (ជួរទី១ សម្រាប់ពាក្យទី១) ឬទុកទំនេរដើម្បីឲ្យប្រព័ន្ធទាញ Auto</p>
         </div>
 
-        <!-- 2-Column Grid: Students & Words -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3.5 mb-2.5 sm:mb-3.5">
+        <!-- 3-Column Grid: Students, Words, and Image Links -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3.5 mb-2.5 sm:mb-3.5">
           
           <!-- Column A: Students List -->
           <div class="flex flex-col bg-slate-950/70 rounded-xl p-2.5 sm:p-3 border border-slate-800/80">
@@ -148,7 +148,7 @@
             <textarea
               v-model="rawStudentsText"
               rows="4"
-              class="w-full h-22 sm:h-28 bg-slate-900 border border-slate-700/80 rounded-lg p-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono resize-none leading-relaxed transition"
+              class="w-full h-24 sm:h-32 bg-slate-900 border border-slate-700/80 rounded-lg p-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono resize-none leading-relaxed transition"
               placeholder="ឈ្មោះសិស្ស ១ នាក់ក្នុង ១ ជួរ..."
             ></textarea>
             <div class="mt-2 space-y-1.5">
@@ -193,14 +193,14 @@
 
               <!-- Status line & demo button -->
               <div class="flex justify-between items-center text-[10px] sm:text-[11px] text-slate-400 px-0.5">
-                <span class="text-slate-400 truncate max-w-[200px] sm:max-w-[260px]" v-if="currentLoadedSkillLabel">
+                <span class="text-slate-400 truncate max-w-[170px] sm:max-w-[200px]" v-if="currentLoadedSkillLabel">
                   បានទាញ: <span class="text-emerald-400 font-bold">{{ currentLoadedSkillLabel }}</span>
                 </span>
-                <span v-else class="text-slate-500 truncate">* សូមជ្រើសរើសជំនាញដើម្បីទាញឈ្មោះសិស្ស</span>
+                <span v-else class="text-slate-500 truncate">* ជ្រើសជំនាញទាញសិស្ស</span>
 
                 <button
                   type="button"
-                  class="text-indigo-400 hover:text-indigo-300 underline cursor-pointer shrink-0 ml-auto"
+                  class="text-indigo-400 hover:text-indigo-300 underline cursor-pointer shrink-0 ml-auto font-medium"
                   @click="loadDemoStudents"
                 >
                   ឈ្មោះគំរូ
@@ -222,21 +222,77 @@
             <textarea
               v-model="rawWordsText"
               rows="4"
-              class="w-full h-22 sm:h-28 bg-slate-900 border border-slate-700/80 rounded-lg p-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono resize-none leading-relaxed transition"
+              class="w-full h-24 sm:h-32 bg-slate-900 border border-slate-700/80 rounded-lg p-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-mono resize-none leading-relaxed transition"
               placeholder="ពាក្យ ១ ក្នុង ១ ជួរ..."
             ></textarea>
-            <div class="mt-1.5 flex justify-between items-center text-[10px] sm:text-[11px] text-slate-400">
-              <span class="flex items-center gap-1 text-emerald-400 font-medium">
-                <span class="material-symbols-outlined text-xs">auto_awesome</span>
-                <span>ទាញយករូបភាពស្វ័យប្រវត្តិ (Auto-fetch image)</span>
-              </span>
-              <button
-                type="button"
-                class="text-emerald-400 hover:text-emerald-300 underline cursor-pointer"
-                @click="loadDemoWords"
+            <div class="mt-2 space-y-1.5">
+              <div class="flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400 bg-slate-900/60 border border-slate-800/80 rounded-lg px-2.5 py-1.5">
+                <span class="flex items-center gap-1 text-emerald-400 font-medium">
+                  <span class="material-symbols-outlined text-xs">auto_awesome</span>
+                  <span>ទាញស្វ័យប្រវត្តិ (Auto-fetch)</span>
+                </span>
+                <button
+                  type="button"
+                  class="text-emerald-400 hover:text-emerald-300 underline cursor-pointer shrink-0 font-medium"
+                  @click="loadDemoWords"
+                >
+                  ពាក្យគំរូ
+                </button>
+              </div>
+              <div class="text-[10px] sm:text-[11px] text-slate-500 px-0.5 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[11px] text-emerald-500/70">format_list_numbered</span>
+                <span>១ ជួរ = ១ ពាក្យ (ជួរទី១ ត្រូវនឹង Link ទី១)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Column C: Image Links Bank (1 Link per line matching Words Bank) -->
+          <div class="flex flex-col bg-slate-950/70 rounded-xl p-2.5 sm:p-3 border border-slate-800/80">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs sm:text-sm font-bold text-sky-300 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-sm text-sky-400">add_photo_alternate</span> បញ្ជី Link រូបភាព (Image Links)
+              </label>
+              <span
+                class="text-[10px] sm:text-[11px] px-2 py-0.5 rounded-md border font-semibold transition"
+                :class="mappedLinksCount > 0 ? 'bg-sky-950 text-sky-300 border-sky-800' : 'bg-slate-800/90 text-slate-400 border-slate-700'"
               >
-                ពាក្យគំរូ
-              </button>
+                {{ mappedLinksCount > 0 ? `${mappedLinksCount}/${parsedWords.length} បានភ្ជាប់` : 'ជម្រើសបន្ថែម (Auto)' }}
+              </span>
+            </div>
+            <textarea
+              v-model="rawImageLinksText"
+              rows="4"
+              class="w-full h-24 sm:h-32 bg-slate-900 border border-slate-700/80 rounded-lg p-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 font-mono resize-none leading-relaxed transition"
+              placeholder="Link រូបភាព ១ ក្នុង ១ ជួរ (ជួរទី១ សម្រាប់ពាក្យទី១)&#10;https://... (រូបពាក្យទី១)&#10;https://... (រូបពាក្យទី២)&#10;(ទុកជួរទំនេរ ប្រសិនបើចង់ឲ្យប្រព័ន្ធទាញស្វ័យប្រវត្តិ)"
+            ></textarea>
+            <div class="mt-2 space-y-1.5">
+              <div class="flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400 bg-slate-900/60 border border-slate-800/80 rounded-lg px-2.5 py-1.5">
+                <span class="flex items-center gap-1 text-sky-400 font-medium truncate" title="ជួរទី១ សម្រាប់ពាក្យទី១ (ទុកទំនេរ = Auto)">
+                  <span class="material-symbols-outlined text-xs">link</span>
+                  <span>ជួរទី១ សម្រាប់ពាក្យទី១</span>
+                </span>
+                <div class="flex items-center gap-2 shrink-0">
+                  <button
+                    v-if="rawImageLinksText.trim()"
+                    type="button"
+                    class="text-rose-400 hover:text-rose-300 underline cursor-pointer text-[10px] sm:text-[11px]"
+                    @click="rawImageLinksText = ''"
+                  >
+                    សម្អាត
+                  </button>
+                  <button
+                    type="button"
+                    class="text-sky-400 hover:text-sky-300 underline cursor-pointer font-medium text-[10px] sm:text-[11px]"
+                    @click="loadDemoImageLinks"
+                  >
+                    Link គំរូ
+                  </button>
+                </div>
+              </div>
+              <div class="text-[10px] sm:text-[11px] text-slate-500 px-0.5 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[11px] text-sky-500/70">auto_fix_high</span>
+                <span>ជួរណាទុកទំនេរ ប្រព័ន្ធនឹងទាញពី Internet ស្វ័យប្រវត្តិ</span>
+              </div>
             </div>
           </div>
 
@@ -1100,6 +1156,7 @@ const WHEEL_COLORS = [
 const currentView = ref('SETUP_VIEW')
 const rawStudentsText = ref(DEFAULT_STUDENTS.join('\n'))
 const rawWordsText = ref(DEFAULT_WORDS.join('\n'))
+const rawImageLinksText = ref('')
 const wordsPerRound = ref(5)
 const currentWordIndex = ref(0)
 const currentScore = ref(0)
@@ -1255,6 +1312,58 @@ const parsedWords = computed(() => {
     .split('\n')
     .map(w => w.trim())
     .filter(w => w.length > 0)
+})
+
+function extractUrlFromLine(line) {
+  if (!line) return ''
+  const trimmed = line.trim()
+  const match = trimmed.match(/https?:\/\/[^\s"'<>]+/i)
+  return match ? match[0] : ''
+}
+
+// Maps each word to its corresponding line image link (Line 1 Link -> Line 1 Word)
+const wordCustomLinkMap = computed(() => {
+  const map = {}
+  if (!rawWordsText.value) return map
+
+  const wordsLines = rawWordsText.value.split('\n')
+  const linksLines = (rawImageLinksText.value || '').split('\n')
+
+  // Step 1: Strict line-by-line mapping (Line i of Words -> Line i of Links)
+  for (let i = 0; i < wordsLines.length; i++) {
+    const rawWord = (wordsLines[i] || '').trim()
+    const linkLine = (linksLines[i] || '').trim()
+    const url = extractUrlFromLine(linkLine)
+    if (rawWord && url) {
+      map[rawWord] = url
+    }
+  }
+
+  // Step 2: Fallback for non-empty items if blank lines differ
+  const nonBlankWords = wordsLines.map(w => w.trim()).filter(Boolean)
+  for (let k = 0; k < nonBlankWords.length; k++) {
+    const w = nonBlankWords[k]
+    if (!map[w]) {
+      const linkLine = (linksLines[k] || '').trim()
+      const url = extractUrlFromLine(linkLine)
+      if (url) {
+        map[w] = url
+      }
+    }
+  }
+
+  return map
+})
+
+const mappedLinksCount = computed(() => {
+  return Object.keys(wordCustomLinkMap.value).length
+})
+
+const parsedImageLinks = computed(() => {
+  return (rawImageLinksText.value || '')
+    .split('\n')
+    .map(extractUrlFromLine)
+    .filter(u => u.length > 0)
 })
 
 /* ── Sound Synthesizer (Pure Web Audio API) ── */
@@ -2404,6 +2513,18 @@ function extractSearchKeyword(rawWord) {
 
 async function fetchImageForWord(rawWord, cycleIndex = 0) {
   if (!rawWord) return ''
+
+  // 0. Custom image link provided in Setup Bank (HIGHEST PRIORITY)
+  if (wordCustomLinkMap.value && (wordCustomLinkMap.value[rawWord] || wordCustomLinkMap.value[rawWord.trim()])) {
+    const customLink = wordCustomLinkMap.value[rawWord] || wordCustomLinkMap.value[rawWord.trim()]
+    const customUrl = getSafeImageUrl(customLink)
+    if (!cycleIndex) {
+      wordImageCache.value[rawWord] = customUrl
+      wordImageCandidates.value[rawWord] = [customUrl]
+      return customUrl
+    }
+  }
+
   if (!cycleIndex && wordImageCache.value[rawWord]) {
     return wordImageCache.value[rawWord]
   }
@@ -2574,6 +2695,18 @@ async function loadCurrentImage(word, forceRefresh = false) {
     return
   }
   wordImageError.value = false
+
+  // 0. If custom image link exists in Setup Bank and not force-refreshing, use it directly with 0ms delay!
+  if (!forceRefresh && wordCustomLinkMap.value && (wordCustomLinkMap.value[word] || wordCustomLinkMap.value[word.trim()])) {
+    const custom = getSafeImageUrl(wordCustomLinkMap.value[word] || wordCustomLinkMap.value[word.trim()])
+    currentWordImage.value = custom
+    wordImageCache.value[word] = custom
+    wordImageCandidates.value[word] = [custom]
+    isWordImageLoading.value = false
+    syncRemoteState()
+    return
+  }
+
   if (forceRefresh) {
     delete wordImageCache.value[word]
     delete wordImageCandidates.value[word]
@@ -2619,10 +2752,13 @@ async function cycleNextImage() {
   try {
     const res = await axios.get(`/api/lucky-wheel/word-image?word=${encodeURIComponent(word)}&cycle=${cycleImageIndex}&refresh=1`, { timeout: 6000 })
     if (res.data?.success && res.data.url) {
-      if (res.data.images && Array.isArray(res.data.images) && res.data.images.length > 0) {
-        wordImageCandidates.value[word] = res.data.images
-      }
       const safeUrl = getSafeImageUrl(sanitizeImageUrl(res.data.url))
+      const customUrl = wordCustomLinkMap.value?.[word] ? getSafeImageUrl(wordCustomLinkMap.value[word]) : null
+      const list = [
+        ...(customUrl ? [customUrl] : []),
+        ...(res.data.images && Array.isArray(res.data.images) ? res.data.images : [safeUrl])
+      ]
+      wordImageCandidates.value[word] = Array.from(new Set(list))
       currentWordImage.value = safeUrl
       wordImageCache.value[word] = safeUrl
       syncRemoteState()
@@ -2701,6 +2837,17 @@ function startSession() {
   // Initialize fresh non-repeating pools
   resetWordsPool()
   resetStudentsPool()
+
+  // Pre-seed cache with any custom image links provided in Setup Bank
+  if (wordCustomLinkMap.value) {
+    for (const [w, link] of Object.entries(wordCustomLinkMap.value)) {
+      if (link) {
+        const safe = getSafeImageUrl(link)
+        wordImageCache.value[w] = safe
+        wordImageCandidates.value[w] = [safe]
+      }
+    }
+  }
 
   // Prefetch images in background for instant display during gameplay
   prefetchImages()
@@ -3126,6 +3273,25 @@ function loadDemoStudents() {
 
 function loadDemoWords() {
   rawWordsText.value = DEFAULT_WORDS.join('\n')
+}
+
+const DEMO_IMAGE_LINKS = [
+  'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&auto=format&fit=crop', // 1. Computer
+  'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop', // 2. Internet
+  'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=800&auto=format&fit=crop', // 3. Keyboard
+  'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=800&auto=format&fit=crop', // 4. Mouse
+  'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?w=800&auto=format&fit=crop', // 5. Printer
+  'https://images.unsplash.com/photo-1511707171634-5f897ff025a5?w=800&auto=format&fit=crop', // 6. Phone
+  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop', // 7. Web Browser
+  'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&fit=crop', // 8. Source Code
+  'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&auto=format&fit=crop', // 9. Database
+  'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop', // 10. Monitor
+  'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=800&auto=format&fit=crop', // 11. Social Media
+  'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop'  // 12. Cybersecurity
+]
+
+function loadDemoImageLinks() {
+  rawImageLinksText.value = DEMO_IMAGE_LINKS.join('\n')
 }
 
 function goBackToDashboard(e) {
