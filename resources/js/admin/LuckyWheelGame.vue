@@ -571,7 +571,6 @@
                   v-if="currentWordImage && !wordImageError"
                   :src="currentWordImage"
                   :alt="currentWord"
-                  crossorigin="anonymous"
                   class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   @load="isWordImageLoading = false"
                   @error="handleImageError"
@@ -976,7 +975,7 @@
           <span class="material-symbols-outlined text-xl">close</span>
         </button>
         <div class="rounded-2xl overflow-hidden max-h-[76vh] flex items-center justify-center bg-black/50">
-          <img :src="currentWordImage" :alt="currentWord" crossorigin="anonymous" class="max-w-full max-h-[76vh] object-contain block mx-auto rounded-xl" />
+          <img :src="currentWordImage" :alt="currentWord" class="max-w-full max-h-[76vh] object-contain block mx-auto rounded-xl" />
         </div>
         <div class="pt-3 pb-1 text-center">
           <span class="text-white font-black text-lg sm:text-xl">{{ currentWord }}</span>
@@ -1668,9 +1667,9 @@ const BUILTIN_WORD_IMAGES = {
   'ឌីសរឹង': 'https://images.unsplash.com/photo-1531492746076-161ca9bcad58?auto=format&fit=crop&w=800&q=80',
   'ហាដឌីស': 'https://images.unsplash.com/photo-1531492746076-161ca9bcad58?auto=format&fit=crop&w=800&q=80',
 
-  'ram': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Swissbit_2GB_PC2-5300U-555.jpg/960px-Swissbit_2GB_PC2-5300U-555.jpg',
-  'រ៉េម': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Swissbit_2GB_PC2-5300U-555.jpg/960px-Swissbit_2GB_PC2-5300U-555.jpg',
-  'រ៉ាម': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Swissbit_2GB_PC2-5300U-555.jpg/960px-Swissbit_2GB_PC2-5300U-555.jpg',
+  'ram': 'https://images.unsplash.com/photo-1562976540-1502c2145186?auto=format&fit=crop&w=800&q=80',
+  'រ៉េម': 'https://images.unsplash.com/photo-1562976540-1502c2145186?auto=format&fit=crop&w=800&q=80',
+  'រ៉ាម': 'https://images.unsplash.com/photo-1562976540-1502c2145186?auto=format&fit=crop&w=800&q=80',
 
   'compact disc': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/DVD-R_bottom-side.jpg/960px-DVD-R_bottom-side.jpg',
   'ស៊ីឌី': 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/DVD-R_bottom-side.jpg/960px-DVD-R_bottom-side.jpg',
@@ -1683,9 +1682,9 @@ const BUILTIN_WORD_IMAGES = {
   'mainboard': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
   'ម៉េដបត': 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
 
-  'processor': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Intel_i9-14900KF_CPU.jpg/960px-Intel_i9-14900KF_CPU.jpg',
-  'cpu': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Intel_i9-14900KF_CPU.jpg/960px-Intel_i9-14900KF_CPU.jpg',
-  'ស៊ីភីយូ': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Intel_i9-14900KF_CPU.jpg/960px-Intel_i9-14900KF_CPU.jpg',
+  'processor': 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?auto=format&fit=crop&w=800&q=80',
+  'cpu': 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?auto=format&fit=crop&w=800&q=80',
+  'ស៊ីភីយូ': 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?auto=format&fit=crop&w=800&q=80',
 
   'ups': 'https://upload.wikimedia.org/wikipedia/commons/f/f4/UPSFrontView.jpg',
   'អាគុយជំនួយភ្លើង': 'https://upload.wikimedia.org/wikipedia/commons/f/f4/UPSFrontView.jpg',
@@ -1809,6 +1808,7 @@ function getSafeImageUrl(url) {
   if (!url) return ''
   if (url.startsWith('/')) return url
   if (url.includes('images.unsplash.com')) return url
+  if (url.includes('pollinations.ai')) return url
   // All external domains (Wikimedia, Wikipedia, etc.) routed via same-origin proxy to eliminate COEP/CORB blocks
   return `/api/lucky-wheel/proxy-image?url=${encodeURIComponent(url)}`
 }
@@ -1967,27 +1967,34 @@ async function fetchImageForWord(rawWord) {
 }
 
 function handleImageError() {
-  // If image fails and was NOT proxied yet, immediately route it via our safe proxy!
-  if (currentWordImage.value && !currentWordImage.value.startsWith('/api/lucky-wheel/proxy-image')) {
-    const proxied = `/api/lucky-wheel/proxy-image?url=${encodeURIComponent(currentWordImage.value)}`
+  const current = currentWordImage.value || ''
+
+  // 1. If currently a raw external URL not yet proxied, try routing via our safe proxy
+  if (current && !current.startsWith('/api/lucky-wheel/proxy-image') && !current.includes('pollinations.ai')) {
+    const proxied = `/api/lucky-wheel/proxy-image?url=${encodeURIComponent(current)}`
     currentWordImage.value = proxied
     wordImageCache.value[currentWord.value] = proxied
     return
   }
-  // If even proxy failed, attempt builtin match if different
+
+  // 2. Try builtin dictionary if different from current
   const builtin = findBuiltinImage(currentWord.value)
-  if (builtin && currentWordImage.value !== builtin) {
+  if (builtin && current !== builtin) {
     currentWordImage.value = builtin
     wordImageCache.value[currentWord.value] = builtin
     return
   }
-  // If still fails, fetch fresh illustration directly from online AI
-  if (currentWord.value && !currentWordImage.value.includes('pollinations.ai')) {
-    const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(currentWord.value + ' photo clean background')}?width=640&height=480&nologo=true`
+
+  // 3. Resilient Fallback: dynamically generate realistic photo via Pollinations AI
+  const { keyword } = extractSearchKeyword(currentWord.value)
+  const kw = keyword || currentWord.value
+  if (kw && !current.includes('pollinations.ai')) {
+    const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(kw + ' photograph realistic object clean white background')}?width=640&height=480&nologo=true`
     currentWordImage.value = aiUrl
     wordImageCache.value[currentWord.value] = aiUrl
     return
   }
+
   wordImageError.value = true
 }
 

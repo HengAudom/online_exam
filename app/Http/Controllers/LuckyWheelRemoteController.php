@@ -342,9 +342,9 @@ class LuckyWheelRemoteController extends Controller
             'ឌីសរឹង' => 'https://images.unsplash.com/photo-1531492746076-161ca9bcad58?auto=format&fit=crop&w=800&q=80',
             'ហាដឌីស' => 'https://images.unsplash.com/photo-1531492746076-161ca9bcad58?auto=format&fit=crop&w=800&q=80',
 
-            'ram' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Swissbit_2GB_PC2-5300U-555.jpg/960px-Swissbit_2GB_PC2-5300U-555.jpg',
-            'រ៉េម' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Swissbit_2GB_PC2-5300U-555.jpg/960px-Swissbit_2GB_PC2-5300U-555.jpg',
-            'រ៉ាម' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Swissbit_2GB_PC2-5300U-555.jpg/960px-Swissbit_2GB_PC2-5300U-555.jpg',
+            'ram' => 'https://images.unsplash.com/photo-1562976540-1502c2145186?auto=format&fit=crop&w=800&q=80',
+            'រ៉េម' => 'https://images.unsplash.com/photo-1562976540-1502c2145186?auto=format&fit=crop&w=800&q=80',
+            'រ៉ាម' => 'https://images.unsplash.com/photo-1562976540-1502c2145186?auto=format&fit=crop&w=800&q=80',
 
             'compact disc' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/DVD-R_bottom-side.jpg/960px-DVD-R_bottom-side.jpg',
             'ស៊ីឌី' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d3/DVD-R_bottom-side.jpg/960px-DVD-R_bottom-side.jpg',
@@ -357,9 +357,9 @@ class LuckyWheelRemoteController extends Controller
             'mainboard' => 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
             'ម៉េដបត' => 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
 
-            'processor' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Intel_i9-14900KF_CPU.jpg/960px-Intel_i9-14900KF_CPU.jpg',
-            'cpu' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Intel_i9-14900KF_CPU.jpg/960px-Intel_i9-14900KF_CPU.jpg',
-            'ស៊ីភីយូ' => 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Intel_i9-14900KF_CPU.jpg/960px-Intel_i9-14900KF_CPU.jpg',
+            'processor' => 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?auto=format&fit=crop&w=800&q=80',
+            'cpu' => 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?auto=format&fit=crop&w=800&q=80',
+            'ស៊ីភីយូ' => 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?auto=format&fit=crop&w=800&q=80',
 
             'ups' => 'https://upload.wikimedia.org/wikipedia/commons/f/f4/UPSFrontView.jpg',
             'អាគុយជំនួយភ្លើង' => 'https://upload.wikimedia.org/wikipedia/commons/f/f4/UPSFrontView.jpg',
@@ -639,7 +639,7 @@ class LuckyWheelRemoteController extends Controller
         if (!$url) {
             return '';
         }
-        if (str_starts_with($url, '/') || str_contains($url, 'images.unsplash.com')) {
+        if (str_starts_with($url, '/') || str_contains($url, 'images.unsplash.com') || str_contains($url, 'pollinations.ai')) {
             return $url;
         }
         return '/api/lucky-wheel/proxy-image?url=' . urlencode($url);
@@ -730,19 +730,20 @@ class LuckyWheelRemoteController extends Controller
         });
 
         if (!$data || empty($data['body'])) {
-            return redirect($url);
+            return response('Image not found', 404);
         }
 
         $binary = base64_decode($data['body']);
         $mime = $data['type'] ?? 'image/jpeg';
 
-        return response($binary, 200, [
+        $headers = [
             'Content-Type' => $mime,
             'Content-Length' => strlen($binary),
             'Cache-Control' => 'public, max-age=2592000, immutable',
             'Cross-Origin-Resource-Policy' => 'cross-origin',
-            'Access-Control-Allow-Origin' => '*',
-        ]);
+        ];
+
+        return response($binary, 200, $headers);
     }
 }
 
