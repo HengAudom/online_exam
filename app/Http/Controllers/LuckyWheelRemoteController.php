@@ -597,8 +597,14 @@ class LuckyWheelRemoteController extends Controller
         uksort($builtinMap, fn($a, $b) => mb_strlen($b) <=> mb_strlen($a));
         $lowerRaw = mb_strtolower($rawWord, 'UTF-8');
         foreach ($builtinMap as $term => $url) {
-            if (str_contains($lowerRaw, $term)) {
-                return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
+            if (preg_match('/^[a-z0-9\s\-]+$/i', $term)) {
+                if (preg_match('/(?:\b|^)' . preg_quote($term, '/') . '(?:\b|$)/i', $lowerRaw)) {
+                    return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
+                }
+            } else {
+                if (str_contains($lowerRaw, $term)) {
+                    return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
+                }
             }
         }
 
@@ -663,17 +669,24 @@ class LuckyWheelRemoteController extends Controller
             $keyword = trim($matches[1]);
         } elseif (preg_match('/[a-zA-Z\s]{2,}/u', $rawWord, $matches)) {
             $keyword = trim($matches[0]);
-        } else {
-            // Check if Khmer matches translation mapping
+        }
+
+        // If Khmer characters present and no English keyword extracted:
+        if (!$keyword && preg_match('/[\x{1780}-\x{17FF}]/u', $rawWord)) {
             $cleanKm = trim(preg_replace('/[^\p{L}\p{N}\s]/u', '', $rawWord));
+            // Check manual mapping first
             foreach ($khmerToEng as $km => $en) {
                 if (str_contains($cleanKm, $km)) {
                     $keyword = $en;
                     break;
                 }
             }
+            // If not found in manual map, translate dynamically from the Internet!
             if (!$keyword) {
-                $keyword = $cleanKm;
+                $translated = $this->translateKhmerToEnglish($cleanKm);
+                if ($translated) {
+                    $keyword = $translated;
+                }
             }
         }
 
@@ -683,8 +696,14 @@ class LuckyWheelRemoteController extends Controller
 
         $lowerKw = mb_strtolower($keyword, 'UTF-8');
         foreach ($builtinMap as $term => $url) {
-            if (str_contains($lowerKw, $term)) {
-                return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
+            if (preg_match('/^[a-z0-9\s\-]+$/i', $term)) {
+                if (preg_match('/(?:\b|^)' . preg_quote($term, '/') . '(?:\b|$)/i', $lowerKw)) {
+                    return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
+                }
+            } else {
+                if (str_contains($lowerKw, $term)) {
+                    return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($url), 'source' => 'builtin']);
+                }
             }
         }
 
@@ -697,87 +716,145 @@ class LuckyWheelRemoteController extends Controller
             }
         }
 
-        $imageUrl = null;
-        $userAgent = 'OnlineXam-LuckyWheel/1.0 (info@onlinexam.site; contact@onlinexam.site)';
+        // Live Internet Search (Tier 1: Wiki Title, Tier 2: Wiki Search, Tier 3: Commons, Tier 4: Openverse)
+        $imageUrl = $this->searchInternetImage($keyword);
 
-        // Step A: English Wikipedia Search (with article topic filter)
-        if ($keyword) {
-            try {
-                $wikiSearchUrl = 'https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=' . urlencode($keyword) . '&gsrlimit=6&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json';
-                $context = stream_context_create([
-                    'http' => [
-                        'method' => 'GET',
-                        'header' => "User-Agent: {$userAgent}\r\n",
-                        'timeout' => 4
-                    ]
-                ]);
-                $respJson = @file_get_contents($wikiSearchUrl, false, $context);
-                if ($respJson) {
-                    $respData = json_decode($respJson, true);
-                    $pages = $respData['query']['pages'] ?? [];
-                    $badKeywords = ['warfare', 'military', 'conflict', 'battle', 'army', 'music', 'album', 'song', 'film', 'disambiguation', 'district', 'county'];
-                    foreach ($pages as $p) {
-                        $pTitle = strtolower($p['title'] ?? '');
-                        $isIrrelevant = false;
-                        foreach ($badKeywords as $bad) {
-                            if (str_contains($pTitle, $bad)) {
-                                $isIrrelevant = true;
-                                break;
-                            }
-                        }
-                        if ($isIrrelevant) continue;
-
-                        if (!empty($p['thumbnail']['source'])) {
-                            $src = $p['thumbnail']['source'];
-                            if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
-                                $cleanSrc = explode('?', $src)[0];
-                                $imageUrl = str_replace('thumb.wikimedia.org', 'upload.wikimedia.org', $cleanSrc);
-                                break;
-                            }
-                        }
-                    }
-                }
-            } catch (\Throwable $e) {}
-        }
-
-        // Step B: Wikimedia Commons image search (File namespace = 6)
-        if (!$imageUrl && $keyword) {
-            try {
-                $commonsUrl = 'https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=' . urlencode($keyword) . '&gsrlimit=4&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json';
-                $context = stream_context_create([
-                    'http' => [
-                        'method' => 'GET',
-                        'header' => "User-Agent: {$userAgent}\r\n",
-                        'timeout' => 4
-                    ]
-                ]);
-                $respJson = @file_get_contents($commonsUrl, false, $context);
-                if ($respJson) {
-                    $respData = json_decode($respJson, true);
-                    $pages = $respData['query']['pages'] ?? [];
-                    foreach ($pages as $p) {
-                        if (!empty($p['imageinfo'][0]['thumburl'])) {
-                            $thumb = $p['imageinfo'][0]['thumburl'];
-                            $cleanThumb = explode('?', $thumb)[0];
-                            $imageUrl = str_replace('thumb.wikimedia.org', 'upload.wikimedia.org', $cleanThumb);
-                            break;
-                        }
-                    }
-                }
-            } catch (\Throwable $e) {}
-        }
-
-        // Step C: Reliable High-Resolution AI Product Photograph via Pollinations AI
-        if (!$imageUrl) {
-            $imageUrl = "https://image.pollinations.ai/prompt/" . urlencode($keyword . ' high quality realistic photo clear object isolated') . "?width=640&height=480&nologo=true";
+        // Fallback: If still not found and keyword differed from raw word, try searching with rawWord
+        if (!$imageUrl && $keyword !== $rawWord) {
+            $imageUrl = $this->searchInternetImage($rawWord);
         }
 
         if ($imageUrl) {
             $this->dbPut($cacheKey, $imageUrl, 86400 * 30); // Cache for 30 days
-            return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($imageUrl)]);
+            return response()->json(['success' => true, 'url' => $this->formatSafeImageUrl($imageUrl), 'source' => 'internet']);
         }
 
         return response()->json(['success' => false, 'message' => 'Image not found'], 404);
+    }
+
+    /**
+     * Perform HTTP GET request using cURL with SSL bypass and compliant User-Agent.
+     */
+    protected function httpGet(string $url, int $timeout = 4): ?string
+    {
+        try {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'OnlineXamLuckyWheelApp/2.1 (https://onlinexam.site; contact: admin@onlinexam.site) PHP/8.2');
+            curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_MAXREDIRS, 4);
+            $res = curl_exec($ch);
+            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($code >= 200 && $code < 400 && is_string($res) && strlen($res) > 0) {
+                return $res;
+            }
+        } catch (\Throwable $e) {}
+        return null;
+    }
+
+    /**
+     * Translate Khmer text to English using Google Translate public endpoint.
+     */
+    protected function translateKhmerToEnglish(string $text): string
+    {
+        try {
+            $url = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=km&tl=en&dt=t&q=' . urlencode($text);
+            $res = $this->httpGet($url, 3);
+            if ($res) {
+                $data = json_decode($res, true);
+                if (!empty($data[0][0][0]) && is_string($data[0][0][0])) {
+                    return trim($data[0][0][0]);
+                }
+            }
+        } catch (\Throwable $e) {}
+        return '';
+    }
+
+    /**
+     * Search the Internet across multiple open APIs (Wikipedia Direct, Wiki Search, Commons, Openverse).
+     */
+    protected function searchInternetImage(string $keyword): ?string
+    {
+        if (!$keyword) return null;
+
+        $cleanKw = trim(preg_replace('/[^\p{L}\p{N}\s\-]/u', '', $keyword));
+        if (!$cleanKw) $cleanKw = trim($keyword);
+
+        // Tier 1: English Wikipedia Direct Article Title (fastest & most accurate noun photograph)
+        $url1 = "https://en.wikipedia.org/w/api.php?action=query&titles=" . urlencode(ucwords($cleanKw)) . "&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json";
+        $res1 = $this->httpGet($url1, 3);
+        if ($res1) {
+            $data1 = json_decode($res1, true);
+            foreach ($data1['query']['pages'] ?? [] as $p) {
+                if (!empty($p['thumbnail']['source'])) {
+                    $src = $p['thumbnail']['source'];
+                    if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
+                        $cleanSrc = explode('?', $src)[0];
+                        return str_replace('thumb.wikimedia.org', 'upload.wikimedia.org', $cleanSrc);
+                    }
+                }
+            }
+        }
+
+        // Tier 2: English Wikipedia Generator Search (topic filtered)
+        $url2 = "https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=" . urlencode($cleanKw) . "&gsrlimit=6&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json";
+        $res2 = $this->httpGet($url2, 3);
+        if ($res2) {
+            $data2 = json_decode($res2, true);
+            $badKeywords = ['warfare', 'military', 'conflict', 'battle', 'army', 'music', 'album', 'song', 'film', 'disambiguation', 'district', 'county'];
+            foreach ($data2['query']['pages'] ?? [] as $p) {
+                $pTitle = strtolower($p['title'] ?? '');
+                $isIrrelevant = false;
+                foreach ($badKeywords as $bad) {
+                    if (str_contains($pTitle, $bad)) {
+                        $isIrrelevant = true;
+                        break;
+                    }
+                }
+                if ($isIrrelevant) continue;
+
+                if (!empty($p['thumbnail']['source'])) {
+                    $src = $p['thumbnail']['source'];
+                    if (!str_contains($src, 'Disambig') && !str_contains($src, '.svg')) {
+                        $cleanSrc = explode('?', $src)[0];
+                        return str_replace('thumb.wikimedia.org', 'upload.wikimedia.org', $cleanSrc);
+                    }
+                }
+            }
+        }
+
+        // Tier 3: Wikimedia Commons File Search
+        $url3 = "https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=" . urlencode($cleanKw . ' photo') . "&gsrlimit=4&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json";
+        $res3 = $this->httpGet($url3, 3);
+        if ($res3) {
+            $data3 = json_decode($res3, true);
+            foreach ($data3['query']['pages'] ?? [] as $p) {
+                if (!empty($p['imageinfo'][0]['thumburl'])) {
+                    $thumb = $p['imageinfo'][0]['thumburl'];
+                    $cleanThumb = explode('?', $thumb)[0];
+                    return str_replace('thumb.wikimedia.org', 'upload.wikimedia.org', $cleanThumb);
+                }
+            }
+        }
+
+        // Tier 4: Openverse Public Creative Commons Search (Flickr / Wikimedia / Open library)
+        $url4 = "https://api.openverse.org/v1/images/?q=" . urlencode($cleanKw) . "&page_size=4";
+        $res4 = $this->httpGet($url4, 3);
+        if ($res4) {
+            $data4 = json_decode($res4, true);
+            foreach ($data4['results'] ?? [] as $item) {
+                if (!empty($item['url']) && filter_var($item['url'], FILTER_VALIDATE_URL)) {
+                    return $item['url'];
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

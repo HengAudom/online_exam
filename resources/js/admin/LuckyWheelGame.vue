@@ -2282,7 +2282,12 @@ function findBuiltinImage(rawWord) {
   const lower = rawWord.toLowerCase()
   const sortedKeys = Object.keys(BUILTIN_WORD_IMAGES).sort((a, b) => b.length - a.length)
   for (const key of sortedKeys) {
-    if (lower.includes(key.toLowerCase())) {
+    if (/^[a-z0-9\s\-]+$/i.test(key)) {
+      const regex = new RegExp(`(^|[^a-z0-9])${key}([^a-z0-9]|$)`, 'i')
+      if (regex.test(lower)) {
+        return getSafeImageUrl(BUILTIN_WORD_IMAGES[key])
+      }
+    } else if (lower.includes(key.toLowerCase())) {
       return getSafeImageUrl(BUILTIN_WORD_IMAGES[key])
     }
   }
@@ -2406,10 +2411,26 @@ async function fetchImageForWord(rawWord) {
     }
   }
 
-  // 4. Client-side English Wikipedia Generator Search with origin=*
+  // 4a. Client-side English Wikipedia Direct Article Title (origin=*)
+  try {
+    const directTitleUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(keyword)}&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json&origin=*`
+    const dtRes = await axios.get(directTitleUrl, { timeout: 3000 })
+    if (dtRes.data?.query?.pages) {
+      const dtPages = Object.values(dtRes.data.query.pages)
+      for (const p of dtPages) {
+        if (p.thumbnail?.source && !p.thumbnail.source.includes('Disambig') && !p.thumbnail.source.includes('.svg')) {
+          const safeUrl = getSafeImageUrl(sanitizeImageUrl(p.thumbnail.source))
+          wordImageCache.value[rawWord] = safeUrl
+          return safeUrl
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 4b. Client-side English Wikipedia Generator Search with origin=*
   try {
     const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=3&prop=pageimages&pithumbsize=640&piprop=thumbnail&format=json&origin=*`
-    const res = await axios.get(wikiUrl, { timeout: 3500 })
+    const res = await axios.get(wikiUrl, { timeout: 3000 })
     if (res.data?.query?.pages) {
       const pages = Object.values(res.data.query.pages)
       for (const p of pages) {
@@ -2424,8 +2445,8 @@ async function fetchImageForWord(rawWord) {
 
   // 5. Client-side Wikimedia Commons image search with origin=*
   try {
-    const commonsUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(keyword)}&gsrlimit=3&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json&origin=*`
-    const cRes = await axios.get(commonsUrl, { timeout: 3500 })
+    const commonsUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(keyword + ' photo')}&gsrlimit=3&prop=imageinfo&iiprop=url&iiurlwidth=640&format=json&origin=*`
+    const cRes = await axios.get(commonsUrl, { timeout: 3000 })
     if (cRes.data?.query?.pages) {
       const cPages = Object.values(cRes.data.query.pages)
       for (const cp of cPages) {
@@ -2438,19 +2459,29 @@ async function fetchImageForWord(rawWord) {
     }
   } catch (e) {}
 
-  // 6. Pollinations AI high-definition photograph fallback
-  const cleanPrompt = `${keyword} high quality photo, clear object, clean background`
-  const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=640&height=480&nologo=true`
-  const safeAi = getSafeImageUrl(aiUrl)
-  wordImageCache.value[rawWord] = safeAi
-  return safeAi
+  // 6. Client-side Openverse Public API
+  try {
+    const ovUrl = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(keyword)}&page_size=3`
+    const ovRes = await axios.get(ovUrl, { timeout: 3000 })
+    if (ovRes.data?.results) {
+      for (const item of ovRes.data.results) {
+        if (item.url) {
+          const safeUrl = getSafeImageUrl(item.url)
+          wordImageCache.value[rawWord] = safeUrl
+          return safeUrl
+        }
+      }
+    }
+  } catch (e) {}
+
+  return ''
 }
 
 function handleImageError() {
   const current = currentWordImage.value || ''
 
   // 1. If currently a raw external URL not yet proxied, try routing via our safe proxy
-  if (current && !current.startsWith('/api/lucky-wheel/proxy-image') && !current.includes('pollinations.ai')) {
+  if (current && !current.startsWith('/api/lucky-wheel/proxy-image')) {
     const proxied = `/api/lucky-wheel/proxy-image?url=${encodeURIComponent(current)}`
     currentWordImage.value = proxied
     wordImageCache.value[currentWord.value] = proxied
@@ -2462,16 +2493,6 @@ function handleImageError() {
   if (builtin && current !== builtin) {
     currentWordImage.value = builtin
     wordImageCache.value[currentWord.value] = builtin
-    return
-  }
-
-  // 3. Resilient Fallback: dynamically generate realistic photo via Pollinations AI
-  const { keyword } = extractSearchKeyword(currentWord.value)
-  const kw = keyword || currentWord.value
-  if (kw && !current.includes('pollinations.ai')) {
-    const aiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(kw + ' photograph realistic object clean white background')}?width=640&height=480&nologo=true`
-    currentWordImage.value = aiUrl
-    wordImageCache.value[currentWord.value] = aiUrl
     return
   }
 
