@@ -642,12 +642,10 @@
 
               <div>
                 <h2
-                  class="font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-emerald-300 tracking-wide word-glow py-1 leading-tight break-words transition-all duration-200"
+                  class="font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-emerald-300 tracking-wide word-glow py-1 break-words transition-all duration-200"
                   :class="[
                     isWordVisible ? '' : 'blur-xl select-none',
-                    currentWord.length > 20
-                      ? 'text-2xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl'
-                      : (currentWord.length > 12 ? 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl' : 'text-4xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-9xl')
+                    secretWordTypographyClass
                   ]"
                 >
                   {{ currentWord }}
@@ -1128,6 +1126,27 @@ const isClueVisible = ref(true)
 
 const currentWordClue = computed(() => {
   return findWordClue(currentWord.value)
+})
+
+const secretWordTypographyClass = computed(() => {
+  const w = (currentWord.value || '').trim()
+  const wordCount = w.split(/\s+/).filter(Boolean).length
+  const len = w.length
+
+  // Long text / 3+ words (e.g. "USB Flash Drive", "Audio Jack (3.5mm)", "Washing Machine") -> wraps into 2-3 lines
+  if (len > 18 || wordCount >= 3) {
+    return 'text-2xl sm:text-3xl md:text-4xl lg:text-4xl xl:text-5xl leading-tight'
+  }
+  // 2 words or medium-long (e.g. "VR Headset", "Smart TV", "Air Conditioner") -> wraps into 2 lines
+  if (len > 10 || wordCount >= 2) {
+    return 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl leading-snug'
+  }
+  // 1 medium word (e.g. "Computer", "Keyboard") -> 1 line
+  if (len > 6) {
+    return 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight'
+  }
+  // Short 1-word (e.g. "CPU", "RAM", "SSD", "Cat", "Dog") -> 1 line
+  return 'text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl leading-none'
 })
 
 /* ── Fair & No-Repeat Rotation Pools ── */
